@@ -268,3 +268,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-side-toggle { color: var(--icon-color); }
 .vl .vl-side-toggle:hover { color: var(--icon-color-hover); }
 .vl-pgname { margin-left: 6px; }
+/* icon buttons are plain at rest (Obsidian and themes fill every button: this wins over them), a light hover */
+.vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
+.vl button.vl-btn:hover { background: var(--background-modifier-hover); }
+.vl button.vl-btn.is-on { background: transparent; color: var(--text-normal); }
