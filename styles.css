@@ -272,3 +272,21 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
 .vl button.vl-btn:hover { background: var(--background-modifier-hover); }
 .vl button.vl-btn.is-on { background: transparent; color: var(--text-normal); }
+/* a block's place: the align row, the box of distances with the size in the middle, the stepper */
+.vl-align { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 2px 0 8px; }
+.vl-alsep { width: 1px; height: 18px; margin: 0 4px; background: var(--background-modifier-border); }
+.vl button.vl-btn.is-words { width: auto; padding: 0 6px; font-size: var(--font-ui-smaller); }
+.vl-gbox { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto auto; align-items: center; justify-items: center; gap: 6px; padding: 10px 6px; border: 1px dashed var(--background-modifier-border); border-radius: 10px; }
+.vl-gbox::before { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; border-top: 1px solid var(--background-modifier-border); z-index: 0; }
+.vl-gbox::after { content: ""; position: absolute; top: 18%; bottom: 18%; left: 50%; border-left: 1px solid var(--background-modifier-border); z-index: 0; }
+.vl .vl-gap { position: relative; z-index: 1; min-width: 40px; height: 28px; padding: 0 8px; border: 1px solid transparent; box-shadow: none; background: var(--background-primary); border-radius: 6px; font-variant-numeric: tabular-nums; font-size: var(--font-ui-small); color: var(--text-normal); }
+.vl .vl-gap:hover { border-color: var(--background-modifier-border); }
+.vl .vl-gap.is-on { border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 18%, var(--background-primary)); }
+.vl-gap.is-t { grid-column: 2; grid-row: 1; } .vl-gap.is-l { grid-column: 1; grid-row: 2; } .vl-gap.is-r { grid-column: 3; grid-row: 2; } .vl-gap.is-b { grid-column: 2; grid-row: 3; }
+.vl-gsize { grid-column: 2; grid-row: 2; position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1.5px solid var(--text-faint); border-radius: 8px; background: var(--background-secondary); font-size: var(--font-ui-small); }
+.vl-gsize input { width: 52px; height: 26px; text-align: center; font-variant-numeric: tabular-nums; }
+.vl-step { display: flex; align-items: center; gap: 6px; padding: 10px 0 2px; }
+.vl-steplabel { flex: 1; color: var(--text-muted); font-size: var(--font-ui-small); }
+.vl .vl-stepbtn { width: 32px; height: 32px; padding: 0; border: 0; box-shadow: none; background: transparent; border-radius: 8px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+.vl .vl-stepbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl-stepval { width: 72px; height: 32px; text-align: center; font-variant-numeric: tabular-nums; }

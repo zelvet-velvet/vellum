@@ -768,7 +768,8 @@ class Editor {
     }
     keepTop = 0;
     // while dragging: only the numbers change (the panel stays as it is)
-    livePanel() { this.panel?.querySelectorAll<HTMLInputElement>("input[data-live]").forEach((i) => { const g = this.getters.get(i); if (g && i.doc.activeElement !== i) i.value = String(g()); }); }
+    liveText = new Map<HTMLElement, () => string>();   // numbers shown as text (the gaps) kept live while dragging too
+    livePanel() { for (const [el, g] of this.liveText) if (el.isConnected) el.setText(g()); else this.liveText.delete(el); this.panel?.querySelectorAll<HTMLInputElement>("input[data-live]").forEach((i) => { const g = this.getters.get(i); if (g && i.doc.activeElement !== i) i.value = String(g()); }); }
     getters = new Map<HTMLInputElement, () => number | string>();
 
     // controls
@@ -890,12 +891,7 @@ class Editor {
             const c = g.createEl("button", { cls: "vl-chip" + (k.id === b.kind ? " is-on" : "") }); c.createSpan({ cls: "vl-sw" }).style.background = k.color; c.appendText(k.name);
             c.addEventListener("click", () => this.edit(() => { b.kind = k.id; }));
         }
-        const pl = this.section(body, "Place");
-        const row = pl.createDiv({ cls: "vl-nums" });
-        this.num(row, "X", () => b.x, (v) => { b.x = v; });
-        this.num(row, "Y", () => b.y, (v) => { b.y = v; });
-        this.num(row, "W", () => b.w, (v) => { b.w = v; }, { min: 8 });
-        this.num(row, "H", () => b.h, (v) => { b.h = v; }, { min: 8 });
+        this.placeTool(this.section(body, "Place"), p, b);
         const it = this.section(body, "Items");
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "row", "col"]);
@@ -903,6 +899,69 @@ class Editor {
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
         this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
     }
+    // where a block sits: align it in the screen's room (inside the safe areas), its size in the middle, its distance to
+    // each edge around it; a distance chosen is changed by the stepper under it
+    gapSide: "l" | "t" | "r" | "b" = "l";
+    placeTool(pl: HTMLElement, p: Page, b: Block) {
+        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, p.side);
+        const room = { l: safe.left, t: safe.top, r: W - safe.right, b: H - safe.bottom };
+        const gap = { l: () => b.x - room.l, r: () => room.r - b.x - b.w, t: () => b.y - room.t, b: () => room.b - b.y - b.h };
+        const setGap = (side: "l" | "t" | "r" | "b", d: number) => {
+            if (side === "l") b.x = room.l + d; else if (side === "r") b.x = room.r - b.w - d;
+            else if (side === "t") b.y = room.t + d; else b.y = room.b - b.h - d;
+        };
+        // align: to an edge of the room, its middle, or fill its width / all of it
+        const al = pl.createDiv({ cls: "vl-align" });
+        const A: [string, string, () => void][] = [
+            ["align-horizontal-justify-start", "Align left", () => { b.x = room.l; }],
+            ["align-horizontal-justify-center", "Centre across", () => { b.x = Math.round((room.l + room.r - b.w) / 2); }],
+            ["align-horizontal-justify-end", "Align right", () => { b.x = room.r - b.w; }],
+            ["|", "", () => {}],
+            ["align-vertical-justify-start", "Align top", () => { b.y = room.t; }],
+            ["align-vertical-justify-center", "Centre down", () => { b.y = Math.round((room.t + room.b - b.h) / 2); }],
+            ["align-vertical-justify-end", "Align bottom", () => { b.y = room.b - b.h; }],
+            ["|", "", () => {}],
+            ["move-horizontal", "Full width", () => { b.x = room.l; b.w = room.r - room.l; }],
+            ["maximize", "Fill the screen", () => { b.x = room.l; b.y = room.t; b.w = room.r - room.l; b.h = room.b - room.t; }],
+        ];
+        for (const [icon, label, act] of A) {
+            if (icon === "|") { al.createSpan({ cls: "vl-alsep" }); continue; }
+            this.icon(this.btn(al, icon, label, () => this.edit(act)), icon, label);
+        }
+        // the box: distances around, the size in the middle
+        const box = pl.createDiv({ cls: "vl-gbox" });
+        const side = (k: "l" | "t" | "r" | "b", name: string) => {
+            const x = box.createEl("button", { cls: `vl-gap is-${k}` + (this.gapSide === k ? " is-on" : ""), text: String(gap[k]()), attr: { "aria-label": `${name} gap` } });
+            this.liveText.set(x, () => String(gap[k]()));
+            x.addEventListener("click", () => { this.gapSide = k; this.drawPanel(); });
+        };
+        side("t", "Top"); side("l", "Left"); side("r", "Right"); side("b", "Bottom");
+        const mid = box.createDiv({ cls: "vl-gsize" });
+        const dim = (get: () => number, set: (v: number) => void, label: string) => {
+            const i = mid.createEl("input", { attr: { type: "number", min: "8", "aria-label": label, "data-live": "1" } });
+            i.value = String(get()); this.getters.set(i, get);
+            i.addEventListener("focus", () => this.begin());
+            i.addEventListener("input", () => { const v = Number(i.value); if (v >= 8) { set(Math.round(v)); this.draftPut(); this.drawPages(); } });
+            i.addEventListener("blur", () => { this.end(); this.drawPanel(); });
+            i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
+        };
+        dim(() => b.w, (v) => { b.w = v; }, "Width");
+        mid.createSpan({ text: "×" });
+        dim(() => b.h, (v) => { b.h = v; }, "Height");
+        // the stepper for the chosen side (Shift: 8 at a time)
+        const names = { l: "Left", r: "Right", t: "Top", b: "Bottom" } as const;
+        const st = pl.createDiv({ cls: "vl-step" });
+        st.createSpan({ cls: "vl-steplabel", text: `${names[this.gapSide]} gap` });
+        const k = this.gapSide;
+        const step = (e: MouseEvent, d: number) => this.edit(() => setGap(k, gap[k]() + d * (e.shiftKey ? 8 : 1)));
+        const minus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "Less (Shift: 8)" } }); setIcon(minus, "minus"); minus.addEventListener("click", (e) => step(e, -1));
+        const v = st.createEl("input", { cls: "vl-stepval", attr: { type: "number", "aria-label": `${names[k]} gap` } });
+        v.value = String(gap[k]());
+        v.addEventListener("change", () => { const n = Number(v.value); if (!Number.isNaN(n)) this.edit(() => setGap(k, Math.round(n))); });
+        const plus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "More (Shift: 8)" } }); setIcon(plus, "plus"); plus.addEventListener("click", (e) => step(e, 1));
+    }
+    // an icon by name, else its words (an icon set may not have every name)
+    icon(el: HTMLElement, name: string, words: string) { if (!el.querySelector("svg")) { el.empty(); el.setText(words); el.addClass("is-words"); } return el; }
     itemList(parent: HTMLElement, b: Block, list: Item[]) {
         const l = parent.createDiv({ cls: "vl-list" });
         list.forEach((it, i) => {
