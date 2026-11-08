@@ -268,7 +268,7 @@ class Editor {
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
-            this.btn(l, this.v.rail ? "panel-left-close" : "panel-left-open", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(l, this.v.rail ? "panel-left" : "sidebar-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
         }
         const r = b.createDiv({ cls: "vl-tr" });
@@ -279,7 +279,7 @@ class Editor {
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
-            this.btn(r, this.v.panel === false ? "panel-right-open" : "panel-right-close", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(r, this.v.panel === false ? "sidebar-right" : "panel-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
         this.drawZoom();
     }
