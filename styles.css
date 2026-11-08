@@ -262,3 +262,5 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-rgrip::after, .vl-pgrip::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--interactive-accent); opacity: 0; transition: opacity 0.12s; }
 .vl-rgrip:hover::after, .vl-pgrip:hover::after { opacity: 1; transition-delay: 0.15s; }
 .vl-rgrip.is-on::after, .vl-pgrip.is-on::after { opacity: 1; transition-delay: 0s; }
+.vl-custom { display: flex; align-items: center; gap: 6px; padding: 4px 8px 8px; }
+.vl-custom input { width: 72px; height: 28px; }

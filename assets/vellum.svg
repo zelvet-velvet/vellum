@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Vellum: a phone, and a sheet of tracing paper laid over it with a gravity point -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#1e1e22"/>
+  <rect x="38" y="18" width="52" height="92" rx="12" fill="none" stroke="#f2efe8" stroke-width="6"/>
+  <rect x="56" y="24" width="16" height="5" rx="2.5" fill="#f2efe8"/>
+  <path d="M24 40 h46 l12 12 v50 h-58 z" fill="#ff5c35" fill-opacity="0.82"/>
+  <path d="M70 40 v12 h12" fill="none" stroke="#1e1e22" stroke-width="3" stroke-linejoin="round"/>
+  <g fill="#1e1e22"><circle cx="36" cy="56" r="3"/><circle cx="53" cy="56" r="3"/><circle cx="36" cy="73" r="3"/><circle cx="53" cy="73" r="6"/><circle cx="70" cy="73" r="3"/><circle cx="36" cy="90" r="3"/><circle cx="53" cy="90" r="3"/><circle cx="70" cy="90" r="3"/></g>
+</svg>

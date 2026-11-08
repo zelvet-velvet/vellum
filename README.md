@@ -1,12 +1,22 @@
+<p align="center"><img src="assets/vellum.svg" width="96" alt="Vellum"></p>
+
 # Vellum
 
 Lay out app screens on real phone frames inside an Obsidian note. Vellum is tracing paper between you and your coding agent: you move blocks around on a phone, and the note keeps a small JSON layout the agent reads exactly, instead of screenshots and long descriptions.
 
-- **Real devices**: iPhone 12 to 16 (mini, Pro, Pro Max, SE), Pixel 8, Galaxy S24, with the cut-out, status bar, home strip and safe areas; upright or sideways.
+- **Real devices**: iPhone 12 to 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas, upright or sideways; or any **custom** width × height.
 - **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text and shapes placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
 - **Screen map**: every screen as a small phone, sub screens under the screen they open from, joined by lines with how you get there.
 - **An editor that fits the device**: on a computer it opens in its own window (screens list, the phone centred, a settings panel you can resize or hide); on a phone it takes the full screen with a bottom sheet.
 - **Plain text**: one screen per line of JSON in the note, or one small JSON file per screen in a folder for bigger apps, so git diffs show exactly what changed. Unsaved work is kept on the device until you save.
+
+![The editor: the screens tree, the phone, the settings of the chosen block](assets/editor.png)
+
+| Map: every screen as a tree | Peek: rest the pointer on a screen |
+| :---: | :---: |
+| ![Map view](assets/map.png) | ![Peek](assets/peek.png) |
+
+*A made-up budget app ([`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)).*
 
 ## Install
 

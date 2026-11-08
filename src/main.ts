@@ -1,6 +1,9 @@
-import { App, FuzzySuggestModal, Plugin, PluginSettingTab, Setting, TFolder } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, Setting, TFolder } from "obsidian";
 import { openVellum, registerVellum } from "./editor";
 import { BASE_THEME, Theme } from "./render";
+
+// the mark (ribbon, the editor's tab): a phone, and a sheet of tracing paper over it with a gravity point; 100 × 100, line icons
+const ICON = `<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="34" y="8" width="44" height="84" rx="10"/><path d="M14 32 h38 l10 10 v48 h-48 z"/></g><circle cx="38" cy="61" r="7" fill="currentColor"/>`;
 
 // Vellum: phone screens drawn and edited in a note (```vellum blocks). The look (named colours and fonts that items use)
 // comes from the settings; by default it follows the Obsidian theme.
@@ -13,9 +16,10 @@ export default class VellumPlugin extends Plugin {
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
         this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts } };
+        addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme() }));
         // the editor straight on the screens folder: no note or block needed
-        this.addRibbonIcon("pencil-ruler", "Open Vellum", () => { void openVellum(this.settings.folder); });
+        this.addRibbonIcon("vellum", "Open Vellum", () => { void openVellum(this.settings.folder); });
         this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, async (f) => { this.settings.folder = f.path; await this.save(); void openVellum(f.path); }).open() });
         this.addSettingTab(new VellumSettings(this.app, this));

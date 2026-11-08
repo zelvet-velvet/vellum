@@ -9,8 +9,9 @@ export interface Device {
 }
 
 export const DEVICES: Device[] = [
-    { id: "iphone-16-pro", brand: "Apple", name: "iPhone 16 Pro", w: 402, h: 874, radius: 62, cut: "island", top: 62, bottom: 34, side: { left: 62, bottom: 21 } },
-    { id: "iphone-16-pro-max", brand: "Apple", name: "iPhone 16 Pro Max", w: 440, h: 956, radius: 62, cut: "island", top: 62, bottom: 34, side: { left: 62, bottom: 21 } },
+    { id: "iphone-air", brand: "Apple", name: "iPhone Air", w: 420, h: 912, radius: 62, cut: "island", top: 68, bottom: 34, side: { left: 68, bottom: 21 } },
+    { id: "iphone-16-pro", brand: "Apple", name: "iPhone 16 Pro / 17 / 17 Pro", w: 402, h: 874, radius: 62, cut: "island", top: 62, bottom: 34, side: { left: 62, bottom: 21 } },
+    { id: "iphone-16-pro-max", brand: "Apple", name: "iPhone 16 Pro Max / 17 Pro Max", w: 440, h: 956, radius: 62, cut: "island", top: 62, bottom: 34, side: { left: 62, bottom: 21 } },
     { id: "iphone-16", brand: "Apple", name: "iPhone 16", w: 393, h: 852, radius: 55, cut: "island", top: 59, bottom: 34, side: { left: 59, bottom: 21 } },
     { id: "iphone-14", brand: "Apple", name: "iPhone 13 / 14", w: 390, h: 844, radius: 47, cut: "notch", top: 47, bottom: 34, side: { left: 47, bottom: 21 } },
     { id: "iphone-12-pro-max", brand: "Apple", name: "iPhone 12 Pro Max", w: 428, h: 926, radius: 53, cut: "notch", top: 47, bottom: 34, side: { left: 47, bottom: 21 } },
@@ -18,9 +19,16 @@ export const DEVICES: Device[] = [
     { id: "iphone-12-mini", brand: "Apple", name: "iPhone 12 mini", w: 375, h: 812, radius: 44, cut: "notch", top: 50, bottom: 34, side: { left: 50, bottom: 21 } },
     { id: "iphone-se", brand: "Apple", name: "iPhone SE", w: 375, h: 667, radius: 0, cut: "none", top: 20, bottom: 0, side: { left: 0, bottom: 0 } },
     { id: "pixel-8", brand: "Google", name: "Pixel 8", w: 412, h: 915, radius: 40, cut: "hole", top: 32, bottom: 24, side: { left: 32, bottom: 24 } },
-    { id: "galaxy-s24", brand: "Samsung", name: "Galaxy S24", w: 360, h: 780, radius: 36, cut: "hole", top: 32, bottom: 24, side: { left: 32, bottom: 24 } },
+    { id: "galaxy-s24", brand: "Samsung", name: "Galaxy S24 / S25", w: 360, h: 780, radius: 36, cut: "hole", top: 32, bottom: 24, side: { left: 32, bottom: 24 } },
 ];
-export const deviceOf = (id?: string): Device => DEVICES.find((d) => d.id === id) ?? DEVICES[0];
+DEVICES.push({ id: "galaxy-s25-ultra", brand: "Samsung", name: "Galaxy S25 Ultra", w: 412, h: 891, radius: 24, cut: "hole", top: 32, bottom: 24, side: { left: 32, bottom: 24 } });
+// any other screen: "custom-<w>x<h>" (no cut-out, a status bar and a home strip like a modern phone)
+export const customDevice = (w: number, h: number): Device => ({ id: `custom-${w}x${h}`, brand: "Custom", name: `Custom ${w} × ${h}`, w, h, radius: 40, cut: "none", top: 44, bottom: 24, side: { left: 0, bottom: 20 } });
+export const deviceOf = (id?: string): Device => {
+    const m = /^custom-(\d{3,4})x(\d{3,4})$/.exec(id ?? "");
+    if (m) return customDevice(Number(m[1]), Number(m[2]));
+    return DEVICES.find((d) => d.id === id) ?? DEVICES[0];
+};
 // the screen as drawn (sideways swaps width and height) and its safe room
 export const screenOf = (d: Device, side?: boolean) => side
     ? { W: d.h, H: d.w, safe: { top: 0, left: d.side.left, right: d.side.left, bottom: d.side.bottom } }

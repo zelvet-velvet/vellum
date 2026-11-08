@@ -1,5 +1,5 @@
 import { ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
-import { deviceOf, DEVICES, screenOf } from "./devices";
+import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, Block, childrenOf, cloneItem, Doc, findItem, GRAVITIES, subtreeOf, Item, ItemType, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
 import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, Theme } from "./render";
 import { FolderStore, srcOf } from "./store";
@@ -26,7 +26,7 @@ class VellumWindow extends ItemView {
     key = "";
     getViewType() { return VIEW; }
     getDisplayText() { return "Vellum" + (this.key ? " · " + (this.key.split(":")[1] ?? "").replace(/\.md$/, "") : ""); }
-    getIcon() { return "pencil-ruler"; }
+    getIcon() { return "vellum"; }
     getState() { return { key: this.key }; }
     async setState(state: unknown, result: ViewStateResult) {
         const k = (state as { key?: string })?.key ?? "";
@@ -328,8 +328,10 @@ class Editor {
             const BASE = 110, room = this.wall.clientWidth - 64;
             let tw = BASE * (this.v.mapZoom ?? 1);
             if (this.v.mapFit !== false) {
-                const slots = this.drawMap(box, BASE, pick);
-                tw = Math.max(48, Math.min(200, Math.floor(room / Math.max(1, slots) - 40)));
+                // as big as both the width (screens across) and the height (rows of screens) allow
+                const { slots, rows } = this.drawMap(box, BASE, pick), d = deviceOf(this.doc.device), ratio = d.h / d.w;
+                const byW = room / Math.max(1, slots) - 40, byH = ((this.wall.clientHeight - 150) / Math.max(1, rows) - 86) / ratio;
+                tw = Math.max(48, Math.min(200, Math.floor(Math.min(byW, byH))));
                 this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
             }
             this.drawMap(box, tw, pick);
@@ -422,6 +424,19 @@ class Editor {
                 it.createSpan({ text: d.name }); it.createSpan({ cls: "vl-devsz", text: `${d.w}×${d.h} · ${d.cut === "none" ? "home button" : d.cut}` });
                 it.addEventListener("click", () => { m.remove(); if (d.id !== this.doc.device) this.edit(() => { this.doc.device = d.id; }); });
             }
+            // any other size: width × height in points
+            m.createDiv({ cls: "vl-menuh", text: "Custom" });
+            const cu = m.createDiv({ cls: "vl-custom" });
+            const now = deviceOf(this.doc.device);
+            const wi = cu.createEl("input", { attr: { type: "number", min: "240", max: "1600", placeholder: "W", value: devc.brand === "Custom" ? String(now.w) : "" } });
+            cu.createSpan({ text: "×" });
+            const hi = cu.createEl("input", { attr: { type: "number", min: "320", max: "2400", placeholder: "H", value: devc.brand === "Custom" ? String(now.h) : "" } });
+            const ok = cu.createEl("button", { cls: "vl-act", text: "Use" });
+            ok.addEventListener("click", () => {
+                const w = Math.round(Number(wi.value)), h = Math.round(Number(hi.value));
+                if (!(w >= 240 && w <= 1600 && h >= 320 && h <= 2400)) { new Notice("Vellum: a width of 240–1600 and a height of 320–2400 points"); return; }
+                m.remove(); this.edit(() => { this.doc.device = customDevice(w, h).id; });
+            });
             const off = (e: Event) => { if (!m.isConnected) return R.doc.removeEventListener("pointerdown", off, true); if (!m.contains(e.target as Node) && !dev.contains(e.target as Node)) { m.remove(); R.doc.removeEventListener("pointerdown", off, true); } };
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
@@ -484,9 +499,9 @@ class Editor {
     // the map in the note's card: every page as a small screen; main pages along the top, each page's sub pages under it,
     // joined by lines (with how you get there); a click opens the editor on that page
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): number {
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): { slots: number; rows: number } {
         m.empty();
-        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return 0; }
+        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0 }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
         const GAP = 40, LABEL = 46, slotW = TW + GAP;
         const dims = (p: Page) => { const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
@@ -539,7 +554,7 @@ class Editor {
             if (p.id === cur?.id) t.addClass("is-on");
         }
         this.sel = keep;
-        return x;
+        return { slots: x, rows: depthMax + 1 };
     }
     drawPage(p: Page) {
         const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, p.side), z = this.v.zoom, show = this.v.show;
@@ -557,7 +572,14 @@ class Editor {
             sb.style.setProperty("--ear", `${(W - cutW) / 2}px`);
             sb.createDiv({ cls: "vl-ear" }).createSpan({ cls: "vl-time", text: "9:41" });
             const r = sb.createDiv({ cls: "vl-ear" });
-            r.innerHTML = '<svg class="vl-bars" viewBox="0 0 18 12" width="18" height="12"><rect x="0" y="7.5" width="3" height="4.5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><span class="vl-net">5G</span><svg class="vl-batt" viewBox="0 0 28 13" width="28" height="13"><rect x="0.5" y="0.5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="16" height="9" rx="2.4"/><path d="M26 4.5v4a2.2 2.2 0 0 0 0-4z" opacity="0.45"/></svg>';
+            // signal bars, 5G, the battery (built as SVG elements: no HTML strings)
+            const bars = r.createSvg("svg", { cls: "vl-bars", attr: { viewBox: "0 0 18 12", width: 18, height: 12 } });
+            for (const [x, y, h] of [[0, 7.5, 4.5], [5, 5, 7], [10, 2.5, 9.5], [15, 0, 12]]) bars.createSvg("rect", { attr: { x, y, width: 3, height: h, rx: 1 } });
+            r.createSpan({ cls: "vl-net", text: "5G" });
+            const batt = r.createSvg("svg", { cls: "vl-batt", attr: { viewBox: "0 0 28 13", width: 28, height: 13 } });
+            batt.createSvg("rect", { attr: { x: 0.5, y: 0.5, width: 24, height: 12, rx: 3.8, fill: "none", stroke: "currentColor", opacity: 0.4 } });
+            batt.createSvg("rect", { attr: { x: 2, y: 2, width: 16, height: 9, rx: 2.4 } });
+            batt.createSvg("path", { attr: { d: "M26 4.5v4a2.2 2.2 0 0 0 0-4z", opacity: 0.45 } });
         }
         if (dev.cut !== "none") scr.createDiv({ cls: `vl-cut is-${dev.cut}` + (p.side ? " is-side" : "") });
         if (safe.bottom) scr.createDiv({ cls: "vl-home" });
