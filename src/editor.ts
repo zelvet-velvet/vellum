@@ -261,21 +261,25 @@ class Editor {
         const l = b.createDiv({ cls: "vl-tl" });
         if (Platform.isMobile) this.btn(l, "x", "Close the editor (Esc)", () => this.closeWs()).addClass("vl-x");
         const cur = this.current();
-        const rt = l.createEl("button", { cls: "vl-railbtn" + (this.v.rail ? " is-on" : ""), attr: { title: "Screens" } });
-        setIcon(rt.createSpan(), Platform.isMobile ? "layers" : "panel-left");
-        rt.createSpan({ cls: "vl-pg", text: cur?.name ?? "No screens" });
-        if (Platform.isMobile) setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
-        rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
+        if (Platform.isMobile) {
+            const rt = l.createEl("button", { cls: "vl-railbtn" + (this.v.rail ? " is-on" : ""), attr: { "aria-label": "Screens" } });
+            setIcon(rt.createSpan(), "layers");
+            rt.createSpan({ cls: "vl-pg", text: cur?.name ?? "No screens" });
+            setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
+            rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
+        } else {
+            this.btn(l, "sidebar-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+            l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+        }
         const r = b.createDiv({ cls: "vl-tr" });
         this.btn(r, "undo-2", "Undo (Ctrl+Z)", () => this.undo(), !this.past.length);
         this.btn(r, "redo-2", "Redo (Ctrl+Shift+Z)", () => this.redo(), !this.future.length);
-        const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { title: "Save into the note (Ctrl+S)" } });
+        const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": "Save into the note (Ctrl+S)" } });
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
-        // the settings come back from here once hidden (while shown, their own head has the hide button)
-        if (!Platform.isMobile && this.v.panel === false && !this.v.map && !this.v.show) {
+        if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
-            this.btn(r, "panel-right-open", "Show the settings", () => { this.setView({ panel: true }); this.draw(); });
+            this.btn(r, "sidebar-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
         this.drawZoom();
     }
@@ -287,7 +291,7 @@ class Editor {
         const seg = pill.createDiv({ cls: "vl-seg" });
         const mode = this.v.map ? "map" : this.v.show ? "show" : "edit";
         for (const [label, m] of [["Edit", "edit"], ["Show", "show"], ["Map", "map"]] as const) {
-            const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { title: m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas" } });
+            const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { "aria-label": m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas" } });
             x.addEventListener("click", () => { if (mode === m) return; this.setView({ show: m === "show", map: m === "map" }); if (m !== "edit") this.sel = null; this.draw(); });
         }
         pill.createSpan({ cls: "vl-zsep" });
@@ -295,7 +299,7 @@ class Editor {
         pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
         const fitOn = this.v.map ? this.v.mapFit !== false : this.v.fit;
-        const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { title: "Fit to the window" } });
+        const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
         fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
     }
     zoomBy(f: number) {
@@ -311,7 +315,7 @@ class Editor {
         this.sel = { page: n.id }; this.setView({ page: n.id });
     }); this.draw(); }
     btn(parent: HTMLElement, icon: string, label: string, act: () => void, off = false) {
-        const x = parent.createEl("button", { cls: "vl-btn" + (off ? " is-off" : ""), attr: { "aria-label": label, title: label } });
+        const x = parent.createEl("button", { cls: "vl-btn" + (off ? " is-off" : ""), attr: { "aria-label": label } });
         setIcon(x, icon);
         x.addEventListener("click", () => { if (!off) act(); });
         return x;
@@ -360,7 +364,7 @@ class Editor {
         // its width: the right border drags it (computer), kept on the device
         if (!Platform.isMobile) {
             r.style.width = `${Number(localStorage.getItem("vellum:railW")) || 248}px`;
-            const g = r.createDiv({ cls: "vl-rgrip", attr: { title: "Drag to resize" } });
+            const g = r.createDiv({ cls: "vl-rgrip" });
             g.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
                 const x0 = e.clientX, w0 = r.offsetWidth;
@@ -739,7 +743,7 @@ class Editor {
         if (!Platform.isMobile) {
             const pw = Number(localStorage.getItem("vellum:panelW")) || 300;
             P.style.width = `${pw}px`;
-            const g = P.createDiv({ cls: "vl-pgrip", attr: { title: "Drag to resize" } });
+            const g = P.createDiv({ cls: "vl-pgrip" });
             g.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
                 const x0 = e.clientX, w0 = P.offsetWidth;
@@ -756,7 +760,6 @@ class Editor {
         if (b) { head.createSpan({ text: "›" }); crumb(b.name, { page: p.id, block: b.id }, !f); }
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
         if (this.sel) this.btn(head, "x", "Let go (Esc)", () => this.choose(null)).addClass("vl-close");
-        if (!Platform.isMobile) this.btn(head, "panel-right-close", "Hide the settings", () => { this.setView({ panel: false }); this.draw(); }).addClass(this.sel ? "vl-fold" : "vl-close");
         const body = P.createDiv({ cls: "vl-pbody" });
         if (f && b) this.itemPanel(body, b, f.item, b.items.includes(f.item));
         else if (b) this.blockPanel(body, p, b);
@@ -797,7 +800,7 @@ class Editor {
     chips<T extends string | number>(parent: HTMLElement, opts: [T, string][], on: T | undefined, pick: (v: T) => void, swatch?: (v: T) => string) {
         const g = parent.createDiv({ cls: "vl-chips" });
         for (const [v, text] of opts) {
-            const c = g.createEl("button", { cls: "vl-chip" + (v === on ? " is-on" : ""), attr: { title: text } });
+            const c = g.createEl("button", { cls: "vl-chip" + (v === on ? " is-on" : ""), attr: { "aria-label": text } });
             if (swatch) { const s = c.createSpan({ cls: "vl-sw" }); s.style.background = swatch(v); }
             c.appendText(text);
             c.addEventListener("click", () => this.edit(() => pick(v)));
