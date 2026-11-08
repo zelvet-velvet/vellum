@@ -272,10 +272,10 @@ class Editor {
         const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { title: "Save into the note (Ctrl+S)" } });
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
-        if (!Platform.isMobile) {
+        // the settings come back from here once hidden (while shown, their own head has the hide button)
+        if (!Platform.isMobile && this.v.panel === false && !this.v.map && !this.v.show) {
             r.createSpan({ cls: "vl-zsep" });
-            const pt = this.btn(r, "panel-right", this.v.panel === false ? "Show the settings" : "Hide the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); });
-            pt.toggleClass("is-on", this.v.panel !== false);
+            this.btn(r, "panel-right-open", "Show the settings", () => { this.setView({ panel: true }); this.draw(); });
         }
         this.drawZoom();
     }
