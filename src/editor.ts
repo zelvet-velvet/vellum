@@ -2,6 +2,7 @@ import { ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Pl
 import { deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, Block, childrenOf, cloneItem, Doc, findItem, GRAVITIES, subtreeOf, Item, ItemType, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
 import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, Theme } from "./render";
+import { FolderStore, srcOf } from "./store";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
 // screen chooses the page, on a block the block, on an item the item; drag moves it (blocks by x / y, items by their offset
@@ -43,14 +44,16 @@ class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
     wall!: HTMLElement; panel: HTMLElement | null = null; theme: Theme; kinds: Kind[];
     tab: "style" | "place" | "note" = "style";
-    constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement, readonly ctx: MarkdownPostProcessorContext) {
+    // store: the folder the doc is kept in (src: in the block), with the doc as read; none = the JSON in the block itself
+    constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement, readonly ctx: MarkdownPostProcessorContext, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
         this.theme = { colors: { ...BASE_THEME.colors, ...host.theme?.colors }, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
         this.kinds = host.kinds ?? BASE_KINDS;
-        const { doc, error } = parseDoc(source);
+        const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
         this.saved = serialiseDoc(doc);
         this.card = el.createDiv({ cls: "vl vl-card" });
-        if (error) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
+        if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
+        if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
         // unsaved work kept on the device: used when it started from the note as it is now; if the note changed since (the
         // agent, a sync), the note is shown and the old work is offered back (never silently over the note)
         const draft = this.draftGet();
@@ -95,7 +98,7 @@ class Editor {
     setView(p: Partial<View>) { view.set(this.doc.id, { ...this.v, ...p }); }
     snap() { return JSON.stringify(this.doc); }
     get dirty() { return serialiseDoc(this.doc) !== this.saved; }
-    draftKey() { return `vellum:${this.ctx.sourcePath}:${this.doc.id}`; }
+    draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx.sourcePath}:${this.doc.id}`; }
     draftGet() { try { return localStorage.getItem(this.draftKey()); } catch { return null; } }
     draftPut() { try { if (this.dirty) localStorage.setItem(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) localStorage.removeItem(this.draftKey()); } catch { /* private mode */ } }
     stale: Doc | null = null;
@@ -123,6 +126,15 @@ class Editor {
     undo() { const s = this.past.pop(); if (!s) return; this.future.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
     redo() { const s = this.future.pop(); if (!s) return; this.past.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
     save() {
+        if (this.store) {
+            const text = serialiseDoc(this.doc), st = this.store;
+            st.save(this.doc).then(() => {
+                this.saved = text;
+                try { localStorage.removeItem(this.draftKey()); } catch { /* */ }
+                this.drawBar(); this.drawCard(); this.hint(`Saved to ${st.dir}`);
+            }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
+            return;
+        }
         const file = this.plugin.app.vault.getAbstractFileByPath(this.ctx.sourcePath);
         const info = this.ctx.getSectionInfo(this.el);
         if (!(file instanceof TFile) || !info) { new Notice("Vellum: could not find this block in the note"); return; }
@@ -139,6 +151,16 @@ class Editor {
         });
     }
 
+    // the folder changed outside (the agent, a sync): taken as it is; unsaved work here is offered back, never lost
+    async outside() {
+        if (!this.store) return;
+        const { doc } = await this.store.load(), text = serialiseDoc(doc);
+        if (text === this.saved) return;
+        if (this.dirty) this.stale = this.doc;
+        this.doc = doc; this.saved = text; this.fixSel(); this.draftPut();
+        this.drawCard(); if (this.root?.isConnected) this.draw();
+    }
+
     // ---- what is chosen
     page(id = this.sel?.page) { return this.doc.pages.find((p) => p.id === id); }
     block() { return this.page()?.blocks.find((b) => b.id === this.sel?.block); }
@@ -152,7 +174,7 @@ class Editor {
         const head = c.createDiv({ cls: "vl-chead" });
         const t = head.createDiv({ cls: "vl-ctitle" });
         t.createSpan({ cls: "vl-cname", text: "Vellum" });
-        t.createSpan({ cls: "vl-cinfo", text: `${this.doc.pages.length} screen${this.doc.pages.length === 1 ? "" : "s"} · ${deviceOf(this.doc.device).name}` + (this.dirty ? " · unsaved edits on this device" : "") });
+        t.createSpan({ cls: "vl-cinfo", text: `${this.doc.pages.length} screen${this.doc.pages.length === 1 ? "" : "s"} · ${deviceOf(this.doc.device).name}` + (this.store ? ` · ${this.store.dir}` : "") + (this.dirty ? " · unsaved edits on this device" : "") });
         const o = head.createEl("button", { cls: "vl-open mod-cta" }); setIcon(o.createSpan(), "pencil-ruler"); o.appendText("Open editor");
         o.addEventListener("click", () => this.openWs());
         const m = c.createDiv({ cls: "vl-map" });
@@ -840,5 +862,23 @@ const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].sl
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)
 export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumHost) = {}): void {
     plugin.registerView(VIEW, (leaf: WorkspaceLeaf) => new VellumWindow(leaf));
-    plugin.registerMarkdownCodeBlockProcessor("vellum", (source, el, ctx) => { new Editor(plugin, typeof host === "function" ? host() : host, source, el, ctx); });
+    plugin.registerMarkdownCodeBlockProcessor("vellum", async (source, el, ctx) => {
+        const h = typeof host === "function" ? host() : host, dir = srcOf(source);
+        if (!dir) { new Editor(plugin, h, source, el, ctx); return; }
+        const store = new FolderStore(plugin.app, dir);
+        new Editor(plugin, h, source, el, ctx, store, await store.load());
+    });
+    // a doc kept in a folder: changes made outside (the agent, a sync) are read again, a moment after the last one
+    const due = new Map<Editor, number>();
+    const touched = (path: string) => {
+        for (const ed of new Set(editors.values())) {
+            const st = ed.store;
+            if (!st || !st.watches(path) || Date.now() < st.ownUntil) continue;
+            window.clearTimeout(due.get(ed));
+            due.set(ed, window.setTimeout(() => { due.delete(ed); void ed.outside(); }, 400));
+        }
+    };
+    const v = plugin.app.vault;
+    for (const ev of ["create", "modify", "delete"] as const) plugin.registerEvent(v.on(ev as "modify", (f) => touched(f.path)));
+    plugin.registerEvent(v.on("rename", (f, old) => { touched(f.path); touched(old); }));
 }

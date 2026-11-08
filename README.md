@@ -6,7 +6,7 @@ Lay out app screens on real phone frames inside an Obsidian note. Vellum is trac
 - **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text and shapes placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
 - **Screen map**: every screen as a small phone, sub screens under the screen they open from, joined by lines with how you get there.
 - **An editor that fits the device**: on a computer it opens in its own window (screens list, the phone centred, a settings panel you can resize or hide); on a phone it takes the full screen with a bottom sheet.
-- **Plain text**: one screen per line of JSON in a fenced block, so git diffs show exactly what changed. Unsaved work is kept on the device until you save.
+- **Plain text**: one screen per line of JSON in the note, or one small JSON file per screen in a folder for bigger apps, so git diffs show exactly what changed. Unsaved work is kept on the device until you save.
 
 ## Install
 
@@ -59,6 +59,18 @@ Items use named colours (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent
 - **Item**: `type` `text | rect | ellipse | line | row | col`; place: `g` (`tl t tr l c r bl b br`), `dx dy`, `w h` (number, `"hug"`, `"fill"`); text: `v size wt font color ls lh`; shapes: `fill stroke sw r op`; rows / columns: `items gap pad main cross`.
 
 A coding agent can read a page line and build it, or write one for you to adjust.
+
+### Bigger apps: a folder
+
+For more than a handful of screens, keep them as files and point the block at the folder:
+
+````
+```vellum
+src: Design/Screens
+```
+````
+
+The folder holds one file per screen (`Home.json`, `Detail.json`…, named after the screen, its blocks one per line) and `_doc.json` (`id`, `device`, `order`: the screen ids in order). A save writes only the screens that changed; a renamed screen gets a new file name, a deleted one goes to the trash. Files changed outside Obsidian's editor (your agent, a sync) are read again by themselves; unsaved edits are offered back, never overwritten. An agent reads or writes just the screen it works on.
 
 ## Build
 
