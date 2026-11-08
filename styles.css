@@ -290,3 +290,19 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-stepbtn { width: 32px; height: 32px; padding: 0; border: 0; box-shadow: none; background: transparent; border-radius: 8px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
 .vl .vl-stepbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .vl-stepval { width: 72px; height: 32px; text-align: center; font-variant-numeric: tabular-nums; }
+/* icon choices: square buttons, the name in Obsidian's tooltip; kinds in their colour; colours as swatches alone */
+.vl-chips.is-icons { gap: 4px; }
+.vl .vl-chip.is-icon { width: 32px; height: 30px; padding: 0; justify-content: center; border-radius: 8px; }
+.vl-chip.is-icon svg { width: 16px; height: 16px; }
+.vl .vl-chip.is-kind { color: var(--k); }
+.vl .vl-chip.is-kind.is-on { border-color: var(--k); background: color-mix(in srgb, var(--k) 18%, transparent); }
+.vl-chips.is-swatches { gap: 6px; align-items: center; }
+.vl .vl-chip.is-swatch { width: 26px; height: 26px; padding: 0; justify-content: center; border-radius: 50%; }
+.vl-chip.is-swatch .vl-sw { width: 16px; height: 16px; border-radius: 50%; }
+.vl .vl-chip.is-swatch.is-on { border-color: var(--interactive-accent); box-shadow: 0 0 0 1px var(--interactive-accent); }
+.vl-select { width: 100%; }
+/* no landscape layout yet */
+.vl-mkland { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font: 600 22px/1.2 var(--font-interface); color: var(--text-muted); }
+.vl-mkland button { font-size: 18px; height: 44px; padding: 0 20px; }
+.vl-seg.is-ori > button { padding: 0 8px; display: flex; align-items: center; }
+.vl-seg.is-ori svg { width: 16px; height: 16px; }

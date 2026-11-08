@@ -1,7 +1,7 @@
 {
   "id": "vellum",
   "name": "Vellum",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "minAppVersion": "1.6.6",
   "description": "Lay out app screens on real phone frames: blocks of text and shapes placed by gravity, a screen tree and map, and small JSON files a coding agent can read.",
   "author": "Zaviel",

@@ -12,9 +12,9 @@ const DOC = "_doc.json";
 
 // a screen's file: its own fields on the first line, then one block per line
 export const pageText = (p: Page) => {
-    const { blocks, ...meta } = p;
-    const head = JSON.stringify(meta).slice(0, -1);
-    return blocks.length ? `${head}, "blocks": [\n` + blocks.map((b) => "  " + JSON.stringify(b)).join(",\n") + "\n]}\n" : `${head}, "blocks": []}\n`;
+    const { blocks, land, ...meta } = p;
+    const list = (l: Page["blocks"]) => l.length ? "[\n" + l.map((b) => "  " + JSON.stringify(b)).join(",\n") + "\n]" : "[]";
+    return `${JSON.stringify(meta).slice(0, -1)}, "blocks": ${list(blocks)}` + (land ? `, "land": ${list(land)}` : "") + "}\n";
 };
 const fileName = (name: string) => name.replace(/[\\/:*?"<>|#^[\]]/g, "-").replace(/\s+/g, " ").trim().slice(0, 80) || "Screen";
 

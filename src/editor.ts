@@ -12,7 +12,7 @@ import { FolderStore, srcOf } from "./store";
 export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[] }
 
 const SNAP = 4;
-type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean };   // map: the whole tree in the stage   // panel: false = folded (computer)
+type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean };   // map: the whole tree in the stage   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws
 type Sel = { page: string; block?: string; item?: string } | null;
 // the workspace was open when the note re-drew its block (a save rewrites the note): the new editor opens it again as it was
@@ -168,7 +168,22 @@ class Editor {
 
     // ---- what is chosen
     page(id = this.sel?.page) { return this.doc.pages.find((p) => p.id === id); }
-    block() { return this.page()?.blocks.find((b) => b.id === this.sel?.block); }
+    block() { const p = this.page(); return p ? this.blocks(p).find((b) => b.id === this.sel?.block) : undefined; }
+    // the layout on show: portrait, or landscape (a screen may have none yet: make = start an empty one)
+    get land() { return !!this.v.land; }
+    blocks(p: Page, make = false): Block[] { if (!this.land) return p.blocks; if (!p.land && make) p.land = []; return p.land ?? []; }
+    // landscape from portrait: full-width blocks stretch to the new width, the rest keep their place under the status bar
+    makeLand(p: Page) { this.edit(() => {
+        const d = deviceOf(p.device ?? this.doc.device), up = screenOf(d, false), sd = screenOf(d, true);
+        const roomUp = up.W - up.safe.left - up.safe.right, roomSd = sd.W - sd.safe.left - sd.safe.right;
+        p.land = p.blocks.map((b) => {
+            const c: Block = JSON.parse(JSON.stringify(b)); c.id = uid();
+            const m = b.x - up.safe.left, wide = b.w >= roomUp - 2 * m - 4;
+            c.x = sd.safe.left + m; c.w = wide ? Math.max(8, roomSd - 2 * m) : b.w;
+            c.y = Math.max(sd.safe.top, b.y - up.safe.top);
+            return c;
+        });
+    }); }
     item() { const b = this.block(); return b && this.sel?.item ? findItem(b.items, this.sel.item) : null; }
     choose(s: Sel) { this.sel = s; this.drawPanel(); this.drawPages(); }
     fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.block()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel!.page, block: this.sel!.block }; }
@@ -295,6 +310,13 @@ class Editor {
             x.addEventListener("click", () => { if (mode === m) return; this.setView({ show: m === "show", map: m === "map" }); if (m !== "edit") this.sel = null; this.draw(); });
         }
         pill.createSpan({ cls: "vl-zsep" });
+        const ori = pill.createDiv({ cls: "vl-seg is-ori" });
+        for (const [land, icon, label] of [[false, "rectangle-vertical", "Portrait"], [true, "rectangle-horizontal", "Landscape"]] as const) {
+            const x = ori.createEl("button", { cls: this.land === land ? "is-on" : "", attr: { "aria-label": label } });
+            setIcon(x, icon); if (!x.querySelector("svg")) x.setText(label);
+            x.addEventListener("click", () => { if (this.land === land) return; this.setView({ land }); this.sel = null; this.thumbs.clear(); this.draw(); });
+        }
+        pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
         pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
@@ -346,7 +368,7 @@ class Editor {
         if (cur) {
             // fit: the whole phone in the stage, the pill and a margin kept clear
             if (this.v.fit) {
-                const dev = deviceOf(cur.device ?? this.doc.device), { W, H } = screenOf(dev, cur.side);
+                const dev = deviceOf(cur.device ?? this.doc.device), { W, H } = screenOf(dev, this.land);
                 const ph = Platform.isMobile; const sw = this.wall.clientWidth - (ph ? 44 : 64), sh = this.wall.clientHeight - (ph ? 100 : 120);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
@@ -478,14 +500,14 @@ class Editor {
     unpeek() { this.root?.querySelectorAll(".vl-peek").forEach((e) => e.remove()); }
     // a screen drawn small, as it looks (no frames)
     pic(p: Page, TW: number): HTMLElement {
-        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side), k = TW / sc.W;
+        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, this.land), k = TW / sc.W;
         const el = createDiv({ cls: "vl-pthumb" });
         el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`; el.style.borderRadius = `${Math.max(3, d.radius * k)}px`;
         const scr = el.createDiv({ cls: "vl-screen is-show" });
         Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px`, transform: `scale(${k})` });
         if (p.bg) scr.style.background = colorOf(this.theme, p.bg);
         const keep = this.sel; this.sel = null;
-        for (const b of p.blocks) this.drawBlock(scr, p, b, true);
+        for (const b of this.blocks(p)) this.drawBlock(scr, p, b, true);
         this.sel = keep;
         return el;
     }
@@ -498,7 +520,7 @@ class Editor {
     thumbs = new Map<string, { sig: string; el: HTMLElement }>();
     thumb(p: Page): HTMLElement {
         const tw = this.picW(this.rail?.offsetWidth || Number(localStorage.getItem("vellum:railW")) || 248);
-        const sig = JSON.stringify(p) + this.doc.device + tw, hit = this.thumbs.get(p.id);
+        const sig = JSON.stringify(p) + this.doc.device + tw + this.land, hit = this.thumbs.get(p.id);
         if (hit && hit.sig === sig) return hit.el;
         const el = this.pic(p, tw);
         this.thumbs.set(p.id, { sig, el });
@@ -512,7 +534,7 @@ class Editor {
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0 }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
         const GAP = 40, LABEL = 46, slotW = TW + GAP;
-        const dims = (p: Page) => { const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
+        const dims = (p: Page) => { const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, this.land); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         const rowH = Math.max(...pages.map((p) => dims(p).h)) + LABEL + GAP;
         // a tidy tree: each leaf a slot, a parent centred over its children
         const pos = new Map<string, { x: number; y: number }>();
@@ -556,7 +578,7 @@ class Editor {
             const scr = ph.createDiv({ cls: "vl-screen is-show" });
             if (p.bg) { scr.style.background = colorOf(this.theme, p.bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
-            for (const b of p.blocks) this.drawBlock(scr, p, b, true);
+            for (const b of this.blocks(p)) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
@@ -565,7 +587,7 @@ class Editor {
         return { slots: x, rows: depthMax + 1 };
     }
     drawPage(p: Page) {
-        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, p.side), z = this.v.zoom, show = this.v.show;
+        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, this.land), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
         fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
         const phone = fig.createDiv({ cls: "vl-phone" });
@@ -574,7 +596,7 @@ class Editor {
         if (p.bg) { scr.style.background = colorOf(this.theme, p.bg); phone.style.background = scr.style.background; }
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
-        if (!p.side) {
+        if (!this.land) {
             const sb = scr.createDiv({ cls: "vl-status" }); sb.style.height = `${dev.top}px`;
             const cutW = dev.cut === "island" ? 125 : dev.cut === "notch" ? 209 : 0;
             sb.style.setProperty("--ear", `${(W - cutW) / 2}px`);
@@ -589,11 +611,20 @@ class Editor {
             batt.createSvg("rect", { attr: { x: 2, y: 2, width: 16, height: 9, rx: 2.4 } });
             batt.createSvg("path", { attr: { d: "M26 4.5v4a2.2 2.2 0 0 0 0-4z", opacity: 0.45 } });
         }
-        if (dev.cut !== "none") scr.createDiv({ cls: `vl-cut is-${dev.cut}` + (p.side ? " is-side" : "") });
+        if (dev.cut !== "none") scr.createDiv({ cls: `vl-cut is-${dev.cut}` + (this.land ? " is-side" : "") });
         if (safe.bottom) scr.createDiv({ cls: "vl-home" });
         if (!show) for (const [k, v] of Object.entries(safe)) if (v) { const s = scr.createDiv({ cls: `vl-safe is-${k}` }); s.style[k === "top" || k === "bottom" ? "height" : "width"] = `${v}px`; }
-        for (const b of p.blocks) this.drawBlock(scr, p, b, show);
+        for (const b of this.blocks(p)) this.drawBlock(scr, p, b, show);
         // pointer: choose and drag
+        // no landscape layout yet: one button to start it from the portrait one
+        if (this.land && !p.land) {
+            const mk = scr.createDiv({ cls: "vl-mkland" });
+            mk.createDiv({ text: "No landscape layout yet" });
+            const go = mk.createEl("button", { cls: "mod-cta", text: "Make landscape from portrait" });
+            go.addEventListener("click", (e) => { e.stopPropagation(); this.makeLand(p); });
+            go.addEventListener("pointerdown", (e) => e.stopPropagation());
+            return;
+        }
         if (!show) scr.addEventListener("pointerdown", (e) => this.down(e, p, scr));
         if (!show) scr.addEventListener("dblclick", (e) => this.typeInPlace(e, p));
     }
@@ -627,7 +658,7 @@ class Editor {
     down(e: PointerEvent, p: Page, scr: HTMLElement) {
         if (e.button !== 0) return;
         const t = e.target as HTMLElement;
-        const bEl = t.closest<HTMLElement>("[data-block]"), b = bEl ? p.blocks.find((x) => x.id === bEl.dataset.block) : undefined;
+        const bEl = t.closest<HTMLElement>("[data-block]"), b = bEl ? this.blocks(p).find((x) => x.id === bEl.dataset.block) : undefined;
         const grip = !!t.closest("[data-grip]");
         const itEl = t.closest<HTMLElement>(".vl-it");
         // an item inside a row moves with its row: the drag takes the top-level item, the tap chooses the inner one
@@ -669,7 +700,7 @@ class Editor {
     typeInPlace(e: MouseEvent, p: Page) {
         const at = (this.root?.doc ?? document).elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
         const itEl = at?.closest<HTMLElement>(".vl-it"), bEl = at?.closest<HTMLElement>("[data-block]");
-        const b = bEl ? p.blocks.find((x) => x.id === bEl.dataset.block) : undefined;
+        const b = bEl ? this.blocks(p).find((x) => x.id === bEl.dataset.block) : undefined;
         const f = b && itEl?.dataset.id ? findItem(b.items, itEl.dataset.id) : null;
         if (!b || !f) return;
         this.choose({ page: p.id, block: b.id, item: f.item.id });
@@ -719,13 +750,13 @@ class Editor {
     duplicate() {
         const f = this.item(), b = this.block(), p = this.page();
         if (f) this.edit(() => { const c = cloneItem(f.item); f.list.splice(f.list.indexOf(f.item) + 1, 0, c); this.sel = { ...this.sel!, item: c.id }; });
-        else if (b && p) this.edit(() => { const c: Block = { ...JSON.parse(JSON.stringify(b)), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); p.blocks.push(c); this.sel = { page: p.id, block: c.id }; });
+        else if (b && p) this.edit(() => { const c: Block = { ...JSON.parse(JSON.stringify(b)), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); this.blocks(p).push(c); this.sel = { page: p.id, block: c.id }; });
         else if (p) this.edit(() => { const c: Page = { ...JSON.parse(JSON.stringify(p)), id: uid(), name: p.name + " copy" }; this.doc.pages.splice(this.doc.pages.indexOf(p) + 1, 0, c); this.sel = { page: c.id }; });
     }
     remove() {
         const f = this.item(), b = this.block(), p = this.page();
         if (f) this.edit(() => { f.list.splice(f.list.indexOf(f.item), 1); this.sel = { page: p!.id, block: b!.id }; });
-        else if (b && p) this.edit(() => { p.blocks.splice(p.blocks.indexOf(b), 1); this.sel = { page: p.id }; });
+        else if (b && p) this.edit(() => { const l = this.blocks(p); l.splice(l.indexOf(b), 1); this.sel = { page: p.id }; });
     }
 
     // ---- the panel: only what is chosen, as controls
@@ -798,12 +829,14 @@ class Editor {
         return w;
     }
     // a choice of words or swatches: a tap is the answer
-    chips<T extends string | number>(parent: HTMLElement, opts: [T, string][], on: T | undefined, pick: (v: T) => void, swatch?: (v: T) => string) {
-        const g = parent.createDiv({ cls: "vl-chips" });
-        for (const [v, text] of opts) {
-            const c = g.createEl("button", { cls: "vl-chip" + (v === on ? " is-on" : ""), attr: { "aria-label": text } });
+    // a choice: words, an icon (its words in the tooltip: [value, words, icon]), or a colour swatch alone (bare)
+    chips<T extends string | number>(parent: HTMLElement, opts: [T, string, string?][], on: T | undefined, pick: (v: T) => void, swatch?: (v: T) => string, bare = false) {
+        const g = parent.createDiv({ cls: "vl-chips" + (opts.some((o) => o[2]) ? " is-icons" : "") + (bare ? " is-swatches" : "") });
+        for (const [v, text, icon] of opts) {
+            const c = g.createEl("button", { cls: "vl-chip" + (v === on ? " is-on" : "") + (icon ? " is-icon" : "") + (bare ? " is-swatch" : ""), attr: { "aria-label": text } });
             if (swatch) { const s = c.createSpan({ cls: "vl-sw" }); s.style.background = swatch(v); }
-            c.appendText(text);
+            if (icon) { setIcon(c, icon); if (!c.querySelector("svg")) { c.setText(text); c.removeClass("is-icon"); } }
+            else if (!bare) c.appendText(text);
             c.addEventListener("click", () => this.edit(() => pick(v)));
         }
         return g;
@@ -849,7 +882,7 @@ class Editor {
     colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false) {
         const names = Object.keys(this.theme.colors);
         const opts: [string, string][] = [...(none ? [["none", "none"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
-        const g = this.chips(parent, opts, on ?? (none ? "none" : undefined), pick, (v) => colorOf(this.theme, v));
+        const g = this.chips(parent, opts, on ?? (none ? "none" : undefined), pick, (v) => colorOf(this.theme, v), true);
         const hex = g.createEl("input", { cls: "vl-hex", attr: { type: "text", placeholder: "#hex", value: on && !names.includes(on) && on !== "none" ? on : "" } });
         hex.addEventListener("change", () => { if (/^#[0-9a-f]{3,8}$/i.test(hex.value.trim())) this.edit(() => pick(hex.value.trim())); });
     }
@@ -861,36 +894,37 @@ class Editor {
     pagePanel(body: HTMLElement, p: Page) {
         const s = this.section(body, "Page");
         this.text(s, () => p.name, (v) => { p.name = v; }, { title: "Page name" });
-        this.chips(s, [["up", "Upright"], ["side", "Sideways"]], p.side ? "side" : "up", (v) => { if (v === "side") p.side = true; else delete p.side; });
-        this.chips(s, [["real", "Real page"], ["mock", "Mock (a proposal)"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
+        this.chips(s, [["real", "Real screen: as built", "badge-check"], ["mock", "Mock: a proposal to pick", "lightbulb"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
         this.colors(this.section(body, "Screen colour"), p.bg ?? "paper", (v) => { if (v === "paper") delete p.bg; else p.bg = v; });
         const st = this.section(body, "Opened from");
         const under = subtreeOf(this.doc.pages, p.id);
-        this.chips(st, [["", "Main page (a tab)"], ...this.doc.pages.filter((q) => !under.has(q.id)).map((q) => [q.id, q.name] as [string, string])], p.parent ?? "", (v) => { if (v) p.parent = v; else { delete p.parent; delete p.link; } });
-        if (p.parent) this.text(st, () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "How you get there (tap a row, + button…)" });
+        const sel = st.createEl("select", { cls: "dropdown vl-select" });
+        sel.createEl("option", { value: "", text: "Nothing: a main screen" });
+        for (const q of this.doc.pages) if (!under.has(q.id)) sel.createEl("option", { value: q.id, text: q.name });
+        sel.value = p.parent ?? "";
+        sel.addEventListener("change", () => this.edit(() => { if (sel.value) p.parent = sel.value; else { delete p.parent; delete p.link; } }));
+        if (p.parent) this.text(st, () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "How you get there: tap a row, + button…" });
         const n = this.section(body, "Note");
         this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this page is for" });
         const a = this.section(body, "Add a block");
-        const g = a.createDiv({ cls: "vl-chips" });
+        const g = a.createDiv({ cls: "vl-chips is-icons" });
         for (const k of this.kinds) {
-            const c = g.createEl("button", { cls: "vl-chip" }); c.createSpan({ cls: "vl-sw" }).style.background = k.color; c.appendText(k.name);
+            const c = this.kindChip(g, k, false);
             c.addEventListener("click", () => this.edit(() => {
-                const dev = deviceOf(p.device ?? this.doc.device), { W, safe } = screenOf(dev, p.side);
-                const low = p.blocks.reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
+                const dev = deviceOf(p.device ?? this.doc.device), { W, safe } = screenOf(dev, this.land);
+                const low = this.blocks(p).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
                 const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
-                p.blocks.push(nb); this.sel = { page: p.id, block: nb.id };
+                this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
             }));
         }
+        if (this.land && p.land) this.actions(body, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
         this.actions(body, [["copy", "Duplicate page", () => this.duplicate()], ["trash-2", "Delete page", () => this.edit(() => { this.doc.pages.splice(this.doc.pages.indexOf(p), 1); this.sel = null; })]]);
     }
     blockPanel(body: HTMLElement, p: Page, b: Block) {
         const s = this.section(body, "Block");
         this.text(s, () => b.name, (v) => { b.name = v; }, { title: "Block name" });
-        const g = s.createDiv({ cls: "vl-chips" });
-        for (const k of this.kinds) {
-            const c = g.createEl("button", { cls: "vl-chip" + (k.id === b.kind ? " is-on" : "") }); c.createSpan({ cls: "vl-sw" }).style.background = k.color; c.appendText(k.name);
-            c.addEventListener("click", () => this.edit(() => { b.kind = k.id; }));
-        }
+        const g = s.createDiv({ cls: "vl-chips is-icons" });
+        for (const k of this.kinds) this.kindChip(g, k, k.id === b.kind).addEventListener("click", () => this.edit(() => { b.kind = k.id; }));
         this.placeTool(this.section(body, "Place"), p, b);
         const it = this.section(body, "Items");
         this.itemList(it, b, b.items);
@@ -903,7 +937,7 @@ class Editor {
     // each edge around it; a distance chosen is changed by the stepper under it
     gapSide: "l" | "t" | "r" | "b" = "l";
     placeTool(pl: HTMLElement, p: Page, b: Block) {
-        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, p.side);
+        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, this.land);
         const room = { l: safe.left, t: safe.top, r: W - safe.right, b: H - safe.bottom };
         const gap = { l: () => b.x - room.l, r: () => room.r - b.x - b.w, t: () => b.y - room.t, b: () => room.b - b.y - b.h };
         const setGap = (side: "l" | "t" | "r" | "b", d: number) => {
@@ -960,6 +994,13 @@ class Editor {
         v.addEventListener("change", () => { const n = Number(v.value); if (!Number.isNaN(n)) this.edit(() => setGap(k, Math.round(n))); });
         const plus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "More (Shift: 8)" } }); setIcon(plus, "plus"); plus.addEventListener("click", (e) => step(e, 1));
     }
+    // a block kind: its icon in its colour, its name in the tooltip
+    kindChip(g: HTMLElement, k: Kind, on: boolean) {
+        const c = g.createEl("button", { cls: "vl-chip is-icon is-kind" + (on ? " is-on" : ""), attr: { "aria-label": k.name } });
+        c.style.setProperty("--k", k.color);
+        setIcon(c, k.icon ?? "square"); if (!c.querySelector("svg")) c.setText(k.name);
+        return c;
+    }
     // an icon by name, else its words (an icon set may not have every name)
     icon(el: HTMLElement, name: string, words: string) { if (!el.querySelector("svg")) { el.empty(); el.setText(words); el.addClass("is-words"); } return el; }
     itemList(parent: HTMLElement, b: Block, list: Item[]) {
@@ -1001,7 +1042,7 @@ class Editor {
             this.chips(t, [[100, "Thin"], [300, "Light"], [400, "Regular"], [500, "Medium"], [600, "Semi"], [700, "Bold"], [900, "Black"]], it.wt ?? 400, (v) => { it.wt = v === 400 ? undefined : v; });
             const f = this.section(body, "Font");
             this.chips(f, Object.keys(this.theme.fonts).map((k) => [k, k] as [string, string]), it.font ?? "ui", (v) => { it.font = v === "ui" ? undefined : v; });
-            this.chips(f, [["no", "As typed"], ["up", "CAPS"]], it.upper ? "up" : "no", (v) => { it.upper = v === "up" || undefined; });
+            this.chips(f, [["no", "As typed", "case-sensitive"], ["up", "Capitals", "case-upper"]], it.upper ? "up" : "no", (v) => { it.upper = v === "up" || undefined; });
             this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
         } else if (it.type === "line") {
             const s = this.section(body, "Line");
@@ -1009,12 +1050,13 @@ class Editor {
             this.colors(this.section(body, "Colour"), it.fill ?? "line", (v) => { it.fill = v; });
         } else if (it.type === "row" || it.type === "col") {
             const s = this.section(body, it.type === "row" ? "Row" : "Column");
-            this.chips(s, [["row", "Across"], ["col", "Down"]], it.type, (v) => { it.type = v; });
+            this.chips(s, [["row", "Across", "arrow-right"], ["col", "Down", "arrow-down"]], it.type, (v) => { it.type = v; });
             const r = s.createDiv({ cls: "vl-nums" });
             this.num(r, "Gap", () => it.gap ?? 0, (v) => { it.gap = v; }, { min: 0 });
             this.num(r, "Padding", () => it.pad ?? 0, (v) => { it.pad = v || undefined; }, { min: 0 });
-            this.chips(s, [["start", "Start"], ["center", "Middle"], ["end", "End"]], it.cross ?? "start", (v) => { it.cross = v; });
-            this.chips(s, [["start", "Packed"], ["center", "Centred"], ["end", "To the end"], ["between", "Spread"]], it.main ?? "start", (v) => { it.main = v; });
+            const across = it.type === "row";
+            this.chips(s, [["start", across ? "Line up at the top" : "Line up at the left", across ? "align-start-horizontal" : "align-start-vertical"], ["center", "Line up in the middle", across ? "align-center-horizontal" : "align-center-vertical"], ["end", across ? "Line up at the bottom" : "Line up at the right", across ? "align-end-horizontal" : "align-end-vertical"]], it.cross ?? "start", (v) => { it.cross = v; });
+            this.chips(s, [["start", "Packed at the start", across ? "align-horizontal-justify-start" : "align-vertical-justify-start"], ["center", "Packed in the middle", across ? "align-horizontal-justify-center" : "align-vertical-justify-center"], ["end", "Packed at the end", across ? "align-horizontal-justify-end" : "align-vertical-justify-end"], ["between", "Spread out", across ? "align-horizontal-space-between" : "align-vertical-space-between"]], it.main ?? "start", (v) => { it.main = v; });
             const c = this.section(body, "Items in it");
             this.itemList(c, b, it.items ?? (it.items = []));
             this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "row", "col"]);
@@ -1022,7 +1064,7 @@ class Editor {
         } else this.shapeStyle(body, it, false);
     }
     shapeStyle(body: HTMLElement, it: Item, box: boolean) {
-        if (!box) this.chips(this.section(body, "Shape"), [["rect", "Rect"], ["ellipse", "Circle"]], it.type as string, (v) => { it.type = v as ItemType; });
+        if (!box) this.chips(this.section(body, "Shape"), [["rect", "Rectangle", "square"], ["ellipse", "Circle", "circle"]], it.type as string, (v) => { it.type = v as ItemType; });
         this.colors(this.section(body, box ? "Background" : "Fill"), it.fill, (v) => { if (v === "none") delete it.fill; else it.fill = v; }, true);
         const o = this.section(body, "Outline");
         const r = o.createDiv({ cls: "vl-nums" });
@@ -1033,7 +1075,8 @@ class Editor {
     }
     placePanel(body: HTMLElement, it: Item, top: boolean) {
         if (top) {
-            const s = this.section(body, "Gravity: the point of the block it keeps");
+            const s = this.section(body, "Anchor");
+            s.parentElement?.setAttr("aria-label", "The point of the block it keeps when the block grows");
             const wrap = s.createDiv({ cls: "vl-gwrap" });
             const grid = wrap.createDiv({ cls: "vl-grav" });
             for (const g of GRAVITIES) {
@@ -1050,7 +1093,7 @@ class Editor {
             const s = this.section(body, name);
             const cur = it[axis];
             const rule = cur === "fill" ? "fill" : typeof cur === "number" ? "fixed" : "hug";
-            this.chips(s, [["hug", "Hug content"], ["fixed", "Fixed"], ["fill", "Fill"]], rule, (v) => {
+            this.chips(s, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
                 if (v === "fixed") { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40) as Size; }
                 else it[axis] = v as Size;
             });

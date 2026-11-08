@@ -4,6 +4,7 @@
 
 Lay out app screens on real phone frames inside an Obsidian note. Vellum is tracing paper between you and your coding agent: you move blocks around on a phone, and the note keeps a small JSON layout the agent reads exactly, instead of screenshots and long descriptions.
 
+- **Portrait and landscape**: each screen has a portrait layout and, if you make one, a landscape layout; one switch turns the editor, the tree and the map.
 - **Real devices**: iPhone 12 to 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas, upright or sideways; or any **custom** width × height.
 - **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text and shapes placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
 - **Screen map**: every screen as a small phone, sub screens under the screen they open from, joined by lines with how you get there.
@@ -46,7 +47,8 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 | Top bar | The screen's name (shows / hides the screens tree), undo, redo, Save, the settings panel toggle |
 | Screens tree | Every screen, sub screens under the screen they open from (a chevron folds a branch); rest the pointer on one (long press on a phone) for a large look; the picture button shows a picture of each, as big as the tree is wide (drag its border); **+** adds a screen opened from it; the device at the foot |
 | The phone | Click a block, then a text or shape in it; drag to move (Alt: 1 px), the block's corner to resize; double-click a text to type; click beside the phone to let go |
-| Pill under the phone | Edit (frames, safe areas) / Show (the screen alone) / Map (every screen as a tree; a click opens one), zoom (Ctrl + wheel), Fit |
+| Pill under the phone | Edit (frames, safe areas) / Show (the screen alone) / Map (every screen as a tree; a click opens one), Portrait / Landscape, zoom (Ctrl + wheel), Fit |
+| A block's place | Align it in the screen (left, centre, right, top, middle, bottom, full width, fill), its width × height in the middle of a box with its distance to each edge around it; click a distance and step it with − / + (Shift: 8) |
 | Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from, note) |
 
 Keys: arrows nudge 1 px (Shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (and closes the editor at the top).
@@ -66,7 +68,7 @@ Items use named colours (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent
 ]}
 ```
 
-- **Page**: `name`, `parent` + `link` (the screen it opens from, and how), `device` / `side` (override), `bg`, `mock` (a proposal), `note`, `blocks`.
+- **Page**: `name`, `parent` + `link` (the screen it opens from, and how), `device` (override), `bg`, `mock` (a proposal), `note`, `blocks` (portrait) and `land` (its landscape layout, if it has one: **Make landscape from portrait** starts it).
 - **Block**: `name`, `kind` (what it is), `x y w h` in screen points, `note`, `items`.
 - **Item**: `type` `text | rect | ellipse | line | row | col`; place: `g` (`tl t tr l c r bl b br`), `dx dy`, `w h` (number, `"hug"`, `"fill"`); text: `v size wt font color ls lh`; shapes: `fill stroke sw r op`; rows / columns: `items gap pad main cross`.
 

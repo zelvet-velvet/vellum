@@ -21,7 +21,7 @@ export interface Item {
 }
 export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; note?: string; items: Item[] }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
-export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; device?: string; side?: boolean; mock?: boolean; bg?: string; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
+export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; device?: string; side?: boolean; land?: Block[]; mock?: boolean; bg?: string; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
 export interface Doc { id: string; device: string; pages: Page[] }
 
 export const GRAVITIES: Gravity[] = ["tl", "t", "tr", "l", "c", "r", "bl", "b", "br"];
@@ -33,10 +33,14 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
     try {
         const v = JSON.parse(source) as Partial<Doc>;
         if (!v || typeof v !== "object" || !Array.isArray(v.pages)) return { doc: empty, error: "A vellum block is a JSON object with a pages list." };
-        const pages = v.pages.filter((p) => p && typeof p.id === "string" && Array.isArray(p.blocks)).map((p) => ({
-            ...p, name: String(p.name ?? "Page"),
-            blocks: p.blocks.filter((b) => b && typeof b.x === "number").map((b) => ({ ...b, items: Array.isArray(b.items) ? b.items : [] })),
-        }));
+        const ok = (list: Block[]) => list.filter((b) => b && typeof b.x === "number").map((b) => ({ ...b, items: Array.isArray(b.items) ? b.items : [] }));
+        const pages = v.pages.filter((p) => p && typeof p.id === "string" && Array.isArray(p.blocks)).map((p) => {
+            const q: Page = { ...p, name: String(p.name ?? "Page"), blocks: ok(p.blocks) };
+            if (Array.isArray(p.land)) q.land = ok(p.land); else delete q.land;
+            // older docs: a screen drawn sideways only (side: true) is a landscape layout with no portrait one
+            if (q.side) { if (!q.land) { q.land = q.blocks; q.blocks = []; } delete q.side; }
+            return q;
+        });
         return { doc: { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages } };
     } catch (e) {
         return { doc: empty, error: `The vellum JSON could not be read: ${(e as Error).message}` };

@@ -2,7 +2,7 @@ import { axes, Item } from "./model";
 
 // The look a doc is drawn in: named colours and fonts (an item's colour / font is one of these names, or a CSS value).
 export interface Theme { colors: Record<string, string>; fonts: Record<string, string> }
-export interface Kind { id: string; name: string; color: string }
+export interface Kind { id: string; name: string; color: string; icon?: string }
 
 export const BASE_THEME: Theme = {
     colors: {
@@ -12,13 +12,13 @@ export const BASE_THEME: Theme = {
     fonts: { ui: "var(--font-interface)", display: "var(--font-interface)", mono: "var(--font-monospace)" },
 };
 export const BASE_KINDS: Kind[] = [
-    { id: "hero", name: "summary / number", color: "var(--color-blue)" },
-    { id: "nav", name: "title / nav", color: "var(--text-faint)" },
-    { id: "card", name: "card", color: "var(--color-purple)" },
-    { id: "list", name: "list", color: "var(--color-yellow)" },
-    { id: "tiles", name: "tiles / grid", color: "var(--color-green)" },
-    { id: "action", name: "input / action", color: "var(--color-pink)" },
-    { id: "float", name: "floating", color: "var(--color-cyan)" },
+    { id: "hero", icon: "hash", name: "summary / number", color: "var(--color-blue)" },
+    { id: "nav", icon: "heading", name: "title / nav", color: "var(--text-faint)" },
+    { id: "card", icon: "square", name: "card", color: "var(--color-purple)" },
+    { id: "list", icon: "list", name: "list", color: "var(--color-yellow)" },
+    { id: "tiles", icon: "layout-grid", name: "tiles / grid", color: "var(--color-green)" },
+    { id: "action", icon: "pointer", name: "input / action", color: "var(--color-pink)" },
+    { id: "float", icon: "layers", name: "floating", color: "var(--color-cyan)" },
 ];
 
 export const colorOf = (t: Theme, c?: string) => (!c || c === "none" ? "transparent" : t.colors[c] ?? c);
