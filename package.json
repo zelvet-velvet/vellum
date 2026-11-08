@@ -1,0 +1,21 @@
+{
+  "name": "vellum",
+  "version": "0.1.0",
+  "description": "Obsidian plugin: lay out app screens on real phone frames inside a note.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "check": "tsc --noEmit",
+    "install-vault": "node scripts/install.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "obsidian": "1.8.7",
+    "typescript": "5.6.3",
+    "tslib": "2.8.1",
+    "@types/node": "22.10.2"
+  }
+}
