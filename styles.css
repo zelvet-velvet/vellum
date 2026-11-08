@@ -155,7 +155,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-ctitle { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .vl-cname { font-weight: 700; font-size: var(--font-ui-medium); }
 .vl-cinfo { font-size: var(--font-ui-smaller); color: var(--text-faint); overflow-wrap: anywhere; }
-.vl-ws.is-phone ~ * .vl-chead, body.is-mobile .vl-chead { align-items: flex-start; }
+body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-open { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 8px; font-size: var(--font-ui-small); flex: none; }
 .vl-open svg { width: 15px; height: 15px; }
 

@@ -199,7 +199,9 @@ class Editor {
         const R = (this.root = container.createDiv({ cls: "vl vl-ws" + (Platform.isMobile ? " is-phone" : "") + (pop ? " is-pop" : ""), attr: { tabindex: "-1" } }));
         this.paint(R);
         // keys: on the editor itself (it may be in another window); capture so Obsidian's own keys do not take them first
-        R.addEventListener("keydown", (e) => this.key(e), true);
+        // (the window's own capture phase: Obsidian takes Ctrl+S there before it reaches the editor)
+        const onKey = (e: KeyboardEvent) => { if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true); const a = R.doc.activeElement; if (a && (R === a || R.contains(a))) this.key(e); };
+        R.win.addEventListener("keydown", onKey, true);
         if (pop) {
             let raf = 0;
             new ResizeObserver(() => {
