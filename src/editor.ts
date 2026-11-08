@@ -12,7 +12,7 @@ import { FolderStore, srcOf } from "./store";
 export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[] }
 
 const SNAP = 4;
-type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; panel?: boolean };   // panel: false = folded (computer)
+type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean };   // map: the whole tree in the stage   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws
 type Sel = { page: string; block?: string; item?: string } | null;
 // the workspace was open when the note re-drew its block (a save rewrites the note): the new editor opens it again as it was
@@ -285,18 +285,24 @@ class Editor {
         z.empty(); if (!this.doc.pages.length) return;
         const pill = z.createDiv({ cls: "vl-zpill" });
         const seg = pill.createDiv({ cls: "vl-seg" });
-        for (const [label, show] of [["Edit", false], ["Show", true]] as const) {
-            const x = seg.createEl("button", { text: label, cls: this.v.show === show ? "is-on" : "" });
-            x.addEventListener("click", () => { if (this.v.show === show) return; this.setView({ show }); if (show) this.sel = null; this.draw(); });
+        const mode = this.v.map ? "map" : this.v.show ? "show" : "edit";
+        for (const [label, m] of [["Edit", "edit"], ["Show", "show"], ["Map", "map"]] as const) {
+            const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { title: m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas" } });
+            x.addEventListener("click", () => { if (mode === m) return; this.setView({ show: m === "show", map: m === "map" }); if (m !== "edit") this.sel = null; this.draw(); });
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
-        pill.createSpan({ cls: "vl-zoom", text: `${Math.round(this.v.zoom * 100)}%` });
+        pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
-        const fit = pill.createEl("button", { cls: "vl-zfit" + (this.v.fit ? " is-on" : ""), text: "Fit", attr: { title: "Fit the screen to the window" } });
-        fit.addEventListener("click", () => { this.setView({ fit: true }); this.drawPages(); });
+        const fitOn = this.v.map ? this.v.mapFit !== false : this.v.fit;
+        const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { title: "Fit to the window" } });
+        fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
     }
-    zoomBy(f: number) { this.setView({ fit: false, zoom: Math.min(4, Math.max(0.2, Math.round(this.v.zoom * f * 100) / 100)) }); this.drawPages(); }
+    zoomBy(f: number) {
+        if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(3, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
+        else this.setView({ fit: false, zoom: Math.min(4, Math.max(0.2, Math.round(this.v.zoom * f * 100) / 100)) });
+        this.drawPages();
+    }
     // a new main page, or one opened from a page
     addPage(parent?: Page) { this.edit(() => {
         const n: Page = { id: uid(), name: "New page", blocks: [{ id: uid(), name: "Title", kind: "nav", x: 16, y: 64, w: 370, h: 48, items: [{ id: uid(), type: "text", v: "Title", size: 30, wt: 800, font: "display", g: "l", dx: 0 }] }] };
@@ -315,6 +321,21 @@ class Editor {
         this.wall.empty();
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
         this.drawRail();   // first: its width is part of the room the phone fits in
+        if (this.v.map && this.doc.pages.length) {
+            // Map: every screen in the stage as a tree; a click opens it for editing. Fit: the tree as wide as the stage
+            const box = this.wall.createDiv({ cls: "vl-stagemap" });
+            const pick = (p: Page) => { this.setView({ map: false, page: p.id }); this.sel = null; this.draw(); };
+            const BASE = 110, room = this.wall.clientWidth - 64;
+            let tw = BASE * (this.v.mapZoom ?? 1);
+            if (this.v.mapFit !== false) {
+                const slots = this.drawMap(box, BASE, pick);
+                tw = Math.max(48, Math.min(200, Math.floor(room / Math.max(1, slots) - 40)));
+                this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
+            }
+            this.drawMap(box, tw, pick);
+            this.drawZoom();
+            return;
+        }
         const cur = this.current();
         if (cur) {
             // fit: the whole phone in the stage, the pill and a margin kept clear
@@ -340,13 +361,18 @@ class Editor {
             g.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
                 const x0 = e.clientX, w0 = r.offsetWidth;
-                const mv = (m: PointerEvent) => { r.style.width = `${Math.min(520, Math.max(180, w0 + m.clientX - x0))}px`; };
-                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { localStorage.setItem("vellum:railW", String(r.offsetWidth)); } catch { /* */ } if (this.v.fit) this.drawPages(); };
+                const tw0 = this.picW(w0);
+                // the pictures grow with the width while dragging (scaled), drawn again at their new size on release
+                const mv = (m: PointerEvent) => { const w = Math.min(560, Math.max(180, w0 + m.clientX - x0)); r.style.width = `${w}px`; r.style.setProperty("--vl-pz", String(this.picW(w) / tw0)); };
+                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { localStorage.setItem("vellum:railW", String(r.offsetWidth)); } catch { /* */ } r.style.removeProperty("--vl-pz"); this.drawPages(); };
                 g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
             });
         }
         const box = r.createDiv({ cls: "vl-railbox" });
-        box.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
+        const pics = localStorage.getItem("vellum:pics") === "1";
+        const hd = box.createDiv({ cls: "vl-railhead" });
+        hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
+        this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { localStorage.setItem("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); }).toggleClass("is-on", pics);
         // the tree: main screens at the left, each screen's sub screens under it on guide lines; a chevron folds a branch;
         // each row has a small picture of its screen
         const list = box.createDiv({ cls: "vl-plist" });
@@ -362,7 +388,8 @@ class Editor {
                 setIcon(ch, fold.has(p.id) ? "chevron-right" : "chevron-down");
                 ch.addEventListener("click", (e) => { e.stopPropagation(); if (fold.has(p.id)) fold.delete(p.id); else fold.add(p.id); this.keepFolds(fold); this.drawRail(); });
             } else w.createSpan({ cls: "vl-pchev is-leaf" });
-            w.appendChild(this.thumb(p));
+            if (pics) w.appendChild(this.thumb(p));
+            this.peekOn(w, p);
             const t = w.createDiv({ cls: "vl-ptext" });
             t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
             if (p.link) t.createDiv({ cls: "vl-pl", text: p.link });
@@ -399,33 +426,69 @@ class Editor {
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
     }
-    // folded branches of the tree, kept on the device per doc
-    folds(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
-    keepFolds(f: Set<string>) { try { localStorage.setItem(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
-    // a screen as a small picture (the rail's rows): drawn again only when the screen changed
-    thumbs = new Map<string, { sig: string; el: HTMLElement }>();
-    thumb(p: Page): HTMLElement {
-        const sig = JSON.stringify(p) + this.doc.device, hit = this.thumbs.get(p.id);
-        if (hit && hit.sig === sig) return hit.el;
-        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side), TW = 22, k = TW / sc.W;
+    // a large look at a screen without opening it: the pointer resting on its row (computer), a long press (phone)
+    peekOn(row: HTMLElement, p: Page) {
+        let t = 0;
+        if (!Platform.isMobile) {
+            row.addEventListener("mouseenter", () => { t = window.setTimeout(() => this.peek(p, row), 280); });
+            row.addEventListener("mouseleave", () => { window.clearTimeout(t); this.unpeek(); });
+            return;
+        }
+        let shown = false;
+        row.addEventListener("pointerdown", () => { shown = false; t = window.setTimeout(() => { shown = true; this.peek(p, row); }, 450); });
+        const off = () => { window.clearTimeout(t); if (shown) window.setTimeout(() => this.unpeek(), 0); };
+        row.addEventListener("pointerup", off); row.addEventListener("pointercancel", off); row.addEventListener("pointerleave", off);
+        row.addEventListener("click", (e) => { if (shown) { e.stopImmediatePropagation(); e.preventDefault(); shown = false; } }, true);
+        row.addEventListener("contextmenu", (e) => e.preventDefault());
+    }
+    peek(p: Page, row: HTMLElement) {
+        const R = this.root; if (!R?.isConnected) return;
+        this.unpeek();
+        const W = Platform.isMobile ? Math.min(300, R.clientWidth * 0.72) : 240;
+        const box = R.createDiv({ cls: "vl-peek" });
+        box.createDiv({ cls: "vl-peekname", text: p.name });
+        box.appendChild(this.pic(p, W));
+        const rr = R.getBoundingClientRect(), wr = row.getBoundingClientRect(), br = this.rail.getBoundingClientRect();
+        if (Platform.isMobile) { box.style.left = `${(rr.width - W) / 2 - 8}px`; box.style.top = `${Math.max(56, (rr.height - box.offsetHeight) / 2)}px`; }
+        else { box.style.left = `${br.right - rr.left + 10}px`; box.style.top = `${Math.max(8, Math.min(rr.height - box.offsetHeight - 8, wr.top - rr.top - 40))}px`; }
+    }
+    unpeek() { this.root?.querySelectorAll(".vl-peek").forEach((e) => e.remove()); }
+    // a screen drawn small, as it looks (no frames)
+    pic(p: Page, TW: number): HTMLElement {
+        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side), k = TW / sc.W;
         const el = createDiv({ cls: "vl-pthumb" });
-        el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`;
+        el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`; el.style.borderRadius = `${Math.max(3, d.radius * k)}px`;
         const scr = el.createDiv({ cls: "vl-screen is-show" });
         Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px`, transform: `scale(${k})` });
         if (p.bg) scr.style.background = colorOf(this.theme, p.bg);
         const keep = this.sel; this.sel = null;
         for (const b of p.blocks) this.drawBlock(scr, p, b, true);
         this.sel = keep;
+        return el;
+    }
+    // the tree's pictures are as big as its width allows: 22 px at the narrowest, up to 180 px
+    picW(railW: number) { return Math.round(Math.min(180, Math.max(22, (railW - 190) * 0.9))); }
+    // folded branches of the tree, kept on the device per doc
+    folds(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
+    keepFolds(f: Set<string>) { try { localStorage.setItem(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
+    // a screen as a small picture (the rail's rows): drawn again only when the screen changed
+    thumbs = new Map<string, { sig: string; el: HTMLElement }>();
+    thumb(p: Page): HTMLElement {
+        const tw = this.picW(this.rail?.offsetWidth || Number(localStorage.getItem("vellum:railW")) || 248);
+        const sig = JSON.stringify(p) + this.doc.device + tw, hit = this.thumbs.get(p.id);
+        if (hit && hit.sig === sig) return hit.el;
+        const el = this.pic(p, tw);
         this.thumbs.set(p.id, { sig, el });
         return el;
     }
     // the map in the note's card: every page as a small screen; main pages along the top, each page's sub pages under it,
     // joined by lines (with how you get there); a click opens the editor on that page
-    drawMap(m: HTMLElement) {
+    // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): number {
         m.empty();
-        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return; }
-        const pages = this.doc.pages;
-        const TW = 76, GAP = 40, LABEL = 46, slotW = TW + GAP;
+        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return 0; }
+        const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
+        const GAP = 40, LABEL = 46, slotW = TW + GAP;
         const dims = (p: Page) => { const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         const rowH = Math.max(...pages.map((p) => dims(p).h)) + LABEL + GAP;
         // a tidy tree: each leaf a slot, a parent centred over its children
@@ -472,9 +535,11 @@ class Editor {
             Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
             for (const b of p.blocks) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
-            t.addEventListener("click", () => this.openWs(p.id));
+            t.addEventListener("click", () => pick(p));
+            if (p.id === cur?.id) t.addClass("is-on");
         }
         this.sel = keep;
+        return x;
     }
     drawPage(p: Page) {
         const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, p.side), z = this.v.zoom, show = this.v.show;
@@ -642,7 +707,7 @@ class Editor {
         if (Platform.isMobile && this.v.fit && this.pending === null) this.drawPages();   // (not mid-drag) the sheet's height changed the stage: the phone fits what is left
     }
     panelBody() {
-        if (!this.side?.isConnected || this.v.show || (!this.sel && Platform.isMobile) || (!Platform.isMobile && this.v.panel === false)) return;
+        if (!this.side?.isConnected || this.v.show || (!this.sel && Platform.isMobile) || (!Platform.isMobile && this.v.panel === false) || this.v.map) return;
         const p = this.page() ?? this.current(); if (!p) return;
         const P = (this.panel = this.side.createDiv({ cls: "vl-panel" + (Platform.isMobile ? " is-sheet" : "") }));
         if (!Platform.isMobile) {

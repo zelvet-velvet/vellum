@@ -34,9 +34,9 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 | Where | What |
 | :--- | :--- |
 | Top bar | The screen's name (shows / hides the screens tree), undo, redo, Save, the settings panel toggle |
-| Screens tree | Every screen with a small picture, sub screens under the screen they open from (a chevron folds a branch); **+** beside one adds a screen opened from it; the device at the foot; its border drags its width |
+| Screens tree | Every screen, sub screens under the screen they open from (a chevron folds a branch); rest the pointer on one (long press on a phone) for a large look; the picture button shows a picture of each, as big as the tree is wide (drag its border); **+** adds a screen opened from it; the device at the foot |
 | The phone | Click a block, then a text or shape in it; drag to move (Alt: 1 px), the block's corner to resize; double-click a text to type; click beside the phone to let go |
-| Pill under the phone | Edit (frames, safe areas) / Show (the screen alone), zoom (Ctrl + wheel), Fit |
+| Pill under the phone | Edit (frames, safe areas) / Show (the screen alone) / Map (every screen as a tree; a click opens one), zoom (Ctrl + wheel), Fit |
 | Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from, note) |
 
 Keys: arrows nudge 1 px (Shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (and closes the editor at the top).
