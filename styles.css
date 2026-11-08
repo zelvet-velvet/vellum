@@ -252,3 +252,13 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* while the tree's border is dragged its pictures scale with it */
 .vl-rail .vl-pthumb { zoom: var(--vl-pz, 1); }
 .vl-prow { align-items: center; }
+/* resize handles: on the border itself, outside the scrolling list; a thin accent line on hover (after a beat) or while dragging */
+.vl-rail.is-on { overflow: visible; }
+.vl-railbox { height: 100%; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+.vl-ws.is-phone .vl-railbox { height: auto; }
+.vl-rgrip, .vl-pgrip { width: 9px; background: transparent !important; z-index: 7; }
+.vl-rgrip { right: -5px; }
+.vl-pgrip { left: -5px; }
+.vl-rgrip::after, .vl-pgrip::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--interactive-accent); opacity: 0; transition: opacity 0.12s; }
+.vl-rgrip:hover::after, .vl-pgrip:hover::after { opacity: 1; transition-delay: 0.15s; }
+.vl-rgrip.is-on::after, .vl-pgrip.is-on::after { opacity: 1; transition-delay: 0s; }
