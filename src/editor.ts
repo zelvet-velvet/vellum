@@ -19,7 +19,8 @@ type Sel = { page: string; block?: string; item?: string } | null;
 const reopen = new Map<string, { at: number; sel: Sel; past: string[]; future: string[] }>();
 // on a computer the editor lives in its own window (an Obsidian pop-out): the open windows and the editors, by note + doc
 const VIEW = "vellum-editor";
-const editors = new Map<string, Editor>();
+const editors = new Map<string, Editor>();   // the newest editor of each doc (the one its window shows)
+const live = new Set<Editor>();              // every card on screen (one note open in two panes = two), told about outside changes
 const windows = new Map<string, VellumWindow>();
 class VellumWindow extends ItemView {
     key = "";
@@ -73,6 +74,7 @@ class Editor {
         life.onunload = () => {
             window.removeEventListener("resize", onResize);
             if (editors.get(key) === this) editors.delete(key);
+            live.delete(this);
             if (!this.root?.isConnected) return;
             // a save re-draws the block: the new editor takes the window over within a moment; else the window closes
             reopen.set(key, { at: Date.now(), sel: this.sel, past: this.past, future: this.future });
@@ -80,7 +82,7 @@ class Editor {
             if (!Platform.isMobile) window.setTimeout(() => { if (!editors.has(key)) windows.get(key)?.leaf.detach(); }, 3000);
         };
         ctx.addChild(life);
-        editors.set(key, this);
+        editors.set(key, this); live.add(this);
         this.drawCard();
         const back = reopen.get(key);
         if (back && Date.now() - back.at < 3000) {
@@ -873,7 +875,7 @@ export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumH
     // a doc kept in a folder: changes made outside (the agent, a sync) are read again, a moment after the last one
     const due = new Map<Editor, number>();
     const touched = (path: string) => {
-        for (const ed of new Set(editors.values())) {
+        for (const ed of live) {
             const st = ed.store;
             if (!st || !st.watches(path) || Date.now() < st.ownUntil) continue;
             window.clearTimeout(due.get(ed));
