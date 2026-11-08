@@ -268,7 +268,7 @@ class Editor {
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
-            this.btn(l, this.v.rail ? "vellum-side-left" : "sidebar-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
         }
         const r = b.createDiv({ cls: "vl-tr" });
@@ -279,7 +279,7 @@ class Editor {
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
-            this.btn(r, this.v.panel === false ? "sidebar-right" : "vellum-side-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
         this.drawZoom();
     }
@@ -1020,7 +1020,7 @@ export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumH
     ref = { plugin, host: () => (typeof host === "function" ? host() : host) };
     // collapse icons: Obsidian's own sidebar frame and divider, without its little lines (so both states are the same width)
     const frame = (x: number) => `<g transform="scale(4.1667)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3H3C1.89543 3 1 3.89543 1 5V19C1 20.1046 1.89543 21 3 21H21C22.1046 21 23 20.1046 23 19V5C23 3.89543 22.1046 3 21 3Z"/><path d="M${x} 4V20"/></g>`;
-    addIcon("vellum-side-left", frame(7));    // the line near the edge: the sidebar folded in
+    addIcon("vellum-side-left", frame(7));    // the line near the edge: the sidebar is folded in (a click opens it)
     addIcon("vellum-side-right", frame(17));
     plugin.registerView(VIEW, (leaf: WorkspaceLeaf) => new VellumWindow(leaf));
     plugin.registerMarkdownCodeBlockProcessor("vellum", async (source, el, ctx) => {
