@@ -180,7 +180,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-empty { display: flex; align-items: center; gap: 8px; }
 /* the rail of screens */
 .vl-rail { display: none; }
-.vl-rail.is-on { display: block; flex: none; width: 232px; overflow-y: auto; background: var(--background-primary); border-right: 1px solid var(--background-modifier-border); }
+.vl-rail.is-on { display: block; position: relative; flex: none; width: 248px; overflow-y: auto; background: var(--background-primary); border-right: 1px solid var(--background-modifier-border); }
 .vl-railbox { display: flex; flex-direction: column; min-height: 100%; padding: 12px 8px; box-sizing: border-box; }
 .vl-railbox > .vl-sech { padding: 0 8px; }
 .vl-plist { display: flex; flex-direction: column; gap: 1px; }
@@ -226,3 +226,16 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-btn.is-on { color: var(--text-normal); }
 /* settings: a swatch beside each colour name */
 .vl-set-sw { display: inline-block; width: 12px; height: 12px; margin-left: 8px; border-radius: 3px; vertical-align: middle; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+/* the screens tree: guide lines per level, a chevron to fold, a small picture of each screen; the rail's border resizes it */
+.vl-prow { gap: 6px; padding-left: 4px; }
+.vl-pind { display: flex; flex: none; align-self: stretch; }
+.vl-pguide { width: 14px; flex: none; position: relative; }
+.vl-pguide::before { content: ""; position: absolute; left: 8px; top: -1px; bottom: -1px; border-left: 1px solid var(--background-modifier-border); }
+.vl .vl-pchev { width: 18px; height: 18px; flex: none; padding: 0; border: 0; box-shadow: none; background: transparent; color: var(--text-faint); display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.vl .vl-pchev:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.vl-pchev svg { width: 14px; height: 14px; }
+.vl-pthumb { position: relative; flex: none; overflow: hidden; border-radius: 3px; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); }
+.vl-pthumb .vl-screen { pointer-events: none; }
+.vl-prow.is-on .vl-pthumb { box-shadow: 0 0 0 1.5px var(--interactive-accent); }
+.vl-rgrip { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; z-index: 3; }
+.vl-rgrip:hover, .vl-rgrip.is-on { background: color-mix(in srgb, var(--interactive-accent) 45%, transparent); }

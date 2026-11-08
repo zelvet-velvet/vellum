@@ -20,7 +20,9 @@ Or with [BRAT](https://github.com/TfTHacker/obsidian42-brat): add `zelvet-velvet
 
 ## Use
 
-Add an empty block to a note:
+Click the **Vellum** button in the ribbon (or the command **Vellum: Open the screens**): the editor opens on your screens folder (Settings → Vellum → Screens folder, `Screens` by default; made on the first save). **Open screens from another folder** switches folders.
+
+You can also show screens inside a note, as a card with the screen map and **Open editor**. Add an empty block:
 
 ````
 ```vellum
@@ -31,8 +33,8 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 
 | Where | What |
 | :--- | :--- |
-| Top bar | The screen's name (shows / hides the screens list), undo, redo, Save, the settings panel toggle |
-| Screens list | Every screen; **+** beside one adds a screen opened from it; the device at the foot |
+| Top bar | The screen's name (shows / hides the screens tree), undo, redo, Save, the settings panel toggle |
+| Screens tree | Every screen with a small picture, sub screens under the screen they open from (a chevron folds a branch); **+** beside one adds a screen opened from it; the device at the foot; its border drags its width |
 | The phone | Click a block, then a text or shape in it; drag to move (Alt: 1 px), the block's corner to resize; double-click a text to type; click beside the phone to let go |
 | Pill under the phone | Edit (frames, safe areas) / Show (the screen alone), zoom (Ctrl + wheel), Fit |
 | Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from, note) |

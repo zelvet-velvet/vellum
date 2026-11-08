@@ -25,14 +25,14 @@ const windows = new Map<string, VellumWindow>();
 class VellumWindow extends ItemView {
     key = "";
     getViewType() { return VIEW; }
-    getDisplayText() { return "Vellum" + (this.key ? " · " + (this.key.split(":")[1] ?? "").replace(/^.*\//, "").replace(/\.md$/, "") : ""); }
+    getDisplayText() { return "Vellum" + (this.key ? " · " + (this.key.split(":")[1] ?? "").replace(/\.md$/, "") : ""); }
     getIcon() { return "pencil-ruler"; }
     getState() { return { key: this.key }; }
     async setState(state: unknown, result: ViewStateResult) {
         const k = (state as { key?: string })?.key ?? "";
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
-            const ed = editors.get(k);
+            const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
             if (ed) ed.mount(this.contentEl);
             else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
         }
@@ -46,13 +46,14 @@ class Editor {
     wall!: HTMLElement; panel: HTMLElement | null = null; theme: Theme; kinds: Kind[];
     tab: "style" | "place" | "note" = "style";
     // store: the folder the doc is kept in (src: in the block), with the doc as read; none = the JSON in the block itself
-    constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement, readonly ctx: MarkdownPostProcessorContext, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
+    // el / ctx: the ```vellum block it is drawn in; none = opened straight on a folder (the ribbon, a command)
+    constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement | undefined, readonly ctx: MarkdownPostProcessorContext | undefined, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
         this.theme = { colors: { ...BASE_THEME.colors, ...host.theme?.colors }, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
         this.kinds = host.kinds ?? BASE_KINDS;
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
         this.saved = serialiseDoc(doc);
-        this.card = el.createDiv({ cls: "vl vl-card" });
+        this.card = el ? el.createDiv({ cls: "vl vl-card" }) : createDiv({ cls: "vl vl-card" });
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
         if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
         // unsaved work kept on the device: used when it started from the note as it is now; if the note changed since (the
@@ -70,6 +71,8 @@ class Editor {
         const onResize = () => { if (this.root?.isConnected && this.v.fit) this.drawPages(); };
         window.addEventListener("resize", onResize);
         const key = this.draftKey();
+        editors.set(key, this); live.add(this);
+        if (!el || !ctx) return;   // opened on a folder: lives as long as the plugin
         const life = new MarkdownRenderChild(el);
         life.onunload = () => {
             window.removeEventListener("resize", onResize);
@@ -82,7 +85,6 @@ class Editor {
             if (!Platform.isMobile) window.setTimeout(() => { if (!editors.has(key)) windows.get(key)?.leaf.detach(); }, 3000);
         };
         ctx.addChild(life);
-        editors.set(key, this); live.add(this);
         this.drawCard();
         const back = reopen.get(key);
         if (back && Date.now() - back.at < 3000) {
@@ -100,7 +102,7 @@ class Editor {
     setView(p: Partial<View>) { view.set(this.doc.id, { ...this.v, ...p }); }
     snap() { return JSON.stringify(this.doc); }
     get dirty() { return serialiseDoc(this.doc) !== this.saved; }
-    draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx.sourcePath}:${this.doc.id}`; }
+    draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx!.sourcePath}:${this.doc.id}`; }
     draftGet() { try { return localStorage.getItem(this.draftKey()); } catch { return null; } }
     draftPut() { try { if (this.dirty) localStorage.setItem(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) localStorage.removeItem(this.draftKey()); } catch { /* private mode */ } }
     stale: Doc | null = null;
@@ -137,6 +139,7 @@ class Editor {
             }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
             return;
         }
+        if (!this.ctx || !this.el) return;
         const file = this.plugin.app.vault.getAbstractFileByPath(this.ctx.sourcePath);
         const info = this.ctx.getSectionInfo(this.el);
         if (!(file instanceof TFile) || !info) { new Notice("Vellum: could not find this block in the note"); return; }
@@ -311,6 +314,7 @@ class Editor {
         if (!this.wall?.isConnected) return;
         this.wall.empty();
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
+        this.drawRail();   // first: its width is part of the room the phone fits in
         const cur = this.current();
         if (cur) {
             // fit: the whole phone in the stage, the pill and a margin kept clear
@@ -321,7 +325,6 @@ class Editor {
             }
             this.drawPage(cur);
         }
-        this.drawRail();
         this.drawZoom();
     }
     // the screens rail: every page as a row, sub pages indented under the page they open from (with how you get there);
@@ -330,21 +333,44 @@ class Editor {
         const r = this.rail; if (!r?.isConnected) return;
         r.empty(); r.toggleClass("is-on", this.v.rail);
         if (!this.v.rail) return;
+        // its width: the right border drags it (computer), kept on the device
+        if (!Platform.isMobile) {
+            r.style.width = `${Number(localStorage.getItem("vellum:railW")) || 248}px`;
+            const g = r.createDiv({ cls: "vl-rgrip", attr: { title: "Drag to resize" } });
+            g.addEventListener("pointerdown", (e) => {
+                e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
+                const x0 = e.clientX, w0 = r.offsetWidth;
+                const mv = (m: PointerEvent) => { r.style.width = `${Math.min(520, Math.max(180, w0 + m.clientX - x0))}px`; };
+                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { localStorage.setItem("vellum:railW", String(r.offsetWidth)); } catch { /* */ } if (this.v.fit) this.drawPages(); };
+                g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
+            });
+        }
         const box = r.createDiv({ cls: "vl-railbox" });
-        box.createDiv({ cls: "vl-sech", text: "Screens" });
+        box.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
+        // the tree: main screens at the left, each screen's sub screens under it on guide lines; a chevron folds a branch;
+        // each row has a small picture of its screen
         const list = box.createDiv({ cls: "vl-plist" });
-        const pages = this.doc.pages, cur = this.current(), seen = new Set<string>();
+        const pages = this.doc.pages, cur = this.current(), seen = new Set<string>(), fold = this.folds();
         const row = (p: Page, depth: number) => {
             if (seen.has(p.id)) return; seen.add(p.id);
+            const kids = childrenOf(pages, p.id).filter((c) => !seen.has(c.id));
             const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") });
-            w.style.paddingLeft = `${8 + depth * 14}px`;
+            const ind = w.createDiv({ cls: "vl-pind" });
+            for (let i = 0; i < depth; i++) ind.createSpan({ cls: "vl-pguide" });
+            if (kids.length) {
+                const ch = w.createEl("button", { cls: "vl-pchev", attr: { "aria-label": fold.has(p.id) ? "Unfold" : "Fold" } });
+                setIcon(ch, fold.has(p.id) ? "chevron-right" : "chevron-down");
+                ch.addEventListener("click", (e) => { e.stopPropagation(); if (fold.has(p.id)) fold.delete(p.id); else fold.add(p.id); this.keepFolds(fold); this.drawRail(); });
+            } else w.createSpan({ cls: "vl-pchev is-leaf" });
+            w.appendChild(this.thumb(p));
             const t = w.createDiv({ cls: "vl-ptext" });
             t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
             if (p.link) t.createDiv({ cls: "vl-pl", text: p.link });
             w.addEventListener("click", () => this.openPage(p));
-            const add = this.btn(w, "plus", `Add a page opened from ${p.name}`, () => this.addPage(p));
+            const add = this.btn(w, "plus", `Add a screen opened from ${p.name}`, () => this.addPage(p));
             add.addClass("vl-padd"); add.addEventListener("click", (e) => e.stopPropagation());
-            for (const c of childrenOf(pages, p.id)) row(c, depth + 1);
+            if (!fold.has(p.id)) for (const c of kids) row(c, depth + 1);
+            else for (const c of subtreeOf(pages, p.id)) if (c !== p.id) seen.add(c);
         };
         for (const p of childrenOf(pages)) row(p, 0);
         for (const p of pages) row(p, 0);   // anything left (a loop) as a main page
@@ -372,6 +398,26 @@ class Editor {
             const off = (e: Event) => { if (!m.isConnected) return R.doc.removeEventListener("pointerdown", off, true); if (!m.contains(e.target as Node) && !dev.contains(e.target as Node)) { m.remove(); R.doc.removeEventListener("pointerdown", off, true); } };
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
+    }
+    // folded branches of the tree, kept on the device per doc
+    folds(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
+    keepFolds(f: Set<string>) { try { localStorage.setItem(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
+    // a screen as a small picture (the rail's rows): drawn again only when the screen changed
+    thumbs = new Map<string, { sig: string; el: HTMLElement }>();
+    thumb(p: Page): HTMLElement {
+        const sig = JSON.stringify(p) + this.doc.device, hit = this.thumbs.get(p.id);
+        if (hit && hit.sig === sig) return hit.el;
+        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, p.side), TW = 22, k = TW / sc.W;
+        const el = createDiv({ cls: "vl-pthumb" });
+        el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`;
+        const scr = el.createDiv({ cls: "vl-screen is-show" });
+        Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px`, transform: `scale(${k})` });
+        if (p.bg) scr.style.background = colorOf(this.theme, p.bg);
+        const keep = this.sel; this.sel = null;
+        for (const b of p.blocks) this.drawBlock(scr, p, b, true);
+        this.sel = keep;
+        this.thumbs.set(p.id, { sig, el });
+        return el;
     }
     // the map in the note's card: every page as a small screen; main pages along the top, each page's sub pages under it,
     // joined by lines (with how you get there); a click opens the editor on that page
@@ -863,8 +909,21 @@ class Editor {
 
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items` : it.type === "ellipse" ? "circle" : it.type);
 
+// a folder doc's editor: the one already open, else read from the folder
+let ref: { plugin: Plugin; host: () => VellumHost } | null = null;
+async function folderEditor(dir: string): Promise<Editor | undefined> {
+    if (!ref) return undefined;
+    const ex = editors.get(`vellum:${dir}`); if (ex) return ex;
+    const store = new FolderStore(ref.plugin.app, dir);
+    return new Editor(ref.plugin, ref.host(), "", undefined, undefined, store, await store.load());
+}
+// open the editor on a folder of screens (its own window on a computer, the full screen on a phone); the folder is made on
+// the first save
+export async function openVellum(dir: string, page?: string): Promise<void> { (await folderEditor(dir))?.openWs(page); }
+
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)
 export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumHost) = {}): void {
+    ref = { plugin, host: () => (typeof host === "function" ? host() : host) };
     plugin.registerView(VIEW, (leaf: WorkspaceLeaf) => new VellumWindow(leaf));
     plugin.registerMarkdownCodeBlockProcessor("vellum", async (source, el, ctx) => {
         const h = typeof host === "function" ? host() : host, dir = srcOf(source);
