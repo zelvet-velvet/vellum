@@ -354,6 +354,7 @@ class Editor {
     // a tap opens it, + beside a row adds a page opened from it; the device for the whole note at the foot
     drawRail() {
         const r = this.rail; if (!r?.isConnected) return;
+        this.unpeek();   // its row is about to go: a peek left from it would never hear the pointer leave
         r.empty(); r.toggleClass("is-on", this.v.rail);
         if (!this.v.rail) return;
         // its width: the right border drags it (computer), kept on the device
@@ -371,6 +372,8 @@ class Editor {
             });
         }
         const box = r.createDiv({ cls: "vl-railbox" });
+        box.addEventListener("scroll", () => this.unpeek(), { passive: true });
+        box.addEventListener("mouseleave", () => this.unpeek());
         const pics = localStorage.getItem("vellum:pics") === "1";
         const hd = box.createDiv({ cls: "vl-railhead" });
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
@@ -445,8 +448,9 @@ class Editor {
     peekOn(row: HTMLElement, p: Page) {
         let t = 0;
         if (!Platform.isMobile) {
-            row.addEventListener("mouseenter", () => { t = window.setTimeout(() => this.peek(p, row), 280); });
-            row.addEventListener("mouseleave", () => { window.clearTimeout(t); this.unpeek(); });
+            row.addEventListener("mouseenter", () => this.peek(p, row));
+            row.addEventListener("mouseleave", () => this.unpeek());
+            row.addEventListener("pointerdown", () => this.unpeek());
             return;
         }
         let shown = false;
