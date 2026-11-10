@@ -57,6 +57,13 @@ class VellumWindow extends ItemView {
     async onClose() { if (windows.get(this.key) === this) windows.delete(this.key); editors.get(this.key)?.unmount(); }
 }
 
+// a window to the front, focused (Electron: shown, raised; restored when minimised)
+type ElectronWin = { isMinimized?(): boolean; restore?(): void; show?(): void; moveTop?(): void; focus?(): void };
+const raise = (win: Window) => {
+    const ew = (win as Window & { electronWindow?: ElectronWin }).electronWindow;
+    try { if (ew?.isMinimized?.()) ew.restore?.(); ew?.show?.(); ew?.moveTop?.(); ew?.focus?.(); } catch { /* not Electron */ }
+    win.focus();
+};
 class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
     wall!: HTMLElement; panel: HTMLElement | null = null; theme: Theme; kinds: Kind[];
@@ -225,8 +232,9 @@ class Editor {
     openWs(page?: string) {
         if (page) this.setView({ page, fit: true });
         if (Platform.isMobile) { if (!this.root?.isConnected) this.mount(document.body); else this.draw(); return; }
-        const key = this.draftKey(), w = windows.get(key);
-        if (w) { if (page) this.draw(); w.contentEl.win.focus(); return; }
+        const key = this.draftKey();
+        const w = windows.get(key) ?? this.plugin.app.workspace.getLeavesOfType(VIEW).map((l) => l.view).find((v): v is VellumWindow => v instanceof VellumWindow && v.key === key);
+        if (w) { if (page) this.draw(); void this.plugin.app.workspace.revealLeaf(w.leaf); raise(w.contentEl.win); return; }
         let size: { width: number; height: number } | undefined;
         try { size = JSON.parse(localStorage.getItem("vellum:winsize") ?? "") ?? undefined; } catch { /* */ }
         const leaf = this.plugin.app.workspace.openPopoutLeaf({ size: size ?? { width: 1280, height: 880 } });
@@ -274,7 +282,7 @@ class Editor {
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
     }
-    zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement;
+    zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement; railTop = 0;
     // unsaved work from before the note changed: offered back, never applied by itself
     drawStale() {
         if (!this.stale || !this.root) return;
@@ -307,6 +315,12 @@ class Editor {
             l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
         }
         const r = b.createDiv({ cls: "vl-tr" });
+        this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
+            // Obsidian's settings, on Vellum's tab, in the main window (brought to the front)
+            const set = (this.plugin.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
+            if (!set) return;
+            raise(window); set.open(); set.openTabById(this.plugin.manifest.id);
+        });
         this.btn(r, "undo-2", "Undo (Ctrl+Z)", () => this.undo(), !this.past.length);
         this.btn(r, "redo-2", "Redo (Ctrl+Shift+Z)", () => this.redo(), !this.future.length);
         const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": "Save into the note (Ctrl+S)" } });
@@ -421,7 +435,7 @@ class Editor {
             });
         }
         const box = r.createDiv({ cls: "vl-railbox" });
-        box.addEventListener("scroll", () => this.unpeek(), { passive: true });
+        box.addEventListener("scroll", () => { this.railTop = box.scrollTop; this.unpeek(); }, { passive: true });
         box.addEventListener("mouseleave", () => this.unpeek());
         const pics = localStorage.getItem("vellum:pics") === "1";
         const hd = box.createDiv({ cls: "vl-railhead" });
@@ -492,6 +506,7 @@ class Editor {
             const off = (e: Event) => { if (!m.isConnected) return R.doc.removeEventListener("pointerdown", off, true); if (!m.contains(e.target as Node) && !dev.contains(e.target as Node)) { m.remove(); R.doc.removeEventListener("pointerdown", off, true); } };
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
+        box.scrollTop = this.railTop;   // the list stays where it was scrolled (a tap opens a screen, the rail is drawn again)
     }
     // a large look at a screen without opening it: the pointer resting on its row (computer), a long press (phone)
     peekOn(row: HTMLElement, p: Page) {
