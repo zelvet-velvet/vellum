@@ -330,3 +330,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-igrip { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 3px; background: var(--interactive-accent); box-shadow: 0 0 0 1.5px var(--background-primary); z-index: 6; touch-action: none; }
 .vl-igrip.is-br { cursor: nwse-resize; }
 .vl-igrip.is-bl { cursor: nesw-resize; }
+/* the picture's settings: the whole picture, the part the box shows framed (click or drag to move it) */
+.vl-imgprev { position: relative; height: 120px; display: flex; justify-content: center; overflow: hidden; border-radius: 8px; background: var(--background-secondary); cursor: crosshair; touch-action: none; user-select: none; }
+.vl-imgprev > img { display: block; max-width: none; pointer-events: none; }
+.vl-imgprev.is-empty, .vl-imgprev.is-broken { align-items: center; color: var(--text-faint); cursor: default; --icon-size: 28px; }
+.vl-imgcrop { position: absolute; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 3px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.vl-srcrow { display: flex; gap: 4px; align-items: center; }
+.vl-srcrow > .vl-text { flex: 1; min-width: 0; }

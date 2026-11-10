@@ -1,7 +1,7 @@
-import { addIcon, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
-import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, setPictureResolver, Theme } from "./render";
+import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
 import { FolderStore, srcOf } from "./store";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
@@ -1144,17 +1144,7 @@ class Editor {
             this.num(s.createDiv({ cls: "vl-nums" }), "Thickness", () => (typeof it.h === "number" ? it.h : 1), (v) => { it.h = v; }, { min: 1 });
             this.colors(this.section(body, "Colour"), it.fill ?? "line", (v) => { it.fill = v; });
         } else if (it.type === "img") {
-            const s = this.section(body, "Picture");
-            this.text(s, () => it.src ?? "", (v) => { it.src = v; }, { placeholder: "https://… or a vault path", title: "Picture address" });
-            this.chips(s, [["cover", "Cover: fills the box, cropped", "crop"], ["contain", "Contain: all of it, inside the box", "minimize-2"], ["fill", "Stretch: the box's shape", "move-diagonal-2"]], it.fit ?? "cover", (v) => { it.fit = v; });
-            const ps = this.section(body, "Position");
-            const pos = (it.pos ?? "center").trim();
-            this.chips(ps, [["top", "Top", "align-vertical-justify-start"], ["center", "Middle", "align-vertical-justify-center"], ["bottom", "Bottom", "align-vertical-justify-end"]], pos, (v) => { if (v === "center") delete it.pos; else it.pos = v; });
-            this.text(ps, () => it.pos ?? "", (v) => { if (v.trim()) it.pos = v; else delete it.pos; }, { placeholder: "center · center 30% · left top", title: "Picture position (CSS object-position)" });
-            const r = this.section(body, "Box").createDiv({ cls: "vl-nums" });
-            this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
-            this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
-            this.sizeNums(body, it, b.items.includes(it));
+            this.picturePanel(body, b, it);
         } else if (it.type === "icon") {
             // the name, and the icons it matches (Obsidian's set) to pick from
             const s = this.section(body, "Icon");
@@ -1191,6 +1181,94 @@ class Editor {
             this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "img", "icon", "row", "col"]);
             this.shapeStyle(body, it, true);
         } else { this.shapeStyle(body, it, false); this.sizeNums(body, it, b.items.includes(it)); }
+    }
+    // a picture's settings: the whole picture with the part the box shows framed (click or drag it to choose that part),
+    // its address (or a picture of the vault), how it fits, the focus as a 3 × 3 grid, its size
+    picturePanel(body: HTMLElement, b: Block, it: Item) {
+        const s = this.section(body, "Picture");
+        const prev = s.createDiv({ cls: "vl-imgprev" }), info = s.createDiv({ cls: "vl-frameinfo" });
+        const fit = () => it.fit ?? "cover";
+        const box = () => { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return { W: el?.offsetWidth || (typeof it.w === "number" ? it.w : 80), H: el?.offsetHeight || (typeof it.h === "number" ? it.h : 80) }; };
+        let im: HTMLImageElement | null = null, crop: HTMLElement | null = null;
+        // the frame over the picture: the part a cover fit shows, from the focus (object-position as percentages)
+        const layout = () => {
+            if (!im || !crop || !im.naturalWidth) return;
+            const nw = im.naturalWidth, nh = im.naturalHeight, PW = prev.clientWidth || 240;
+            const ph = Math.min(180, (PW * nh) / nw), pw = (ph * nw) / nh, k = pw / nw;
+            Object.assign(im.style, { width: `${pw}px`, height: `${ph}px` }); prev.style.height = `${ph}px`;
+            const { W, H } = box();
+            info.setText(`Picture ${nw} × ${nh} px · box ${W} × ${H}`);
+            if (fit() !== "cover") { crop.hide(); return; }
+            const sc = Math.max(W / nw, H / nh), vw = W / sc, vh = H / sc, [fx, fy] = focusOf(it.pos);
+            crop.show();
+            Object.assign(crop.style, { left: `${(PW - pw) / 2 + (nw - vw) * fx * k}px`, top: `${(nh - vh) * fy * k}px`, width: `${vw * k}px`, height: `${vh * k}px` });
+        };
+        const draw = () => {
+            prev.empty(); prev.removeClass("is-empty", "is-broken"); prev.style.height = ""; im = crop = null;
+            const url = pictureUrl(it.src);
+            if (!url) { prev.addClass("is-empty"); setIcon(prev.createDiv(), "image"); info.setText("No picture yet: an https address or a vault path."); return; }
+            info.setText("Loading…");
+            im = prev.createEl("img", { attr: { alt: "", draggable: "false" } });
+            crop = prev.createDiv({ cls: "vl-imgcrop" }); crop.hide();
+            im.addEventListener("load", layout, { once: true });
+            im.addEventListener("error", () => { prev.empty(); prev.addClass("is-broken"); setIcon(prev.createDiv(), "image-off"); info.setText("This address can not be loaded."); }, { once: true });
+            im.src = url;
+            if (im.complete && im.naturalWidth) layout();
+        };
+        draw();
+        // click or drag on the picture: the part under the pointer is the middle of what the box shows
+        prev.addEventListener("pointerdown", (e) => {
+            if (!im?.naturalWidth || fit() === "fill") return;
+            e.preventDefault(); prev.setPointerCapture(e.pointerId); this.begin();
+            const at = (m: PointerEvent) => {
+                const r = im!.getBoundingClientRect(), nw = im!.naturalWidth, nh = im!.naturalHeight, { W, H } = box();
+                const cx = Math.min(1, Math.max(0, (m.clientX - r.left) / r.width)), cy = Math.min(1, Math.max(0, (m.clientY - r.top) / r.height));
+                let fx = cx, fy = cy;
+                if (fit() === "cover") {
+                    const sc = Math.max(W / nw, H / nh), vw = W / sc, vh = H / sc;
+                    fx = nw - vw > 1 ? Math.min(1, Math.max(0, (cx * nw - vw / 2) / (nw - vw))) : 0.5;
+                    fy = nh - vh > 1 ? Math.min(1, Math.max(0, (cy * nh - vh / 2) / (nh - vh))) : 0.5;
+                }
+                const pc = (v: number) => Math.round(v * 100);
+                if (pc(fx) === 50 && pc(fy) === 50) delete it.pos; else it.pos = `${pc(fx)}% ${pc(fy)}%`;
+                this.draftPut(); this.drawPages(); layout();
+            };
+            at(e);
+            const up = () => { prev.removeEventListener("pointermove", at); prev.removeEventListener("pointerup", up); this.end(); this.drawPanel(); };
+            prev.addEventListener("pointermove", at); prev.addEventListener("pointerup", up);
+        });
+        // the address: typed (the preview follows a moment after), or a picture of the vault
+        const row = s.createDiv({ cls: "vl-srcrow" });
+        let t = 0;
+        this.text(row, () => it.src ?? "", (v) => { it.src = v; window.clearTimeout(t); t = window.setTimeout(draw, 400); }, { placeholder: "https://… or a vault path", title: "Picture address" });
+        this.btn(row, "folder-open", "A picture of the vault", () => new ImagePick(this.plugin.app, (f) => this.edit(() => { it.src = f.path; })).open());
+        const fs = this.section(body, "Fit");
+        this.chips(fs, [["cover", "Cover"], ["contain", "Contain"], ["fill", "Stretch"]], fit(), (v) => { it.fit = v; });
+        fs.createDiv({ cls: "vl-frameinfo", text: { cover: "Fills the box; the edges are cut off.", contain: "All of the picture, inside the box.", fill: "Pulled to the box's shape." }[fit()] });
+        if (fit() !== "fill") {
+            const ps = this.section(body, "Focus");
+            const wrap = ps.createDiv({ cls: "vl-gwrap" });
+            const grid = wrap.createDiv({ cls: "vl-grav" });
+            const [fx, fy] = focusOf(it.pos);
+            for (const y of [0, 0.5, 1]) for (const x of [0, 0.5, 1]) {
+                const name = `${["left", "center", "right"][x * 2]} ${["top", "center", "bottom"][y * 2]}`;
+                const d = grid.createEl("button", { cls: fx === x && fy === y ? "is-on" : "", attr: { "aria-label": name === "center center" ? "Middle" : name } });
+                d.createSpan();
+                d.addEventListener("click", () => this.edit(() => { if (x === 0.5 && y === 0.5) delete it.pos; else it.pos = name; }));
+            }
+            const side = wrap.createDiv({ cls: "vl-secb" });
+            side.createDiv({ cls: "vl-frameinfo", text: "Or click the picture above. Exact (CSS object-position):" });
+            this.text(side, () => it.pos ?? "", (v) => { if (v.trim()) it.pos = v; else delete it.pos; }, { placeholder: "center · 50% 30%", title: "Focus" });
+        }
+        this.sizeNums(body, it, b.items.includes(it));
+        this.actions(body.lastElementChild?.querySelector<HTMLElement>(".vl-secb") ?? body, [["ratio", "Height from the picture's shape", () => {
+            if (!im?.naturalWidth) { new Notice("Vellum: the picture is not loaded yet"); return; }
+            const W = typeof it.w === "number" ? it.w : box().W, H = Math.round((W * im.naturalHeight) / im.naturalWidth);
+            this.edit(() => { it.w = W; it.h = H; });
+        }]]);
+        const r = this.section(body, "Corners and opacity").createDiv({ cls: "vl-nums" });
+        this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
+        this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
     }
     // exact size and offset as numbers (a hug / fill size shows as drawn; typing a number fixes it); the corner handles change them too
     sizeNums(body: HTMLElement, it: Item, top: boolean) {
@@ -1241,6 +1319,26 @@ class Editor {
     }
 }
 
+// object-position as two fractions (0 left / top … 1 right / bottom); keywords and percentages, anything else the middle
+const focusOf = (pos?: string): [number, number] => {
+    const w = (pos ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const kw: Record<string, [number, "x" | "y" | ""]> = { left: [0, "x"], right: [1, "x"], top: [0, "y"], bottom: [1, "y"], center: [0.5, ""] };
+    let x = 0.5, y = 0.5, i = 0;
+    for (const t of w.slice(0, 2)) {
+        const k = kw[t], n = /^(-?\d+(?:\.\d+)?)%$/.exec(t);
+        if (k) { if (k[1] === "y") y = k[0]; else if (k[1] === "x") x = k[0]; }
+        else if (n) { if (i === 0 && w.length > 1) x = Number(n[1]) / 100; else if (i === 0) x = Number(n[1]) / 100; else y = Number(n[1]) / 100; }
+        i++;
+    }
+    return [x, y];
+};
+// a picture of the vault, typed to find
+class ImagePick extends FuzzySuggestModal<TFile> {
+    constructor(app: App, readonly pick: (f: TFile) => void) { super(app); this.setPlaceholder("A picture of the vault"); }
+    getItems() { return this.app.vault.getFiles().filter((f) => /^(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(f.extension)); }
+    getItemText(f: TFile) { return f.path; }
+    onChooseItem(f: TFile) { this.pick(f); }
+}
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
