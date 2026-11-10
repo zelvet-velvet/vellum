@@ -35,12 +35,12 @@ export default class VellumPlugin extends Plugin {
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
     save() { void this.plugin.save(); }
-    // a card: a heading (a click unfolds it; folded at first, the open ones kept on the device) with a short summary at its
+    // a card: a heading (a click unfolds it; at first only Screens is open, the open ones kept on the device) with a short summary at its
     // right, and its body
     card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
         const KEY = "vellum:setopen";
         let open: string[] = [];
-        try { open = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
+        try { open = JSON.parse(localStorage.getItem(KEY) ?? '["screens"]'); } catch { /* */ }   // at first only Screens is open
         const card = c.createDiv({ cls: "vls-card" + (open.includes(key) ? "" : " is-folded") });
         const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
         setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");

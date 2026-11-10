@@ -1119,12 +1119,17 @@ class Editor {
         const sa = this.section(body, `Safe areas · every screen, ${this.land ? "landscape" : "portrait"}`, true);
         const own = screenOf(deviceOf(p.device ?? this.doc.device), this.land).safe, key = this.land ? "safeLand" : "safe";
         const nums = sa.createDiv({ cls: "vl-nums" });
+        // hovering the section lights the safe areas on the phone; a side's number, that side
+        const lit = (side?: string) => { const w = this.wall; if (!w) return; if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side; };
+        const sec = sa.parentElement!;
+        sec.addEventListener("mouseenter", () => lit("all")); sec.addEventListener("mouseleave", () => lit());
         for (const [k, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
-            this.num(nums, name, () => this.screen(p).safe[k], (v) => {
+            const nw = this.num(nums, name, () => this.screen(p).safe[k], (v) => {
                 const o = { ...this.doc[key] };
                 if (v === own[k]) delete o[k]; else o[k] = v;
                 if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
             }, { min: 0, max: 400 });
+            nw.addEventListener("mouseenter", () => lit(k)); nw.addEventListener("mouseleave", () => lit("all"));
         }
         if (this.doc[key]) this.actions(sa, [["rotate-ccw", `The device's own (${own.top} / ${own.bottom} / ${own.left} / ${own.right})`, () => this.edit(() => { delete this.doc[key]; })]]);
         const a = this.section(body, "Add a block");
