@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, Setting, TFolder } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, SliderComponent, TFolder, ToggleComponent } from "obsidian";
 import { openVellum, registerVellum, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
 import { BASE_THEME, Theme } from "./render";
 
@@ -30,68 +30,126 @@ export default class VellumPlugin extends Plugin {
     async save() { await this.saveData(this.settings); }
 }
 
+// The settings: a few cards (screens, colours, fonts, snapping) that fold, each a list of compact rows (name and a word
+// on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
-    // a heading that folds the settings under it (a click on it); folded headings are kept on the device
-    fold(c: HTMLElement, name: string): HTMLElement {
+    save() { void this.plugin.save(); }
+    // a card: a heading (a click folds it, kept on the device) with a short summary at its right, and its body
+    card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
         const KEY = "vellum:setfold";
         let shut: string[] = [];
         try { shut = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
-        const head = new Setting(c).setName(name).setHeading();
-        head.settingEl.addClass("vl-sethead");
-        const chev = head.nameEl.createSpan({ cls: "vl-setchev" });
-        const box = c.createDiv({ cls: "vl-setgroup" });
-        const show = (open: boolean) => { box.toggle(open); head.settingEl.toggleClass("is-folded", !open); chev.empty(); setIcon(chev, open ? "chevron-down" : "chevron-right"); };
-        show(!shut.includes(name));
-        head.settingEl.addEventListener("click", () => {
-            const open = !box.isShown();
-            show(open);
-            shut = open ? shut.filter((n) => n !== name) : [...new Set([...shut, name])];
+        const card = c.createDiv({ cls: "vls-card" + (shut.includes(key) ? " is-folded" : "") });
+        const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
+        setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");
+        head.createSpan({ cls: "vls-title", text: title });
+        head.createSpan({ cls: "vls-sum", text: summary });
+        const flip = () => {
+            card.toggleClass("is-folded", !card.hasClass("is-folded"));
+            shut = card.hasClass("is-folded") ? [...new Set([...shut, key])] : shut.filter((k) => k !== key);
             try { localStorage.setItem(KEY, JSON.stringify(shut)); } catch { /* */ }
-        });
-        return box;
+        };
+        head.addEventListener("click", flip);
+        head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+        return card.createDiv({ cls: "vls-body" });
+    }
+    // a row: its name (and a line under it) on the left, the control on the right
+    row(parent: HTMLElement, name: string, desc?: string): HTMLElement {
+        const r = parent.createDiv({ cls: "vls-row" });
+        const l = r.createDiv({ cls: "vls-label" });
+        l.createDiv({ cls: "vls-name", text: name });
+        if (desc) l.createDiv({ cls: "vls-desc", text: desc });
+        return r.createDiv({ cls: "vls-ctl" });
+    }
+    input(parent: HTMLElement, value: string, set: (v: string) => void, o: { cls?: string; placeholder?: string; type?: string } = {}) {
+        const i = parent.createEl("input", { cls: "vls-input" + (o.cls ? " " + o.cls : ""), attr: { type: o.type ?? "text", placeholder: o.placeholder ?? "", spellcheck: "false" } });
+        i.value = value;
+        i.addEventListener("input", () => set(i.value));
+        return i;
     }
     display() {
         const { containerEl: c } = this, s = this.plugin.settings;
-        c.empty();
-        new Setting(c).setName("Screens folder").setDesc("What the ribbon button opens: one JSON file per screen (made on the first save). A ```vellum block with src: <folder> shows any folder in a note too.")
-            .addText((t) => t.setPlaceholder("Screens").setValue(s.folder).onChange(async (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; await this.plugin.save(); }));
-        c.createEl("p", { cls: "setting-item-description", text: "The named colours and fonts items use (any CSS value, CSS variables too). Reopen the editor to see a change." });
-        const gc = this.fold(c, "Colours");
-        for (const name of Object.keys(s.colors)) {
-            const row = new Setting(gc).setName(name);
-            const sw = row.nameEl.createSpan({ cls: "vl-set-sw" }); sw.style.background = s.colors[name];
-            row.addText((t) => t.setValue(s.colors[name]).onChange(async (v) => { s.colors[name] = v.trim(); sw.style.background = v; await this.plugin.save(); }));
-            if (!(name in DEFAULTS.colors)) row.addExtraButton((b) => b.setIcon("trash").setTooltip("Remove").onClick(async () => { delete s.colors[name]; await this.plugin.save(); this.display(); }));
+        c.empty(); c.addClass("vl-settings");
+        c.createDiv({ cls: "vls-intro", text: "Colours and fonts follow your Obsidian theme until you change them. Reopen the editor to see a change of look; snapping applies at once." });
+
+        // screens
+        const sc = this.card(c, "screens", "Screens", s.folder);
+        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Screens" });
+
+        // colours: a swatch (a click picks a colour), the name, its CSS value
+        const names = Object.keys(s.colors);
+        const co = this.card(c, "colours", "Colours", `${names.length} named`);
+        const list = co.createDiv({ cls: "vls-tokens" });
+        for (const name of names) {
+            const t = list.createDiv({ cls: "vls-token" });
+            const sw = t.createDiv({ cls: "vls-sw", attr: { "aria-label": "Pick a colour" } });
+            sw.style.background = s.colors[name];
+            const pick = sw.createEl("input", { attr: { type: "color", tabindex: "-1" } });
+            t.createDiv({ cls: "vls-tname", text: name });
+            const val = this.input(t, s.colors[name], (v) => { s.colors[name] = v.trim(); sw.style.background = v; this.save(); }, { cls: "is-mono" });
+            pick.addEventListener("click", () => { pick.value = toHex(getComputedStyle(sw).backgroundColor); });
+            pick.addEventListener("input", () => { s.colors[name] = pick.value; val.value = pick.value; sw.style.background = pick.value; this.save(); });
+            if (name in DEFAULTS.colors) t.createDiv();
+            else {
+                const x = t.createEl("button", { cls: "vls-x clickable-icon", attr: { "aria-label": `Remove ${name}` } });
+                setIcon(x, "x");
+                x.addEventListener("click", () => { delete s.colors[name]; this.save(); this.display(); });
+            }
         }
+        const add = co.createDiv({ cls: "vls-add" });
         let fresh = "";
-        new Setting(gc).setName("Add a colour").setDesc("A new name items can use.")
-            .addText((t) => t.setPlaceholder("name").onChange((v) => { fresh = v.trim(); }))
-            .addButton((b) => b.setButtonText("Add").onClick(async () => { if (!fresh || fresh in s.colors) return; s.colors[fresh] = "#888888"; await this.plugin.save(); this.display(); }));
-        const gf = this.fold(c, "Fonts");
+        const ni = this.input(add, "", (v) => { fresh = v.trim(); }, { placeholder: "A new colour name" });
+        const ab = add.createEl("button", { text: "Add colour" });
+        const doAdd = () => { if (!fresh || fresh in s.colors) { ni.focus(); return; } s.colors[fresh] = "#888888"; this.save(); this.display(); };
+        ab.addEventListener("click", doAdd);
+        ni.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
+
+        // fonts: a sample in the font, the name, its CSS value
+        const fo = this.card(c, "fonts", "Fonts", `${Object.keys(s.fonts).length} named`);
+        const fl = fo.createDiv({ cls: "vls-tokens" });
         for (const name of Object.keys(s.fonts)) {
-            new Setting(gf).setName(name).addText((t) => t.setValue(s.fonts[name]).onChange(async (v) => { s.fonts[name] = v.trim(); await this.plugin.save(); }));
+            const t = fl.createDiv({ cls: "vls-token" });
+            const aa = t.createDiv({ cls: "vls-aa", text: "Aa" });
+            aa.style.fontFamily = s.fonts[name];
+            t.createDiv({ cls: "vls-tname", text: name });
+            this.input(t, s.fonts[name], (v) => { s.fonts[name] = v.trim(); aa.style.fontFamily = v; this.save(); }, { cls: "is-mono" });
+            t.createDiv();
         }
-        const gs = this.fold(c, "Snapping");
-        const sn = s.snap, keep = async () => { await this.plugin.save(); };
-        new Setting(gs).setName("Snap to edges and middles").setDesc("While dragging or resizing, a block or an item snaps to the lines near it, with a guide line; Alt turns it off for a drag (1 px). The magnet under the phone switches this too.")
-            .addToggle((t) => t.setValue(sn.on).onChange(async (v) => { sn.on = v; await keep(); }));
-        new Setting(gs).setName("Snap distance").setDesc("How near a line pulls (screen pixels).")
-            .addSlider((sl) => sl.setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange(async (v) => { sn.dist = v; await keep(); }));
-        new Setting(gs).setName("Grid").setDesc("Points a drag moves by when no line is near (1 = free). Shift with an arrow key moves this far too.")
-            .addText((t) => t.setValue(String(sn.grid)).onChange(async (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; await keep(); } }));
-        new Setting(gs).setName("Margins").setDesc("Lines this far inside each edge (the block's for an item; the safe area's for a block), comma separated; empty for none.")
-            .addText((t) => t.setPlaceholder("16, 24").setValue(sn.margins.join(", ")).onChange(async (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); await keep(); }));
-        new Setting(gs).setName("The frame").setDesc("An item: its block's edges and middle. A block: the screen's, and the safe area's edges.")
-            .addToggle((t) => t.setValue(sn.frame).onChange(async (v) => { sn.frame = v; await keep(); }));
-        new Setting(gs).setName("Other items and blocks").setDesc("The edges and middles of the other items in the block, or of the other blocks on the screen.")
-            .addToggle((t) => t.setValue(sn.others).onChange(async (v) => { sn.others = v; await keep(); }));
-        new Setting(gs).setName("Guide lines").setDesc("Show the line a drag snapped to.")
-            .addToggle((t) => t.setValue(sn.guides).onChange(async (v) => { sn.guides = v; await keep(); }));
-        new Setting(c).setName("Follow the Obsidian theme").setDesc("Put every colour and font back to the defaults.")
-            .addButton((b) => b.setButtonText("Reset").setWarning().onClick(async () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap }; await this.plugin.save(); this.display(); }));
+
+        // snapping
+        const sn = s.snap;
+        const sp = this.card(c, "snapping", "Snapping", sn.on ? "On" : "Off");
+        const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
+        const rest = sp.createDiv({ cls: "vls-group" + (sn.on ? "" : " is-off") });
+        new ToggleComponent(master).setValue(sn.on).onChange((v) => { sn.on = v; rest.toggleClass("is-off", !v); sp.parentElement?.querySelector(".vls-sum")?.setText(v ? "On" : "Off"); this.save(); });
+        const to = this.row(rest, "Snap to", "The frame: an item's block, or a block's screen and safe area.");
+        const pill = (text: string, on: () => boolean, flip: () => void) => {
+            const b = to.createEl("button", { cls: "vls-pill" + (on() ? " is-on" : ""), text });
+            b.addEventListener("click", () => { flip(); b.toggleClass("is-on", on()); this.save(); });
+        };
+        pill("The frame", () => sn.frame, () => { sn.frame = !sn.frame; });
+        pill("Other items", () => sn.others, () => { sn.others = !sn.others; });
+        const di = this.row(rest, "Distance", "How near a line pulls, in screen pixels.");
+        const dv = di.createSpan({ cls: "vls-val", text: `${sn.dist} px` });
+        new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).onChange((v) => { sn.dist = v; dv.setText(`${v} px`); this.save(); });
+        di.appendChild(dv);
+        this.input(this.row(rest, "Grid", "Points a drag steps by when no line is near (1: free); Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
+        this.input(this.row(rest, "Margins", "Lines this far inside each edge, comma separated."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
+        new ToggleComponent(this.row(rest, "Guide lines", "Show the line a drag snapped to.")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
+
+        // back to the theme
+        const foot = c.createDiv({ cls: "vls-foot" });
+        foot.createSpan({ text: "Back to your Obsidian theme's colours and fonts." });
+        const rb = foot.createEl("button", { cls: "mod-warning", text: "Reset look" });
+        rb.addEventListener("click", () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap }; this.save(); this.display(); });
     }
 }
+// rgb(…) / rgba(…) as #rrggbb (the colour picker takes only that)
+const toHex = (rgb: string) => {
+    const m = rgb.match(/\d+(\.\d+)?/g);
+    return m && m.length >= 3 ? "#" + m.slice(0, 3).map((n) => Math.round(Number(n)).toString(16).padStart(2, "0")).join("") : "#888888";
+};
 
 // a folder of the vault, typed to find
 class FolderPick extends FuzzySuggestModal<TFolder> {
