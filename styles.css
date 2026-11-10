@@ -306,3 +306,23 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-mkland button { font-size: 18px; height: 44px; padding: 0 20px; }
 .vl-seg.is-ori > button { padding: 0 8px; display: flex; align-items: center; }
 .vl-seg.is-ori svg { width: 16px; height: 16px; }
+
+/* pictures: a soft tile with an image icon until the picture is in (or when it can not be loaded) */
+.vl-i-img { position: relative; overflow: hidden; background: var(--vl-tile); color: var(--vl-dim); }
+.vl-i-img > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; margin: 0; opacity: 0; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.vl-i-img.is-loaded > img { opacity: 1; }
+.vl-imgph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.6; --icon-size: 22px; --icon-stroke: 1.75px; }
+.vl-i-img.is-loaded > .vl-imgph { display: none; }
+/* icons (Lucide, by name): the svg fills the item; an unknown name is a small ? box */
+.vl-i-icon { display: flex; align-items: center; justify-content: center; line-height: 0; }
+.vl-i-icon > svg { width: 100%; height: 100%; }
+.vl-i-icon.is-unknown { line-height: 1; font: 600 calc(var(--icon-size, 20px) * 0.6) / 1 var(--font-interface); border: 1px dashed currentColor; border-radius: 3px; opacity: 0.7; }
+.vl-iconpick { max-height: 172px; overflow-y: auto; padding: 1px; }
+
+/* a frame's blocks on a page that inherits them: faded and locked while editing; an override has a small mark */
+.vl-screen:not(.is-show) .vl-block.is-inh { opacity: 0.5; cursor: pointer; outline-style: dotted; }
+.vl-screen:not(.is-show) .vl-block.is-inh.is-sel { opacity: 0.75; z-index: 1; overflow: hidden; }   /* chosen, it stays under the page's own blocks */
+.vl-screen:not(.is-show) .vl-block.is-inh .vl-it:hover { box-shadow: none; }
+.vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: 9px; --icon-stroke: 2.5px; }
+.vl-overmark { position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: var(--k); color: var(--background-primary); pointer-events: none; z-index: 4; --icon-size: 10px; --icon-stroke: 2.5px; }
+.vl-frameinfo { font-size: var(--font-ui-smaller); line-height: 1.4; color: var(--text-muted); }

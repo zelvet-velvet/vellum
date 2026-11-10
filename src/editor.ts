@@ -1,7 +1,7 @@
-import { addIcon, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
-import { axes, Block, childrenOf, cloneItem, Doc, findItem, GRAVITIES, subtreeOf, Item, ItemType, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
-import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, Theme } from "./render";
+import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
+import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, setPictureResolver, Theme } from "./render";
 import { FolderStore, srcOf } from "./store";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
@@ -172,21 +172,25 @@ class Editor {
     // the layout on show: portrait, or landscape (a screen may have none yet: make = start an empty one)
     get land() { return !!this.v.land; }
     blocks(p: Page, make = false): Block[] { if (!this.land) return p.blocks; if (!p.land && make) p.land = []; return p.land ?? []; }
-    // landscape from portrait: full-width blocks stretch to the new width, the rest keep their place under the status bar
+    // landscape from portrait: full-width blocks stretch to the new width, the rest keep their place under the status bar;
+    // each keeps its id (a block of a frame and its overrides are the same block in both layouts)
     makeLand(p: Page) { this.edit(() => {
         const d = deviceOf(p.device ?? this.doc.device), up = screenOf(d, false), sd = screenOf(d, true);
         const roomUp = up.W - up.safe.left - up.safe.right, roomSd = sd.W - sd.safe.left - sd.safe.right;
         p.land = p.blocks.map((b) => {
-            const c: Block = JSON.parse(JSON.stringify(b)); c.id = uid();
+            const c: Block = JSON.parse(JSON.stringify(b));
             const m = b.x - up.safe.left, wide = b.w >= roomUp - 2 * m - 4;
             c.x = sd.safe.left + m; c.w = wide ? Math.max(8, roomSd - 2 * m) : b.w;
             c.y = Math.max(sd.safe.top, b.y - up.safe.top);
             return c;
         });
     }); }
+    // the blocks drawn on a page (its frame's under its own) in the layout on show; layer(): the chosen one among them
+    layers(p: Page): Layer[] { return layersOf(this.doc.pages, p, this.land); }
+    layer() { const p = this.page(); return p && this.sel?.block ? this.layers(p).find((l) => l.block.id === this.sel?.block) : undefined; }
     item() { const b = this.block(); return b && this.sel?.item ? findItem(b.items, this.sel.item) : null; }
     choose(s: Sel) { this.sel = s; this.drawPanel(); this.drawPages(); }
-    fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.block()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel!.page, block: this.sel!.block }; }
+    fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.layer()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel!.page, block: this.sel!.block }; }
 
     // ---- the card in the note: the screens as a small map, Open
     drawCard() {
@@ -505,9 +509,10 @@ class Editor {
         el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`; el.style.borderRadius = `${Math.max(3, d.radius * k)}px`;
         const scr = el.createDiv({ cls: "vl-screen is-show" });
         Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px`, transform: `scale(${k})` });
-        if (p.bg) scr.style.background = colorOf(this.theme, p.bg);
+        const bg = bgOf(this.doc.pages, p);
+        if (bg) scr.style.background = colorOf(this.theme, bg);
         const keep = this.sel; this.sel = null;
-        for (const b of this.blocks(p)) this.drawBlock(scr, p, b, true);
+        for (const b of drawnBlocks(this.doc.pages, p, this.land)) this.drawBlock(scr, p, b, true);
         this.sel = keep;
         return el;
     }
@@ -520,7 +525,7 @@ class Editor {
     thumbs = new Map<string, { sig: string; el: HTMLElement }>();
     thumb(p: Page): HTMLElement {
         const tw = this.picW(this.rail?.offsetWidth || Number(localStorage.getItem("vellum:railW")) || 248);
-        const sig = JSON.stringify(p) + this.doc.device + tw + this.land, hit = this.thumbs.get(p.id);
+        const sig = JSON.stringify(p) + JSON.stringify(drawnBlocks(this.doc.pages, p, this.land)) + bgOf(this.doc.pages, p) + this.doc.device + tw + this.land, hit = this.thumbs.get(p.id);
         if (hit && hit.sig === sig) return hit.el;
         const el = this.pic(p, tw);
         this.thumbs.set(p.id, { sig, el });
@@ -576,9 +581,10 @@ class Editor {
             t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
             const ph = t.createDiv({ cls: "vl-tphone" }); ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
             const scr = ph.createDiv({ cls: "vl-screen is-show" });
-            if (p.bg) { scr.style.background = colorOf(this.theme, p.bg); ph.style.background = scr.style.background; }
+            const bg = bgOf(pages, p);
+            if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
-            for (const b of this.blocks(p)) this.drawBlock(scr, p, b, true);
+            for (const b of drawnBlocks(pages, p, this.land)) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
@@ -593,7 +599,8 @@ class Editor {
         const phone = fig.createDiv({ cls: "vl-phone" });
         phone.style.width = `${W * z}px`; phone.style.height = `${H * z}px`; phone.style.borderRadius = `${dev.radius * z}px`;
         const scr = phone.createDiv({ cls: "vl-screen" + (show ? " is-show" : "") });
-        if (p.bg) { scr.style.background = colorOf(this.theme, p.bg); phone.style.background = scr.style.background; }
+        const bg = bgOf(this.doc.pages, p);
+        if (bg) { scr.style.background = colorOf(this.theme, bg); phone.style.background = scr.style.background; }
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
         if (!this.land) {
@@ -614,10 +621,12 @@ class Editor {
         if (dev.cut !== "none") scr.createDiv({ cls: `vl-cut is-${dev.cut}` + (this.land ? " is-side" : "") });
         if (safe.bottom) scr.createDiv({ cls: "vl-home" });
         if (!show) for (const [k, v] of Object.entries(safe)) if (v) { const s = scr.createDiv({ cls: `vl-safe is-${k}` }); s.style[k === "top" || k === "bottom" ? "height" : "width"] = `${v}px`; }
-        for (const b of this.blocks(p)) this.drawBlock(scr, p, b, show);
+        // the frame's blocks (inherit) faded and locked under the page's own while editing; as they are in Show
+        const layers = this.layers(p);
+        for (const l of layers) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
         // pointer: choose and drag
-        // no landscape layout yet: one button to start it from the portrait one
-        if (this.land && !p.land) {
+        // no landscape layout yet (nor a frame's): one button to start it from the portrait one
+        if (this.land && !p.land && !layers.length) {
             const mk = scr.createDiv({ cls: "vl-mkland" });
             mk.createDiv({ text: "No landscape layout yet" });
             const go = mk.createEl("button", { cls: "mod-cta", text: "Make landscape from portrait" });
@@ -631,18 +640,26 @@ class Editor {
     // one block again, in its place (a drag keeps its screen element, which holds the pointer)
     redrawBlock(scr: HTMLElement, p: Page, b: Block) {
         const old = scr.querySelector(`[data-block="${b.id}"]`);
-        const el = this.drawBlock(scr, p, b, false);
+        const el = this.drawBlock(scr, p, b, false, this.layers(p).find((l) => l.block === b));
         if (old) old.replaceWith(el);
     }
-    drawBlock(scr: HTMLElement, p: Page, b: Block, show: boolean): HTMLElement {
+    // l (editing): where the block comes from: a frame's (inherited: faded, locked) or an override of one (a small mark)
+    drawBlock(scr: HTMLElement, p: Page, b: Block, show: boolean, l?: Layer): HTMLElement {
         const kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
         const sel = this.sel?.page === p.id && this.sel.block === b.id;
-        const el = scr.createDiv({ cls: "vl-block" + (sel ? " is-sel" : ""), attr: { "data-block": b.id } });
+        const inh = !!l?.from && !l.over;
+        const el = scr.createDiv({ cls: "vl-block" + (sel ? " is-sel" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
-        if (!show) el.createDiv({ cls: "vl-tag", text: b.name });
+        if (!show) {
+            const tag = el.createDiv({ cls: "vl-tag" });
+            if (inh) setIcon(tag.createSpan({ cls: "vl-tagi" }), "lock");
+            tag.appendText(b.name + (inh ? ` · ${this.page(l!.from)?.name ?? "frame"}` : ""));
+        }
         for (const it of b.items) drawItem(this.theme, el, it);
-        if (sel) {
+        if (l?.over && !show) setIcon(el.createDiv({ cls: "vl-overmark", attr: { "aria-label": `Overrides ${this.page(l.over)?.name ?? "the frame"}'s ${b.name}` } }), "layers-2");
+        if (sel && inh) { /* locked: no grip, no items to choose */ }
+        else if (sel) {
             const id = this.sel?.item;
             if (id) {
                 el.querySelector(`[data-id="${id}"]`)?.addClass("is-sel");
@@ -665,7 +682,12 @@ class Editor {
         const topEl = t.closest<HTMLElement>("[data-top]");
         const pickId = itEl?.dataset.id, dragId = topEl?.dataset.id;
         const before = this.sel;
-        if (!b) { this.choose({ page: p.id }); return; }
+        if (!b) {
+            // a frame's block (locked here): chosen, to override it or go and edit it in its page
+            const l = bEl ? this.layers(p).find((x) => x.block.id === bEl.dataset.block) : undefined;
+            this.choose(l ? { page: p.id, block: l.block.id } : { page: p.id });
+            return;
+        }
         // first tap on a block chooses the block; an item is chosen once its block is (or straight away with a double tap)
         const blockChosen = before?.page === p.id && before.block === b.id;
         const target: Sel = pickId && blockChosen ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
@@ -749,6 +771,7 @@ class Editor {
     }
     duplicate() {
         const f = this.item(), b = this.block(), p = this.page();
+        if (this.sel?.block && !b) return;   // a frame's block: locked here
         if (f) this.edit(() => { const c = cloneItem(f.item); f.list.splice(f.list.indexOf(f.item) + 1, 0, c); this.sel = { ...this.sel!, item: c.id }; });
         else if (b && p) this.edit(() => { const c: Block = { ...JSON.parse(JSON.stringify(b)), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); this.blocks(p).push(c); this.sel = { page: p.id, block: c.id }; });
         else if (p) this.edit(() => { const c: Page = { ...JSON.parse(JSON.stringify(p)), id: uid(), name: p.name + " copy" }; this.doc.pages.splice(this.doc.pages.indexOf(p) + 1, 0, c); this.sel = { page: c.id }; });
@@ -783,17 +806,19 @@ class Editor {
                 g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
             });
         }
-        const b = this.block(), f = this.item();
+        const b = this.block(), f = this.item(), inh = !b ? this.layer() : undefined;
         // breadcrumb: page › block › item, each a way back up
         const head = P.createDiv({ cls: "vl-crumb" });
         const crumb = (text: string, s: Sel, on: boolean) => { const c = head.createEl("button", { text, cls: on ? "is-on" : "" }); c.addEventListener("click", () => this.choose(s)); };
         crumb(p.name, { page: p.id }, !b);
         if (b) { head.createSpan({ text: "›" }); crumb(b.name, { page: p.id, block: b.id }, !f); }
+        else if (inh) { head.createSpan({ text: "›" }); crumb(inh.block.name, { page: p.id, block: inh.block.id }, true); }
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
         if (this.sel) this.btn(head, "x", "Let go (Esc)", () => this.choose(null)).addClass("vl-close");
         const body = P.createDiv({ cls: "vl-pbody" });
         if (f && b) this.itemPanel(body, b, f.item, b.items.includes(f.item));
         else if (b) this.blockPanel(body, p, b);
+        else if (inh) this.framePanel(body, p, inh);
         else this.pagePanel(body, p);
         body.scrollTop = this.keepTop; this.keepTop = 0;
     }
@@ -895,15 +920,20 @@ class Editor {
         const s = this.section(body, "Page");
         this.text(s, () => p.name, (v) => { p.name = v; }, { title: "Page name" });
         this.chips(s, [["real", "Real screen: as built", "badge-check"], ["mock", "Mock: a proposal to pick", "lightbulb"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
-        this.colors(this.section(body, "Screen colour"), p.bg ?? "paper", (v) => { if (v === "paper") delete p.bg; else p.bg = v; });
+        // with a frame: its colour unless the page sets its own
+        const fr = frameOf(this.doc.pages, p), was = (fr && bgOf(this.doc.pages, fr)) || "paper";
+        this.colors(this.section(body, "Screen colour"), p.bg ?? was, (v) => { if (v === was) delete p.bg; else p.bg = v; });
         const st = this.section(body, "Opened from");
         const under = subtreeOf(this.doc.pages, p.id);
         const sel = st.createEl("select", { cls: "dropdown vl-select" });
         sel.createEl("option", { value: "", text: "Nothing: a main screen" });
         for (const q of this.doc.pages) if (!under.has(q.id)) sel.createEl("option", { value: q.id, text: q.name });
         sel.value = p.parent ?? "";
-        sel.addEventListener("change", () => this.edit(() => { if (sel.value) p.parent = sel.value; else { delete p.parent; delete p.link; } }));
+        sel.addEventListener("change", () => this.edit(() => { if (sel.value) p.parent = sel.value; else { delete p.parent; delete p.link; delete p.inherit; } }));
         if (p.parent) this.text(st, () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "How you get there: tap a row, + button…" });
+        // a frame: the parent's blocks drawn under this page's own (a layout template); the page keeps only its own and overrides
+        const par = this.page(p.parent);
+        if (par) this.chips(st, [["own", "Own blocks only"], ["frame", `On ${par.name}'s frame`]], p.inherit ? "frame" : "own", (v) => { if (v === "frame") p.inherit = true; else delete p.inherit; });
         const n = this.section(body, "Note");
         this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this page is for" });
         const a = this.section(body, "Add a block");
@@ -912,12 +942,13 @@ class Editor {
             const c = this.kindChip(g, k, false);
             c.addEventListener("click", () => this.edit(() => {
                 const dev = deviceOf(p.device ?? this.doc.device), { W, safe } = screenOf(dev, this.land);
-                const low = this.blocks(p).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
+                const low = drawnBlocks(this.doc.pages, p, this.land).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
                 const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
                 this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
             }));
         }
         if (this.land && p.land) this.actions(body, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
+        else if (this.land && p.blocks.length) this.actions(body, [["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]]);
         this.actions(body, [["copy", "Duplicate page", () => this.duplicate()], ["trash-2", "Delete page", () => this.edit(() => { this.doc.pages.splice(this.doc.pages.indexOf(p), 1); this.sel = null; })]]);
     }
     blockPanel(body: HTMLElement, p: Page, b: Block) {
@@ -925,13 +956,31 @@ class Editor {
         this.text(s, () => b.name, (v) => { b.name = v; }, { title: "Block name" });
         const g = s.createDiv({ cls: "vl-chips is-icons" });
         for (const k of this.kinds) this.kindChip(g, k, k.id === b.kind).addEventListener("click", () => this.edit(() => { b.kind = k.id; }));
+        // an override: the frame's block it takes the place of, and the way back to it
+        const l = this.layers(p).find((x) => x.block === b);
+        if (l?.over) {
+            const o = this.section(body, "Override");
+            o.createDiv({ cls: "vl-frameinfo", text: `Takes the place of ${this.page(l.over)?.name ?? "the frame"}'s ${b.name} on this screen.` });
+            this.actions(o, [["undo-2", "Back to the frame", () => this.edit(() => { const own = this.blocks(p); own.splice(own.indexOf(b), 1); this.sel = { page: p.id, block: b.id }; })]]);
+        }
         this.placeTool(this.section(body, "Place"), p, b);
         const it = this.section(body, "Items");
         this.itemList(it, b, b.items);
-        this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "row", "col"]);
+        this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "img", "icon", "row", "col"]);
         const n = this.section(body, "Note");
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
         this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
+    }
+    // a frame's block on a page that inherits it: locked here; copy it in to change it here, or edit it where it belongs
+    framePanel(body: HTMLElement, p: Page, l: Layer) {
+        const owner = this.page(l.from), s = this.section(body, "From the frame");
+        s.createDiv({ cls: "vl-frameinfo", text: `${l.block.name} belongs to ${owner?.name ?? "the frame"}: drawn here under this screen's own blocks, locked. Override it to change it on this screen only.` });
+        const acts: [string, string, () => void][] = [["copy-plus", "Override here", () => this.edit(() => {
+            const c = JSON.parse(JSON.stringify(l.block)) as Block;   // the same id (and items): it takes the frame block's place
+            this.blocks(p, true).push(c); this.sel = { page: p.id, block: c.id };
+        })]];
+        if (owner) acts.push(["arrow-up-right", `Edit in ${owner.name}`, () => { this.setView({ page: owner.id }); this.sel = { page: owner.id, block: l.block.id }; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }]);
+        this.actions(body, acts);
     }
     // where a block sits: align it in the screen's room (inside the safe areas), its size in the middle, its distance to
     // each edge around it; a distance chosen is changed by the stepper under it
@@ -1016,7 +1065,7 @@ class Editor {
         });
     }
     addButtons(parent: HTMLElement, b: Block, list: Item[], types: ItemType[]) {
-        const names: Record<ItemType, [string, string]> = { text: ["type", "Text"], rect: ["square", "Rect"], ellipse: ["circle", "Circle"], line: ["minus", "Line"], row: ["columns-3", "Row"], col: ["rows-3", "Column"] };
+        const names: Record<ItemType, [string, string]> = { text: ["type", "Text"], rect: ["square", "Rect"], ellipse: ["circle", "Circle"], line: ["minus", "Line"], img: ["image", "Picture"], icon: ["smile-plus", "Icon"], row: ["columns-3", "Row"], col: ["rows-3", "Column"] };
         this.actions(parent, types.map((t) => [names[t][0], names[t][1], () => this.edit(() => { const it = newItem(t); if (list !== b.items) { delete it.g; delete it.dx; delete it.dy; } list.push(it); this.sel = { page: this.sel!.page, block: b.id, item: it.id }; })] as [string, string, () => void]));
     }
     itemPanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
@@ -1048,6 +1097,37 @@ class Editor {
             const s = this.section(body, "Line");
             this.num(s.createDiv({ cls: "vl-nums" }), "Thickness", () => (typeof it.h === "number" ? it.h : 1), (v) => { it.h = v; }, { min: 1 });
             this.colors(this.section(body, "Colour"), it.fill ?? "line", (v) => { it.fill = v; });
+        } else if (it.type === "img") {
+            const s = this.section(body, "Picture");
+            this.text(s, () => it.src ?? "", (v) => { it.src = v; }, { placeholder: "https://… or a vault path", title: "Picture address" });
+            this.chips(s, [["cover", "Cover: fills the box, cropped", "crop"], ["contain", "Contain: all of it, inside the box", "minimize-2"], ["fill", "Stretch: the box's shape", "move-diagonal-2"]], it.fit ?? "cover", (v) => { it.fit = v; });
+            const ps = this.section(body, "Position");
+            this.text(ps, () => it.pos ?? "", (v) => { if (v.trim()) it.pos = v; else delete it.pos; }, { placeholder: "center · center 30% · left top", title: "Picture position (CSS object-position)" });
+            const r = this.section(body, "Box").createDiv({ cls: "vl-nums" });
+            this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
+            this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
+        } else if (it.type === "icon") {
+            // the name, and the icons it matches (Obsidian's set) to pick from
+            const s = this.section(body, "Icon");
+            const sug = createDiv({ cls: "vl-chips is-icons vl-iconpick" });
+            const fill = () => {
+                sug.empty();
+                const q = (it.name ?? "").trim().toLowerCase(), all = iconNames();
+                const hits = q ? all.filter((n) => n.includes(q)).sort((a, z) => Number(!a.startsWith(q)) - Number(!z.startsWith(q)) || a.length - z.length) : all;
+                for (const n of hits.slice(0, 48)) {
+                    const c = sug.createEl("button", { cls: "vl-chip is-icon" + (n === it.name ? " is-on" : ""), attr: { "aria-label": n } });
+                    setIcon(c, n);
+                    c.addEventListener("click", () => this.edit(() => { it.name = n; }));
+                }
+                if (!hits.length) sug.createDiv({ cls: "vl-frameinfo", text: "No icon by that name: it shows as a ?" });
+            };
+            this.text(s, () => it.name ?? "", (v) => { it.name = v.trim(); fill(); }, { placeholder: "A Lucide name: sparkles, house…", title: "Icon name" });
+            s.appendChild(sug); fill();
+            const r = s.createDiv({ cls: "vl-nums" });
+            this.num(r, "Size", () => it.size ?? 20, (v) => { it.size = v; }, { min: 4, max: 400 });
+            this.num(r, "Stroke", () => it.sw ?? 0, (v) => { it.sw = v || undefined; }, { step: 0.25, min: 0, max: 4 });
+            this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
+            this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
         } else if (it.type === "row" || it.type === "col") {
             const s = this.section(body, it.type === "row" ? "Row" : "Column");
             this.chips(s, [["row", "Across", "arrow-right"], ["col", "Down", "arrow-down"]], it.type, (v) => { it.type = v; });
@@ -1059,7 +1139,7 @@ class Editor {
             this.chips(s, [["start", "Packed at the start", across ? "align-horizontal-justify-start" : "align-vertical-justify-start"], ["center", "Packed in the middle", across ? "align-horizontal-justify-center" : "align-vertical-justify-center"], ["end", "Packed at the end", across ? "align-horizontal-justify-end" : "align-vertical-justify-end"], ["between", "Spread out", across ? "align-horizontal-space-between" : "align-vertical-space-between"]], it.main ?? "start", (v) => { it.main = v; });
             const c = this.section(body, "Items in it");
             this.itemList(c, b, it.items ?? (it.items = []));
-            this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "row", "col"]);
+            this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "img", "icon", "row", "col"]);
             this.shapeStyle(body, it, true);
         } else this.shapeStyle(body, it, false);
     }
@@ -1089,6 +1169,7 @@ class Editor {
             if (it.w !== "fill") this.num(nums, ax < 0 ? "From left" : ax > 0 ? "From right" : "Off centre →", () => it.dx ?? 0, (v) => { it.dx = v; });
             if (it.h !== "fill") this.num(nums, ay < 0 ? "From top" : ay > 0 ? "From bottom" : "Off centre ↓", () => it.dy ?? 0, (v) => { it.dy = v; });
         }
+        if (it.type === "icon") { this.section(body, "Size").createDiv({ cls: "vl-frameinfo", text: "An icon is as big as its Size (Style)." }); return; }
         for (const [axis, name] of [["w", "Width"], ["h", "Height"]] as const) {
             const s = this.section(body, name);
             const cur = it[axis];
@@ -1103,7 +1184,11 @@ class Editor {
     }
 }
 
-const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items` : it.type === "ellipse" ? "circle" : it.type);
+const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
+    : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
+// Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
+let icons: string[] | null = null;
+const iconNames = () => (icons ??= [...new Set(getIconIds().map((n) => n.replace(/^lucide-/, "")))].sort());
 
 // a folder doc's editor: the one already open, else read from the folder
 let ref: { plugin: Plugin; host: () => VellumHost } | null = null;
@@ -1120,6 +1205,9 @@ export async function openVellum(dir: string, page?: string): Promise<void> { (a
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)
 export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumHost) = {}): void {
     ref = { plugin, host: () => (typeof host === "function" ? host() : host) };
+    // a picture's vault path: the file's own address (it changes when the file does), else the path as the adapter has it
+    const vault = plugin.app.vault;
+    setPictureResolver((src) => { const path = normalizePath(src), f = vault.getAbstractFileByPath(path); return f instanceof TFile ? vault.getResourcePath(f) : vault.adapter.getResourcePath(path); });
     // collapse icons: Obsidian's own sidebar frame and divider, without its little lines (so both states are the same width)
     const frame = (x: number) => `<g transform="scale(4.1667)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3H3C1.89543 3 1 3.89543 1 5V19C1 20.1046 1.89543 21 3 21H21C22.1046 21 23 20.1046 23 19V5C23 3.89543 22.1046 3 21 3Z"/><path d="M${x} 4V20"/></g>`;
     addIcon("vellum-side-left", frame(7));    // the line near the edge: the sidebar is folded in (a click opens it)

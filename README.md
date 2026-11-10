@@ -6,7 +6,8 @@ Lay out app screens on real phone frames inside an Obsidian note. Vellum is trac
 
 - **Portrait and landscape**: each screen has a portrait layout and, if you make one, a landscape layout; one switch turns the editor, the tree and the map.
 - **Real devices**: iPhone 12 to 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas, upright or sideways; or any **custom** width × height.
-- **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text and shapes placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
+- **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text, shapes, pictures and icons placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
+- **Frames**: a screen can sit on the frame of the screen it opens from (a layout template): it draws the frame's blocks under its own and keeps only the blocks it overrides.
 - **Screen map**: every screen as a small phone, sub screens under the screen they open from, joined by lines with how you get there.
 - **An editor that fits the device**: on a computer it opens in its own window (screens list, the phone centred, a settings panel you can resize or hide); on a phone it takes the full screen with a bottom sheet.
 - **Plain text**: one screen per line of JSON in the note, or one small JSON file per screen in a folder for bigger apps, so git diffs show exactly what changed. Unsaved work is kept on the device until you save.
@@ -49,7 +50,8 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 | The phone | Click a block, then a text or shape in it; drag to move (Alt: 1 px), the block's corner to resize; double-click a text to type; click beside the phone to let go |
 | Pill under the phone | Edit (frames, safe areas) / Show (the screen alone) / Map (every screen as a tree; a click opens one), Portrait / Landscape, zoom (Ctrl + wheel), Fit |
 | A block's place | Align it in the screen (left, centre, right, top, middle, bottom, full width, fill), its width × height in the middle of a box with its distance to each edge around it; click a distance and step it with − / + (Shift: 8) |
-| Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from, note) |
+| Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from and its frame, note) |
+| Frames | On a screen that uses its parent's frame, the frame's blocks are faded and locked: choose one for **Override here** (a copy of it on this screen only) or **Edit in** the screen it belongs to; an override has a small mark and **Back to the frame** |
 
 Keys: arrows nudge 1 px (Shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (and closes the editor at the top).
 
@@ -68,9 +70,10 @@ Items use named colours (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent
 ]}
 ```
 
-- **Page**: `name`, `parent` + `link` (the screen it opens from, and how), `device` (override), `bg`, `mock` (a proposal), `note`, `blocks` (portrait) and `land` (its landscape layout, if it has one: **Make landscape from portrait** starts it).
+- **Page**: `name`, `parent` + `link` (the screen it opens from, and how), `inherit` (`true`: the parent is its frame), `device` (override), `bg`, `mock` (a proposal), `note`, `blocks` (portrait) and `land` (its landscape layout, if it has one: **Make landscape from portrait** starts it).
 - **Block**: `name`, `kind` (what it is), `x y w h` in screen points, `note`, `items`.
-- **Item**: `type` `text | rect | ellipse | line | row | col`; place: `g` (`tl t tr l c r bl b br`), `dx dy`, `w h` (number, `"hug"`, `"fill"`); text: `v size wt font color ls lh`; shapes: `fill stroke sw r op`; rows / columns: `items gap pad main cross`.
+- **Item**: `type` `text | rect | ellipse | line | img | icon | row | col`; place: `g` (`tl t tr l c r bl b br`), `dx dy`, `w h` (number, `"hug"`, `"fill"`); text: `v size wt font color ls lh`; shapes: `fill stroke sw r op`; pictures: `src` (`https://…` or a vault path) `fit` (`cover | contain | fill`) `pos` (CSS object-position, default `center`) `r op`; icons: `name` (a Lucide name, Obsidian's set) `color size sw op`; rows / columns: `items gap pad main cross`.
+- **Frames**: a page with `"inherit": true` draws its parent's blocks (and theirs, if the parent inherits too) under its own, in the same layout (portrait or `land`), and its parent's `bg` unless it has one. An own block with the same `id` as one of the frame's takes that block's place (an override); the page stores only its own blocks and overrides.
 
 A coding agent can read a page line and build it, or write one for you to adjust.
 

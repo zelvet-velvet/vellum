@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import { axes, Item } from "./model";
 
 // The look a doc is drawn in: named colours and fonts (an item's colour / font is one of these names, or a CSS value).
@@ -23,6 +24,11 @@ export const BASE_KINDS: Kind[] = [
 
 export const colorOf = (t: Theme, c?: string) => (!c || c === "none" ? "transparent" : t.colors[c] ?? c);
 const fontOf = (t: Theme, f?: string) => (f ? t.fonts[f] ?? f : t.fonts.ui);
+// a picture's address: https:// (and data:, app:) as it is; anything else is a vault path (the plugin sets how it resolves)
+let resolve = (src: string) => src;
+export const setPictureResolver = (fn: (src: string) => string) => { resolve = fn; };
+export const pictureUrl = (src?: string) => { const s = (src ?? "").trim(); return !s ? "" : /^(https?|data|app|blob|file):/i.test(s) ? s : resolve(s.replace(/^\/+/, "")); };
+const loaded = new Set<string>();   // pictures already shown once: drawn again (a drag, a redraw) without the tile flashing
 const px = (v: number) => `${Math.round(v * 100) / 100}px`;
 
 // an item placed by gravity with CSS only (no measuring): start = left / top + offset, end = right / bottom + offset,
@@ -85,6 +91,38 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
             s.background = colorOf(t, it.fill ?? "line");
             if (it.h === "hug" || it.h === undefined) s.height = "1px";
             if (it.w === "hug" || it.w === undefined) s.width = "40px";
+            break;
+        }
+        case "img": {
+            // a soft tile with an image icon while the picture loads, or when it can not be loaded; never a broken glyph
+            s.borderRadius = px(it.r ?? 0);
+            if (it.w === "hug" || it.w === undefined) s.width = "80px";
+            if (it.h === "hug" || it.h === undefined) s.height = "80px";
+            setIcon(el.createDiv({ cls: "vl-imgph" }), "image");
+            const url = pictureUrl(it.src);
+            if (!url) break;
+            const im = el.createEl("img", { attr: { alt: "", draggable: "false", decoding: "async" } });
+            im.style.objectFit = it.fit ?? "cover";
+            im.style.objectPosition = it.pos?.trim() || "center";
+            const ok = () => { loaded.add(url); el.addClass("is-loaded"); };
+            const bad = () => { loaded.delete(url); im.remove(); el.removeClass("is-loaded"); el.addClass("is-broken"); const ph = el.querySelector<HTMLElement>(".vl-imgph"); if (ph) { ph.empty(); setIcon(ph, "image-off"); } };
+            im.addEventListener("load", ok, { once: true });
+            im.addEventListener("error", bad, { once: true });
+            if (loaded.has(url)) el.addClass("is-loaded");
+            im.src = url;
+            if (im.complete && im.naturalWidth) ok();
+            break;
+        }
+        case "icon": {
+            // a Lucide icon by name (Obsidian's set); an unknown name is a small "?" box, not nothing
+            const sz = px(it.size ?? 20);
+            s.width = sz; s.height = sz;
+            s.color = colorOf(t, it.color ?? "text");
+            s.setProperty("--icon-size", sz);
+            if (it.sw) s.setProperty("--icon-stroke", px(it.sw));
+            const name = (it.name ?? "").trim();
+            if (name) setIcon(el, name);
+            if (!el.querySelector("svg")) { el.empty(); el.addClass("is-unknown"); el.setText("?"); }
             break;
         }
         case "row": case "col": {
