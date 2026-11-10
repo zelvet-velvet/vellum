@@ -194,7 +194,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-pl { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl .vl-padd { width: 26px; height: 26px; opacity: 0; }
 .vl-prow:hover .vl-padd, .vl-ws.is-phone .vl-padd { opacity: 1; }
-.vl .vl-newp { margin: 8px 0 0; justify-content: center; height: 32px; border-style: dashed; color: var(--text-muted); }
+.vl .vl-newp { margin: 8px 0 0; justify-content: center; height: 40px; border-radius: 8px; border-style: dashed; color: var(--text-muted); }
 .vl-rfoot { margin-top: auto; padding: 16px 8px 4px; }
 .vl-rfoot .vl-dev { width: 100%; justify-content: space-between; }
 /* the pill at the foot of the stage */
