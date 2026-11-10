@@ -24,6 +24,17 @@ You arrange blocks on a real phone. Vellum keeps each screen as a small JSON fil
   <a href="#faq">FAQ</a>
 </p>
 
+<table>
+  <tr>
+    <td width="25%"><img src="assets/screens/home.png" alt="A home screen with flip-card numbers"></td>
+    <td width="25%"><img src="assets/screens/stocks.png" alt="A stocks screen"></td>
+    <td width="25%"><img src="assets/screens/spending.png" alt="A spending screen"></td>
+    <td width="25%"><img src="assets/screens/savings.png" alt="A savings screen"></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Screens of ZeLedger, a personal finance app designed in Vellum with Claude Code. Every number is made up.</sub></p>
+
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens tree, the phone, and the settings of the chosen block"></p>
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> Features
@@ -46,16 +57,7 @@ You arrange blocks on a real phone. Vellum keeps each screen as a small JSON fil
   </tr>
 </table>
 
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="assets/frames.png" alt="Frames"><br><sub><b>Frames</b>: inherited blocks are locked; override one or edit it where it lives</sub></td>
-    <td width="50%" align="center"><img src="assets/picture.png" alt="Picture settings"><br><sub><b>Pictures</b>: click or drag to choose the part the box shows</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="assets/snapping.png" alt="Snapping"><br><sub><b>Snapping</b>: guide lines show what it snapped to</sub></td>
-    <td align="center"><img src="assets/map.png" alt="Map view"><br><sub><b>Map</b>: every screen as a tree</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree; mocks have a dashed outline</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
 
@@ -78,6 +80,29 @@ Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plug
 1. **The agent drafts** your app's screens, or proposes new ones.
 2. **You adjust** them in the editor and leave a **Note** on what to change.
 3. **The agent builds** from the screens you changed.
+
+<table>
+  <tr>
+    <td width="36%" valign="top"><img src="assets/screens/stocks.png" alt="The stocks screen"></td>
+    <td valign="top">
+
+The card with the mix bars, as its file holds it:
+
+```json
+{"name": "Card 2", "kind": "card",
+ "x": 16, "y": 397, "w": 396, "h": 182, "items": [
+  {"type": "text", "v": "MIX VS YOUR TARGET", "size": 12},
+  {"type": "text", "v": "4 WARNINGS", "dx": 286, "color": "dim"},
+  {"type": "text", "v": "Stock ETF", "dy": 29, "size": 15},
+  {"type": "rect", "dy": 54, "w": 396, "h": 16, "fill": "dim"}
+]}
+```
+
+One screen is one small file. The agent reads exactly where each thing is, and changes only what it needs to.
+
+</td>
+  </tr>
+</table>
 
 ```text
 Read github.com/zelvet-velvet/vellum's README for the file format.
