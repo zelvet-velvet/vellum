@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, Setting, TFolder } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, Setting, TFolder } from "obsidian";
 import { openVellum, registerVellum, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
 import { BASE_THEME, Theme } from "./render";
 
@@ -32,42 +32,61 @@ export default class VellumPlugin extends Plugin {
 
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
+    // a heading that folds the settings under it (a click on it); folded headings are kept on the device
+    fold(c: HTMLElement, name: string): HTMLElement {
+        const KEY = "vellum:setfold";
+        let shut: string[] = [];
+        try { shut = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
+        const head = new Setting(c).setName(name).setHeading();
+        head.settingEl.addClass("vl-sethead");
+        const chev = head.nameEl.createSpan({ cls: "vl-setchev" });
+        const box = c.createDiv({ cls: "vl-setgroup" });
+        const show = (open: boolean) => { box.toggle(open); head.settingEl.toggleClass("is-folded", !open); chev.empty(); setIcon(chev, open ? "chevron-down" : "chevron-right"); };
+        show(!shut.includes(name));
+        head.settingEl.addEventListener("click", () => {
+            const open = !box.isShown();
+            show(open);
+            shut = open ? shut.filter((n) => n !== name) : [...new Set([...shut, name])];
+            try { localStorage.setItem(KEY, JSON.stringify(shut)); } catch { /* */ }
+        });
+        return box;
+    }
     display() {
         const { containerEl: c } = this, s = this.plugin.settings;
         c.empty();
         new Setting(c).setName("Screens folder").setDesc("What the ribbon button opens: one JSON file per screen (made on the first save). A ```vellum block with src: <folder> shows any folder in a note too.")
             .addText((t) => t.setPlaceholder("Screens").setValue(s.folder).onChange(async (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; await this.plugin.save(); }));
         c.createEl("p", { cls: "setting-item-description", text: "The named colours and fonts items use (any CSS value, CSS variables too). Reopen the editor to see a change." });
-        new Setting(c).setName("Colours").setHeading();
+        const gc = this.fold(c, "Colours");
         for (const name of Object.keys(s.colors)) {
-            const row = new Setting(c).setName(name);
+            const row = new Setting(gc).setName(name);
             const sw = row.nameEl.createSpan({ cls: "vl-set-sw" }); sw.style.background = s.colors[name];
             row.addText((t) => t.setValue(s.colors[name]).onChange(async (v) => { s.colors[name] = v.trim(); sw.style.background = v; await this.plugin.save(); }));
             if (!(name in DEFAULTS.colors)) row.addExtraButton((b) => b.setIcon("trash").setTooltip("Remove").onClick(async () => { delete s.colors[name]; await this.plugin.save(); this.display(); }));
         }
         let fresh = "";
-        new Setting(c).setName("Add a colour").setDesc("A new name items can use.")
+        new Setting(gc).setName("Add a colour").setDesc("A new name items can use.")
             .addText((t) => t.setPlaceholder("name").onChange((v) => { fresh = v.trim(); }))
             .addButton((b) => b.setButtonText("Add").onClick(async () => { if (!fresh || fresh in s.colors) return; s.colors[fresh] = "#888888"; await this.plugin.save(); this.display(); }));
-        new Setting(c).setName("Fonts").setHeading();
+        const gf = this.fold(c, "Fonts");
         for (const name of Object.keys(s.fonts)) {
-            new Setting(c).setName(name).addText((t) => t.setValue(s.fonts[name]).onChange(async (v) => { s.fonts[name] = v.trim(); await this.plugin.save(); }));
+            new Setting(gf).setName(name).addText((t) => t.setValue(s.fonts[name]).onChange(async (v) => { s.fonts[name] = v.trim(); await this.plugin.save(); }));
         }
-        new Setting(c).setName("Snapping").setHeading();
+        const gs = this.fold(c, "Snapping");
         const sn = s.snap, keep = async () => { await this.plugin.save(); };
-        new Setting(c).setName("Snap to edges and middles").setDesc("While dragging or resizing, a block or an item snaps to the lines near it, with a guide line; Alt turns it off for a drag (1 px). The magnet under the phone switches this too.")
+        new Setting(gs).setName("Snap to edges and middles").setDesc("While dragging or resizing, a block or an item snaps to the lines near it, with a guide line; Alt turns it off for a drag (1 px). The magnet under the phone switches this too.")
             .addToggle((t) => t.setValue(sn.on).onChange(async (v) => { sn.on = v; await keep(); }));
-        new Setting(c).setName("Snap distance").setDesc("How near a line pulls (screen pixels).")
+        new Setting(gs).setName("Snap distance").setDesc("How near a line pulls (screen pixels).")
             .addSlider((sl) => sl.setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange(async (v) => { sn.dist = v; await keep(); }));
-        new Setting(c).setName("Grid").setDesc("Points a drag moves by when no line is near (1 = free). Shift with an arrow key moves this far too.")
+        new Setting(gs).setName("Grid").setDesc("Points a drag moves by when no line is near (1 = free). Shift with an arrow key moves this far too.")
             .addText((t) => t.setValue(String(sn.grid)).onChange(async (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; await keep(); } }));
-        new Setting(c).setName("Margins").setDesc("Lines this far inside each edge (the block's for an item; the safe area's for a block), comma separated; empty for none.")
+        new Setting(gs).setName("Margins").setDesc("Lines this far inside each edge (the block's for an item; the safe area's for a block), comma separated; empty for none.")
             .addText((t) => t.setPlaceholder("16, 24").setValue(sn.margins.join(", ")).onChange(async (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); await keep(); }));
-        new Setting(c).setName("The frame").setDesc("An item: its block's edges and middle. A block: the screen's, and the safe area's edges.")
+        new Setting(gs).setName("The frame").setDesc("An item: its block's edges and middle. A block: the screen's, and the safe area's edges.")
             .addToggle((t) => t.setValue(sn.frame).onChange(async (v) => { sn.frame = v; await keep(); }));
-        new Setting(c).setName("Other items and blocks").setDesc("The edges and middles of the other items in the block, or of the other blocks on the screen.")
+        new Setting(gs).setName("Other items and blocks").setDesc("The edges and middles of the other items in the block, or of the other blocks on the screen.")
             .addToggle((t) => t.setValue(sn.others).onChange(async (v) => { sn.others = v; await keep(); }));
-        new Setting(c).setName("Guide lines").setDesc("Show the line a drag snapped to.")
+        new Setting(gs).setName("Guide lines").setDesc("Show the line a drag snapped to.")
             .addToggle((t) => t.setValue(sn.guides).onChange(async (v) => { sn.guides = v; await keep(); }));
         new Setting(c).setName("Follow the Obsidian theme").setDesc("Put every colour and font back to the defaults.")
             .addButton((b) => b.setButtonText("Reset").setWarning().onClick(async () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap }; await this.plugin.save(); this.display(); }));

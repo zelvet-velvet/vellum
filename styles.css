@@ -342,3 +342,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-guide.is-v { top: 0; bottom: 0; width: 1px; margin-left: -0.5px; }
 .vl-guide.is-h { left: 0; right: 0; height: 1px; margin-top: -0.5px; }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
+/* the plugin's settings: headings fold what is under them */
+.vl-sethead { cursor: pointer; user-select: none; }
+.vl-sethead .setting-item-name { display: flex; align-items: center; gap: 4px; }
+.vl-setchev { display: inline-flex; color: var(--text-faint); order: -1; --icon-size: 16px; }
