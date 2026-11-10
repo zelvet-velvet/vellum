@@ -18,8 +18,12 @@ Lay out app screens on real phone frames inside an Obsidian note. Vellum is trac
 | Map: every screen as a tree | Peek: rest the pointer on a screen |
 | :---: | :---: |
 | ![Map view](assets/map.png) | ![Peek](assets/peek.png) |
+| **Frames**: Food sits on This month's frame; its blocks are faded and locked, override one or edit it there | **Pictures**: the whole picture with the part its box shows framed; click or drag to choose it |
+| ![Frames](assets/frames.png) | ![Picture settings](assets/picture.png) |
+| **Snapping**: edges and middles snap, with guide lines | **Settings**: colours, fonts, snapping |
+| ![Snapping](assets/snapping.png) | ![Settings](assets/settings.png) |
 
-*A made-up budget app ([`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)).*
+*A made-up budget app ([`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)) in ZeLedger's "Popping and Locking" colours; the picture is [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon)'s Home screen.*
 
 ## Install
 
