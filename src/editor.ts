@@ -482,7 +482,7 @@ class Editor {
         };
         for (const p of childrenOf(pages)) row(p, 0);
         for (const p of pages) row(p, 0);   // anything left (a loop) as a main page
-        const na = box.createEl("button", { cls: "vl-act vl-newp" }); setIcon(na.createSpan(), "plus"); na.appendText("New screen");
+        const na = box.createEl("button", { cls: "vl-act vl-newp" }); setIcon(na.createSpan(), "plus"); na.appendText("New Screen");
         na.addEventListener("click", () => this.addPage());
         // the device
         const foot = box.createDiv({ cls: "vl-rfoot" });

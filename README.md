@@ -42,7 +42,7 @@ You can also show screens inside a note, as a card with the screen map and **Ope
 ```
 ````
 
-In Reading view (or Live Preview, outside the block) it shows a card: **Open editor**, then **New screen**. Try [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md) for a made-up app with five screens.
+In Reading view (or Live Preview, outside the block) it shows a card: **Open editor**, then **New Screen**. Try [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md) for a made-up app with five screens.
 
 | Where | What |
 | :--- | :--- |
