@@ -2,13 +2,14 @@ import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProc
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, Insets, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
 import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
+import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
 // screen chooses the page, on a block the block, on an item the item; drag moves it (blocks by x / y, items by their offset
 // from their gravity point), a block's corner resizes it; the panel shows only what is chosen, as controls (no syntax).
 // Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level.
-// Unsaved work is kept on the device (localStorage) until saved into the note.
+// Unsaved work is kept on the device (Obsidian's local storage, per vault) until saved into the note.
 export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[] }
 
 // snapping while dragging / resizing: to the grid, and (on) to the edges and middles of the frame (an item's block, a
@@ -126,8 +127,8 @@ class Editor {
     snap() { return JSON.stringify(this.doc); }
     get dirty() { return serialiseDoc(this.doc) !== this.saved; }
     draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx!.sourcePath}:${this.doc.id}`; }
-    draftGet() { try { return localStorage.getItem(this.draftKey()); } catch { return null; } }
-    draftPut() { try { if (this.dirty) localStorage.setItem(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) localStorage.removeItem(this.draftKey()); } catch { /* private mode */ } }
+    draftGet() { try { return getLocal(this.draftKey()); } catch { return null; } }
+    draftPut() { try { if (this.dirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
     stale: Doc | null = null;
     // a discrete change: one undo step
     edit(fn: () => void, panel = true) { const s = this.snap(); fn(); this.commit(s, panel); }
@@ -157,7 +158,7 @@ class Editor {
             const text = serialiseDoc(this.doc), st = this.store;
             st.save(this.doc).then(() => {
                 this.saved = text;
-                try { localStorage.removeItem(this.draftKey()); } catch { /* */ }
+                try { setLocal(this.draftKey(), null); } catch { /* */ }
                 this.drawBar(); this.drawCard(); this.hint(`Saved to ${st.dir}`);
             }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
             return;
@@ -173,7 +174,7 @@ class Editor {
             if (lines[info.lineStart]?.trim() !== "```vellum" || !lines[info.lineEnd]?.trim().startsWith("```")) { new Notice("Vellum: the note changed, not saved. Your work is kept; reopen the note."); return data; }
             lines.splice(info.lineStart + 1, info.lineEnd - info.lineStart - 1, ...text.split("\n"));
             this.saved = text;
-            try { localStorage.removeItem(this.draftKey()); } catch { /* */ }
+            try { setLocal(this.draftKey(), null); } catch { /* */ }
             window.setTimeout(() => { this.drawBar(); this.drawCard(); this.hint("Saved into the note"); });
             return lines.join("\n");
         });
@@ -241,19 +242,19 @@ class Editor {
     // computer: its own window (a pop-out, focused if already open); phone: over the whole screen
     openWs(page?: string) {
         if (page) this.setView({ page, fit: true });
-        if (Platform.isMobile) { if (!this.root?.isConnected) this.mount(document.body); else this.draw(); return; }
+        if (Platform.isMobile) { if (!this.root?.isConnected) this.mount(activeDocument.body); else this.draw(); return; }
         const key = this.draftKey();
         const w = windows.get(key) ?? this.plugin.app.workspace.getLeavesOfType(VIEW).map((l) => l.view).find((v): v is VellumWindow => v instanceof VellumWindow && v.key === key);
         if (w) { if (page) this.draw(); void this.plugin.app.workspace.revealLeaf(w.leaf); raise(w.contentEl.win); return; }
         let size: { width: number; height: number } | undefined;
-        try { size = JSON.parse(localStorage.getItem("vellum:winsize") ?? "") ?? undefined; } catch { /* */ }
+        try { size = JSON.parse(getLocal("vellum:winsize") ?? "") ?? undefined; } catch { /* */ }
         const leaf = this.plugin.app.workspace.openPopoutLeaf({ size: size ?? { width: 1280, height: 880 } });
         void leaf.setViewState({ type: VIEW, active: true, state: { key } });
     }
     mount(container: HTMLElement) {
         this.root?.remove();
         container.empty();
-        const pop = container !== document.body;
+        const pop = container !== container.doc.body;
         const R = (this.root = container.createDiv({ cls: "vl vl-ws" + (Platform.isMobile ? " is-phone" : "") + (pop ? " is-pop" : ""), attr: { tabindex: "-1" } }));
         this.paint(R);
         // keys: on the editor itself (it may be in another window); capture so Obsidian's own keys do not take them first
@@ -266,7 +267,7 @@ class Editor {
                 if (!R.isConnected) return;
                 cancelAnimationFrame(raf);
                 raf = requestAnimationFrame(() => {
-                    try { localStorage.setItem("vellum:winsize", JSON.stringify({ width: R.win.outerWidth, height: R.win.outerHeight })); } catch { /* */ }
+                    try { setLocal("vellum:winsize", JSON.stringify({ width: R.win.outerWidth, height: R.win.outerHeight })); } catch { /* */ }
                     if (this.v.fit && this.pending === null) this.drawPages();
                 });
             }).observe(R);
@@ -301,7 +302,7 @@ class Editor {
         const keep = s.createEl("button", { text: "Restore my edits" });
         keep.addEventListener("click", () => { const d = this.stale!; this.stale = null; this.edit(() => { this.doc = d; }); this.draw(); });
         const drop = s.createEl("button", { text: "Drop them" });
-        drop.addEventListener("click", () => { this.stale = null; try { localStorage.removeItem(this.draftKey()); } catch { /* */ } this.draw(); });
+        drop.addEventListener("click", () => { this.stale = null; try { setLocal(this.draftKey(), null); } catch { /* */ } this.draw(); });
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
@@ -435,7 +436,7 @@ class Editor {
         if (!this.v.rail) return;
         // its width: the right border drags it (computer), kept on the device
         if (!Platform.isMobile) {
-            r.style.width = `${Number(localStorage.getItem("vellum:railW")) || 248}px`;
+            r.style.width = `${Number(getLocal("vellum:railW")) || 248}px`;
             const g = r.createDiv({ cls: "vl-rgrip" });
             g.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
@@ -443,17 +444,17 @@ class Editor {
                 const tw0 = this.picW(w0);
                 // the pictures grow with the width while dragging (scaled), drawn again at their new size on release
                 const mv = (m: PointerEvent) => { const w = Math.min(560, Math.max(180, w0 + m.clientX - x0)); r.style.width = `${w}px`; r.style.setProperty("--vl-pz", String(this.picW(w) / tw0)); };
-                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { localStorage.setItem("vellum:railW", String(r.offsetWidth)); } catch { /* */ } r.style.removeProperty("--vl-pz"); this.drawPages(); };
+                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { setLocal("vellum:railW", String(r.offsetWidth)); } catch { /* */ } r.style.removeProperty("--vl-pz"); this.drawPages(); };
                 g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
             });
         }
         const box = r.createDiv({ cls: "vl-railbox" });
         box.addEventListener("scroll", () => { this.railTop = box.scrollTop; this.unpeek(); }, { passive: true });
         box.addEventListener("mouseleave", () => this.unpeek());
-        const pics = localStorage.getItem("vellum:pics") === "1";
+        const pics = getLocal("vellum:pics") === "1";
         const hd = box.createDiv({ cls: "vl-railhead" });
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
-        this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { localStorage.setItem("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); }).toggleClass("is-on", pics);
+        this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { setLocal("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); }).toggleClass("is-on", pics);
         // the tree: main screens at the left, each screen's sub screens under it on guide lines; a chevron folds a branch;
         // each row has a small picture of its screen
         const list = box.createDiv({ cls: "vl-plist" });
@@ -566,12 +567,12 @@ class Editor {
     // the tree's pictures are as big as its width allows: 22 px at the narrowest, up to 180 px
     picW(railW: number) { return Math.round(Math.min(180, Math.max(22, (railW - 190) * 0.9))); }
     // folded branches of the tree, kept on the device per doc
-    folds(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
-    keepFolds(f: Set<string>) { try { localStorage.setItem(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
+    folds(): Set<string> { try { return new Set(JSON.parse(getLocal(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
+    keepFolds(f: Set<string>) { try { setLocal(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
     // a screen as a small picture (the rail's rows): drawn again only when the screen changed
     thumbs = new Map<string, { sig: string; el: HTMLElement }>();
     thumb(p: Page): HTMLElement {
-        const tw = this.picW(this.rail?.offsetWidth || Number(localStorage.getItem("vellum:railW")) || 248);
+        const tw = this.picW(this.rail?.offsetWidth || Number(getLocal("vellum:railW")) || 248);
         const sig = JSON.stringify(p) + JSON.stringify(drawnBlocks(this.doc.pages, p, this.land)) + bgOf(this.doc.pages, p) + this.doc.device + tw + this.land, hit = this.thumbs.get(p.id);
         if (hit && hit.sig === sig) return hit.el;
         const el = this.pic(p, tw);
@@ -607,7 +608,7 @@ class Editor {
         const box = m.createDiv({ cls: "vl-mapbox" });
         box.style.width = `${x * slotW}px`; box.style.height = `${(depthMax + 1) * rowH - GAP + 4}px`;
         const NS = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines"); svg.setAttribute("width", String(x * slotW)); svg.setAttribute("height", String((depthMax + 1) * rowH - GAP + 4));
+        const svg = m.doc.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines"); svg.setAttribute("width", String(x * slotW)); svg.setAttribute("height", String((depthMax + 1) * rowH - GAP + 4));
         box.appendChild(svg);
         const at = (p: Page) => { const q = pos.get(p.id)!, d = dims(p); return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: d.h }; };
         for (const p of pages) {
@@ -616,7 +617,7 @@ class Editor {
             // from under the parent's name, down, across, down to the sub page (its link label sits just above it)
             const a = at(par), b = at(p);
             const y0 = a.top + a.h + 26, midY = y0 + 8;
-            const path = document.createElementNS(NS, "path");
+            const path = m.doc.createElementNS(NS, "path");
             path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
             svg.appendChild(path);
             if (p.link) { const t = box.createDiv({ cls: "vl-maplink", text: p.link }); t.style.left = `${b.cx}px`; t.style.maxWidth = `${slotW}px`; t.style.top = `${b.top - 19}px`; }
@@ -884,7 +885,7 @@ class Editor {
     }
 
     typeInPlace(e: MouseEvent, p: Page) {
-        const at = (this.root?.doc ?? document).elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+        const at = (this.root?.doc ?? activeDocument).elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
         const itEl = at?.closest<HTMLElement>(".vl-it"), bEl = at?.closest<HTMLElement>("[data-block]");
         const b = bEl ? this.blocks(p).find((x) => x.id === bEl.dataset.block) : undefined;
         const f = b && itEl?.dataset.id ? findItem(b.items, itEl.dataset.id) : null;
@@ -892,7 +893,7 @@ class Editor {
         this.choose({ page: p.id, block: b.id, item: f.item.id });
         if (f.item.type !== "text") return;
         if (Platform.isMobile) { this.writeItem(b, f.item.id); return; }
-        const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${f.item.id}"]`);
+        const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${f.item.id}"]`);
         if (!el) return;
         el.contentEditable = "true";
         el.addClass("is-typing");
@@ -959,14 +960,14 @@ class Editor {
         const p = this.page() ?? this.current(); if (!p) return;
         const P = (this.panel = this.side.createDiv({ cls: "vl-panel" + (Platform.isMobile ? " is-sheet" : "") }));
         if (!Platform.isMobile) {
-            const pw = Number(localStorage.getItem("vellum:panelW")) || 300;
+            const pw = Number(getLocal("vellum:panelW")) || 300;
             P.style.width = `${pw}px`;
             const g = P.createDiv({ cls: "vl-pgrip" });
             g.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); g.setPointerCapture(e.pointerId); g.addClass("is-on");
                 const x0 = e.clientX, w0 = P.offsetWidth;
                 const mv = (m: PointerEvent) => { P.style.width = `${Math.min(600, Math.max(240, w0 - (m.clientX - x0)))}px`; };
-                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { localStorage.setItem("vellum:panelW", String(P.offsetWidth)); } catch { /* */ } if (this.v.fit) this.drawPages(); };
+                const up = () => { g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeClass("is-on"); try { setLocal("vellum:panelW", String(P.offsetWidth)); } catch { /* */ } if (this.v.fit) this.drawPages(); };
                 g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
             });
         }
@@ -999,13 +1000,13 @@ class Editor {
         if (!fold) return body;
         const KEY = "vellum:secfold";
         let shut: string[] = [];
-        try { shut = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
+        try { shut = JSON.parse(getLocal(KEY) ?? "[]"); } catch { /* */ }
         h.addClass("is-fold"); setIcon(h.createSpan({ cls: "vl-secchev" }), "chevron-down");
         s.toggleClass("is-folded", shut.includes(title));
         h.addEventListener("click", () => {
             s.toggleClass("is-folded", !s.hasClass("is-folded"));
             shut = s.hasClass("is-folded") ? [...new Set([...shut, title])] : shut.filter((t) => t !== title);
-            try { localStorage.setItem(KEY, JSON.stringify(shut)); } catch { /* */ }
+            try { setLocal(KEY, JSON.stringify(shut)); } catch { /* */ }
         });
         return body;
     }
@@ -1061,8 +1062,8 @@ class Editor {
     }
     // the writing window: centred in the part of the screen the keyboard leaves (visualViewport), Cancel / Done
     writer(title: string, value: string, done: (v: string) => void, multi = true) {
-        document.querySelector(".vl-writer")?.remove();
-        const dim = document.body.createDiv({ cls: "vl-writer" });
+        activeDocument.querySelector(".vl-writer")?.remove();
+        const dim = activeDocument.body.createDiv({ cls: "vl-writer" });
         const w = dim.createDiv({ cls: "vl-wbox" });
         const head = w.createDiv({ cls: "vl-whead" });
         const cancel = head.createEl("button", { text: "Cancel" });
@@ -1340,7 +1341,7 @@ class Editor {
         const s = this.section(body, "Picture");
         const prev = s.createDiv({ cls: "vl-imgprev" }), info = s.createDiv({ cls: "vl-frameinfo" });
         const fit = () => it.fit ?? "cover";
-        const box = () => { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return { W: el?.offsetWidth || (typeof it.w === "number" ? it.w : 80), H: el?.offsetHeight || (typeof it.h === "number" ? it.h : 80) }; };
+        const box = () => { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return { W: el?.offsetWidth || (typeof it.w === "number" ? it.w : 80), H: el?.offsetHeight || (typeof it.h === "number" ? it.h : 80) }; };
         let im: HTMLImageElement | null = null, crop: HTMLElement | null = null;
         // the frame over the picture: the part a cover fit shows, from the focus (object-position as percentages)
         const layout = () => {
@@ -1425,7 +1426,7 @@ class Editor {
     // exact size and offset as numbers (a hug / fill size shows as drawn; typing a number fixes it); the corner handles change them too
     sizeNums(body: HTMLElement, it: Item, top: boolean) {
         const r = this.section(body, "Size and place").createDiv({ cls: "vl-nums" });
-        const drawn = (axis: "w" | "h") => { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40; };
+        const drawn = (axis: "w" | "h") => { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40; };
         this.num(r, "W", () => (typeof it.w === "number" ? it.w : drawn("w")), (v) => { it.w = v; }, { min: 1 });
         this.num(r, "H", () => (typeof it.h === "number" ? it.h : drawn("h")), (v) => { it.h = v; }, { min: 1 });
         if (top) { this.num(r, "X", () => it.dx ?? 0, (v) => { it.dx = v; }); this.num(r, "Y", () => it.dy ?? 0, (v) => { it.dy = v; }); }
@@ -1462,7 +1463,7 @@ class Editor {
             const cur = it[axis];
             const rule = cur === "fill" ? "fill" : typeof cur === "number" ? "fixed" : "hug";
             this.chips(s, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
-                if (v === "fixed") { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40) as Size; }
+                if (v === "fixed") { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40) as Size; }
                 else it[axis] = v as Size;
             });
             if (rule === "fixed") this.num(s.createDiv({ cls: "vl-nums" }), "px", () => it[axis] as number, (v) => { it[axis] = v; }, { min: 1 });

@@ -255,7 +255,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-rail.is-on { overflow: visible; }
 .vl-railbox { height: 100%; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
 .vl-ws.is-phone .vl-railbox { height: auto; }
-.vl-rgrip, .vl-pgrip { width: 9px; background: transparent !important; z-index: 7; }
+.vl .vl-rgrip, .vl .vl-pgrip, .vl .vl-rgrip:hover, .vl .vl-pgrip:hover, .vl .vl-rgrip.is-on, .vl .vl-pgrip.is-on { width: 9px; background: transparent; z-index: 7; }   /* the line is drawn by ::after */
 .vl-rgrip { right: -5px; }
 .vl-pgrip { left: -5px; }
 .vl-rgrip::after, .vl-pgrip::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--interactive-accent); opacity: 0; transition: opacity 0.12s; }

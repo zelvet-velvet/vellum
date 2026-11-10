@@ -1,5 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, SliderComponent, TFolder, ToggleComponent } from "obsidian";
 import { openVellum, registerVellum, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
+import { getLocal, setLocal, useApp } from "./local";
 import { BASE_THEME, Theme } from "./render";
 
 // the mark (ribbon, the editor's tab): a phone, and a sheet of tracing paper over it with a gravity point; 100 × 100, line icons
@@ -17,6 +18,7 @@ export default class VellumPlugin extends Plugin {
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
         this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap } };
+        useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme() }));
         setSnap(this.settings.snap, () => { void this.save(); });
@@ -40,7 +42,7 @@ class VellumSettings extends PluginSettingTab {
     card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
         const KEY = "vellum:setopen";
         let open: string[] = [];
-        try { open = JSON.parse(localStorage.getItem(KEY) ?? '["screens"]'); } catch { /* */ }   // at first only Screens is open
+        try { open = JSON.parse(getLocal(KEY) ?? '["screens"]'); } catch { /* */ }   // at first only Screens is open
         const card = c.createDiv({ cls: "vls-card" + (open.includes(key) ? "" : " is-folded") });
         const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
         setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");
@@ -49,7 +51,7 @@ class VellumSettings extends PluginSettingTab {
         const flip = () => {
             card.toggleClass("is-folded", !card.hasClass("is-folded"));
             open = card.hasClass("is-folded") ? open.filter((k) => k !== key) : [...new Set([...open, key])];
-            try { localStorage.setItem(KEY, JSON.stringify(open)); } catch { /* */ }
+            try { setLocal(KEY, JSON.stringify(open)); } catch { /* */ }
         };
         head.addEventListener("click", flip);
         head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
