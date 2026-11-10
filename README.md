@@ -1,7 +1,7 @@
 <h1 align="center">Vellum</h1>
 
 <p align="center">
-  <b>Design app screens on real phone frames with your AI coding agent, inside Obsidian.</b>
+  <b>Mobile mockups for Obsidian plugins and vault apps, designed with your coding agent.</b>
 </p>
 
 <p align="center">
@@ -14,7 +14,9 @@
   <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
 </p>
 
-You arrange blocks on a real phone. Vellum keeps each screen as a small JSON file that your agent reads and writes exactly. No screenshots, no long descriptions, and git shows what changed.
+Sketch your plugin's screens on a real phone frame, inside your vault. Vellum keeps each screen as a small JSON file: your agent reads exactly where everything is and builds the plugin to match, with no screenshots and no long descriptions. Colours, fonts and icons come from your Obsidian theme, so the mockup already looks like the plugin.
+
+<sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#faq).</sub>
 
 <p align="center">
   <a href="#install">Install</a> ·
@@ -33,7 +35,7 @@ You arrange blocks on a real phone. Vellum keeps each screen as a small JSON fil
   </tr>
 </table>
 
-<p align="center"><sub>Screens of ZeLedger, a personal finance app designed in Vellum with Claude Code. Every number is made up.</sub></p>
+<p align="center"><sub>Screens of ZeLedger, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens tree, the phone, and the settings of the chosen block"></p>
 
@@ -176,6 +178,20 @@ src: Design/Screens
 <summary><b>Does Vellum use the network?</b></summary>
 
 Only to show a picture whose `src` is an `https://` address, as an image in a note would. Vellum makes no requests of its own.
+</details>
+
+<details>
+<summary><b>Can I use it for a native iOS or Android app?</b></summary>
+
+Yes, as a sketch your agent translates. Inside a block, items are placed the way native layouts work:
+
+| Vellum | SwiftUI | Compose |
+| :--- | :--- | :--- |
+| anchor point (`g`) | `alignment` | `Alignment` |
+| `"hug"` / `"fill"` | `.fixedSize()` / `.frame(maxWidth: .infinity)` | `wrapContentSize()` / `fillMaxWidth()` |
+| `row` / `col` | `HStack` / `VStack` | `Row` / `Column` |
+
+Blocks themselves sit at fixed positions on the screen, so the agent turns those into stacks and spacing.
 </details>
 
 <details>

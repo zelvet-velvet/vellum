@@ -1,7 +1,7 @@
 {
   "name": "vellum",
   "version": "0.7.1",
-  "description": "Obsidian plugin: lay out app screens on real phone frames inside a note.",
+  "description": "Obsidian plugin: mobile mockups for Obsidian plugins and vault apps, designed with your coding agent.",
   "main": "main.js",
   "type": "module",
   "scripts": {

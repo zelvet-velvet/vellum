@@ -3,7 +3,7 @@
   "name": "Vellum",
   "version": "0.7.1",
   "minAppVersion": "1.6.6",
-  "description": "Lay out app screens on real phone frames: blocks of text and shapes placed by gravity, a screen tree and map, and small JSON files a coding agent can read.",
+  "description": "Mobile mockups for Obsidian plugins and vault apps: lay out screens on real phone frames, saved as small JSON files your coding agent reads and builds from.",
   "author": "Zaviel",
   "authorUrl": "https://github.com/zelvet-velvet",
   "fundingUrl": "https://ko-fi.com/zelvet_velvet",
