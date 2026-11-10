@@ -1,6 +1,6 @@
 {
   "name": "vellum",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Obsidian plugin: lay out app screens on real phone frames inside a note.",
   "main": "main.js",
   "type": "module",

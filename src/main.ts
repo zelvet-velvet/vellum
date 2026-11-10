@@ -134,9 +134,7 @@ class VellumSettings extends PluginSettingTab {
         pill("The frame", () => sn.frame, () => { sn.frame = !sn.frame; });
         pill("Other items", () => sn.others, () => { sn.others = !sn.others; });
         const di = this.row(rest, "Distance", "How near a line pulls, in screen pixels.");
-        const dv = di.createSpan({ cls: "vls-val", text: `${sn.dist} px` });
-        new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).onChange((v) => { sn.dist = v; dv.setText(`${v} px`); this.save(); });
-        di.appendChild(dv);
+        new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange((v) => { sn.dist = v; this.save(); });   // Obsidian shows its value
         this.input(this.row(rest, "Grid", "Points a drag steps by when no line is near (1: free); Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
         this.input(this.row(rest, "Margins", "Lines this far inside each edge, comma separated."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
         new ToggleComponent(this.row(rest, "Guide lines", "Show the line a drag snapped to.")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
