@@ -316,10 +316,13 @@ class Editor {
         }
         const r = b.createDiv({ cls: "vl-tr" });
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
-            // Obsidian's settings, on Vellum's tab, in the main window (brought to the front)
-            const set = (this.plugin.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
+            // Obsidian's settings on Vellum's tab, above the editor: its own window (newer Obsidian) or the main one, brought to
+            // the front once it is open (and again a moment later: a new window may take the focus back as it appears)
+            const set = (this.plugin.app as unknown as { setting?: { open(): void; openTabById(id: string): void; win?: Window } }).setting;
             if (!set) return;
-            raise(window); set.open(); set.openTabById(this.plugin.manifest.id);
+            set.open(); set.openTabById(this.plugin.manifest.id);
+            const up = () => raise(set.win ?? window);
+            up(); for (const ms of [120, 400]) window.setTimeout(up, ms);
         });
         this.btn(r, "undo-2", "Undo (Ctrl+Z)", () => this.undo(), !this.past.length);
         this.btn(r, "redo-2", "Redo (Ctrl+Shift+Z)", () => this.redo(), !this.future.length);
