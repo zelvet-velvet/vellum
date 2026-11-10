@@ -12,10 +12,8 @@
 
 <p align="center">
   <a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="https://img.shields.io/github/v/release/zelvet-velvet/vellum?label=release&color=E9892B" alt="Latest release"></a>
-  <a href="https://github.com/zelvet-velvet/vellum/releases"><img src="https://img.shields.io/github/downloads/zelvet-velvet/vellum/total?color=7DB3C9" alt="Downloads"></a>
   <a href="https://obsidian.md"><img src="https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.6-7C3AED?logo=obsidian&logoColor=white" alt="Obsidian 1.6.6 or newer"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
-  <a href="https://ko-fi.com/zelvet_velvet"><img src="https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white" alt="Support on Ko-fi"></a>
 </p>
 
 <p align="center">
@@ -45,15 +43,15 @@ The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon)
 
 | | |
 | :--- | :--- |
-| 📱 **Real devices** | iPhone 12 – 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas; or any custom width × height. |
-| 🔄 **Portrait and landscape** | Each screen has a portrait layout and, if you make one, a landscape layout. One switch turns the editor, the tree and the map. |
-| 🧱 **Blocks and items** | A screen is made of blocks (title, summary, list, action…). Blocks hold text, shapes, pictures and icons placed by **gravity**: 9 anchor points, an offset, and hug / fixed / fill per axis. Rows and columns hold repeated items. |
-| 🖼️ **Pictures and icons** | Pictures by `https://` address or vault path, with fit, focus and corner radius. Icons by Lucide name, Obsidian's own set. |
-| 🧩 **Frames** | A screen can sit on its parent's frame, a layout template: it draws the frame's blocks under its own and stores only what it overrides. |
-| 🧲 **Snapping** | Blocks and items snap to edges, middles, margin lines and each other, with guide lines. |
-| 🗺️ **Screen map** | Every screen as a small phone, sub screens under the screen they open from, joined by how you get there. |
-| 🖥️ **Fits the device** | On a computer the editor opens in its own window, with a screens tree, the phone and a settings panel; on a phone it takes the full screen with a bottom sheet. |
-| 📄 **Plain text** | One screen per line in a note, or one JSON file per screen in a folder. Unsaved work is kept on the device until you save. |
+| <img src="assets/icons/devices.svg" width="24" height="24" alt=""> **Real devices** | iPhone 12 – 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas; or any custom width × height. |
+| <img src="assets/icons/orientation.svg" width="24" height="24" alt=""> **Portrait and landscape** | Each screen has a portrait layout and, if you make one, a landscape layout. One switch turns the editor, the tree and the map. |
+| <img src="assets/icons/blocks.svg" width="24" height="24" alt=""> **Blocks and items** | A screen is made of blocks (title, summary, list, action…). Blocks hold text, shapes, pictures and icons placed by **gravity**: 9 anchor points, an offset, and hug / fixed / fill per axis. Rows and columns hold repeated items. |
+| <img src="assets/icons/picture.svg" width="24" height="24" alt=""> **Pictures and icons** | Pictures by `https://` address or vault path, with fit, focus and corner radius. Icons by Lucide name, Obsidian's own set. |
+| <img src="assets/icons/frames.svg" width="24" height="24" alt=""> **Frames** | A screen can sit on its parent's frame, a layout template: it draws the frame's blocks under its own and stores only what it overrides. |
+| <img src="assets/icons/magnet.svg" width="24" height="24" alt=""> **Snapping** | Blocks and items snap to edges, middles, margin lines and each other, with guide lines. |
+| <img src="assets/icons/map.svg" width="24" height="24" alt=""> **Screen map** | Every screen as a small phone, sub screens under the screen they open from, joined by how you get there. |
+| <img src="assets/icons/window.svg" width="24" height="24" alt=""> **Fits the device** | On a computer the editor opens in its own window, with a screens tree, the phone and a settings panel; on a phone it takes the full screen with a bottom sheet. |
+| <img src="assets/icons/text.svg" width="24" height="24" alt=""> **Plain text** | One screen per line in a note, or one JSON file per screen in a folder. Unsaved work is kept on the device until you save. |
 
 <table>
   <tr>
@@ -282,7 +280,7 @@ The source is in `src/`: `model.ts` (the format), `render.ts` (drawing items), `
 
 Vellum is free and open source, made in my spare time. If it saves you time, a coffee keeps it going. Thank you!
 
-<a href="https://ko-fi.com/zelvet_velvet"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="36"></a>
+<a href="https://ko-fi.com/zelvet_velvet"><img src="assets/kofi-button.svg" alt="Buy me a coffee on Ko-fi" width="236" height="44"></a>
 
 ## License
 
