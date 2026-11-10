@@ -403,9 +403,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* the device stays at the foot of the screens list (it scrolls above it) */
 .vl-rfoot { position: sticky; bottom: -12px; z-index: 2; margin: auto -8px -12px; padding: 12px 16px; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
-/* New screen: an "add" row under the tree, the + in a small accent square, a soft tint that deepens on hover */
-.vl .vl-newp { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; height: 40px; margin: 10px 0 14px; padding: 0 10px; box-sizing: border-box; border: 1px solid transparent; border-radius: 8px; box-shadow: none; background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 500; line-height: 1; cursor: pointer; transition: background-color 0.12s ease, border-color 0.12s ease; }
-.vl .vl-newp:hover { background: color-mix(in srgb, var(--interactive-accent) 15%, transparent); border-color: color-mix(in srgb, var(--interactive-accent) 40%, transparent); }
-.vl .vl-newp:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
-.vl .vl-newp > span { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--interactive-accent); color: var(--text-on-accent); }
-.vl .vl-newp > span svg { width: 14px; height: 14px; stroke-width: 2.5px; }
+/* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
+.vl .vl-newp { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; margin: 10px 0 14px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--interactive-accent); border-radius: 6px; box-shadow: none; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-small); line-height: 1; cursor: pointer; }
+.vl .vl-newp:hover { background: var(--interactive-accent-hover); border-color: var(--interactive-accent-hover); }
+.vl .vl-newp:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.vl .vl-newp > span { display: inline-flex; align-items: center; }
+.vl .vl-newp > span svg { width: 14px; height: 14px; }
