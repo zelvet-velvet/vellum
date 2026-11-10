@@ -8,6 +8,7 @@ Lay out app screens on real phone frames inside an Obsidian note. Vellum is trac
 - **Real devices**: iPhone 12 to 17 (mini, Pro, Pro Max, Air, SE), Pixel 8, Galaxy S24 / S25 / S25 Ultra, with the cut-out, status bar, home strip and safe areas, upright or sideways; or any **custom** width × height.
 - **Blocks and items**: a screen is blocks (what each part is: title, summary, list, action…); a block holds text, shapes, pictures and icons placed by **gravity** (9 anchor points, an offset, and hug / fixed / fill per axis), plus rows and columns for repeated items.
 - **Frames**: a screen can sit on the frame of the screen it opens from (a layout template): it draws the frame's blocks under its own and keeps only the blocks it overrides.
+- **Snapping**: blocks and items snap to edges, middles, margin lines and each other, with guide lines; the magnet under the phone switches it, Settings → Vellum sets the details.
 - **Screen map**: every screen as a small phone, sub screens under the screen they open from, joined by lines with how you get there.
 - **An editor that fits the device**: on a computer it opens in its own window (screens list, the phone centred, a settings panel you can resize or hide); on a phone it takes the full screen with a bottom sheet.
 - **Plain text**: one screen per line of JSON in the note, or one small JSON file per screen in a folder for bigger apps, so git diffs show exactly what changed. Unsaved work is kept on the device until you save.
@@ -53,6 +54,8 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 | Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from and its frame, note) |
 | Frames | On a screen that uses its parent's frame, the frame's blocks are faded and locked: choose one for **Override here** (a copy of it on this screen only) or **Edit in** the screen it belongs to; an override has a small mark and **Back to the frame** |
 
+A chosen picture, rectangle or circle has a handle at both bottom corners: drag to resize (Shift keeps the shape, Alt moves 1 px). A picture's settings show the whole picture with the part its box shows framed: click or drag there to choose that part.
+
 Keys: arrows nudge 1 px (Shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (and closes the editor at the top).
 
 ## The look
@@ -88,6 +91,10 @@ src: Design/Screens
 ````
 
 The folder holds one file per screen (`Home.json`, `Detail.json`…, named after the screen, its blocks one per line) and `_doc.json` (`id`, `device`, `order`: the screen ids in order). A save writes only the screens that changed; a renamed screen gets a new file name, a deleted one goes to the trash. Files changed outside Obsidian's editor (your agent, a sync) are read again by themselves; unsaved edits are offered back, never overwritten. An agent reads or writes just the screen it works on.
+
+## Network
+
+Vellum makes no network requests of its own. A picture item whose `src` is an `https://` address is loaded from that address when the screen is drawn (as an image in a note would be); vault paths are read from the vault.
 
 ## Build
 
