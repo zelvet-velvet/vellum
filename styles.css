@@ -25,9 +25,9 @@
 .vl-page { flex: none; }
 .vl-pname { font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 6px; }
 .vl-page.is-sel .vl-pname { color: var(--text-normal); font-weight: 600; }
-.vl-page.is-mock .vl-pname { color: var(--color-blue); }
+.vl-page.is-mock .vl-pname { color: var(--text-muted); font-style: italic; }
 .vl-phone { position: relative; overflow: hidden; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
-.vl-page.is-mock .vl-phone { box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px var(--color-blue), 0 12px 30px rgba(0, 0, 0, 0.35); }
+.vl-page.is-mock .vl-phone { outline: 1.5px dashed var(--text-muted); outline-offset: 7px; }   /* a mock (a proposal): dashed, in the theme's muted colour */
 .vl-screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; background: var(--vl-paper); color: var(--vl-text); touch-action: none; }
 .vl-screen.is-show { touch-action: auto; }
 .vl-status { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: center; color: var(--vl-text); pointer-events: none; z-index: 3; }
@@ -125,7 +125,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-tphone { position: relative; overflow: hidden; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); transition: box-shadow 0.15s; }
 .vl-thumb:hover .vl-tphone { box-shadow: 0 0 0 2px var(--text-faint); }
 .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
-.vl-thumb.is-mock .vl-tphone { box-shadow: 0 0 0 1px var(--color-blue); }
+.vl-thumb.is-mock .vl-tphone { outline: 1px dashed var(--text-muted); outline-offset: 2px; }
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 5px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
 .vl-thumb.is-main .vl-tname { color: var(--text-normal); font-weight: 600; }
@@ -188,7 +188,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-prow:hover { background: var(--background-modifier-hover); }
 .vl-prow.is-on { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 .vl-prow.is-on .vl-pn { color: var(--interactive-accent); font-weight: 600; }
-.vl-prow.is-mock .vl-pn { color: var(--color-blue); }
+.vl-prow.is-mock .vl-pn { color: var(--text-muted); font-style: italic; }
 .vl-ptext { flex: 1; min-width: 0; padding: 5px 0; }
 .vl-pn { font-size: var(--font-ui-small); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl-pl { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
