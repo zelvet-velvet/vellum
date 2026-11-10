@@ -35,20 +35,21 @@ export default class VellumPlugin extends Plugin {
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
     save() { void this.plugin.save(); }
-    // a card: a heading (a click folds it, kept on the device) with a short summary at its right, and its body
+    // a card: a heading (a click unfolds it; folded at first, the open ones kept on the device) with a short summary at its
+    // right, and its body
     card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
-        const KEY = "vellum:setfold";
-        let shut: string[] = [];
-        try { shut = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
-        const card = c.createDiv({ cls: "vls-card" + (shut.includes(key) ? " is-folded" : "") });
+        const KEY = "vellum:setopen";
+        let open: string[] = [];
+        try { open = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
+        const card = c.createDiv({ cls: "vls-card" + (open.includes(key) ? "" : " is-folded") });
         const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
         setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");
         head.createSpan({ cls: "vls-title", text: title });
         head.createSpan({ cls: "vls-sum", text: summary });
         const flip = () => {
             card.toggleClass("is-folded", !card.hasClass("is-folded"));
-            shut = card.hasClass("is-folded") ? [...new Set([...shut, key])] : shut.filter((k) => k !== key);
-            try { localStorage.setItem(KEY, JSON.stringify(shut)); } catch { /* */ }
+            open = card.hasClass("is-folded") ? open.filter((k) => k !== key) : [...new Set([...open, key])];
+            try { localStorage.setItem(KEY, JSON.stringify(open)); } catch { /* */ }
         };
         head.addEventListener("click", flip);
         head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
