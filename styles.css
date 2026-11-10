@@ -405,3 +405,4 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-rfoot { position: sticky; bottom: -12px; z-index: 2; margin: auto -8px -12px; padding: 12px 16px; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); }
 .vl-railbox > .vl-newp { margin-bottom: 14px; }   /* a gap between the last screen button and the device below it */
 .vl .vl-newp > span { display: inline-flex; align-items: center; }   /* the icon on the text's middle line */
+.vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
