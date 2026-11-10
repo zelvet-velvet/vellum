@@ -128,6 +128,10 @@ npm run check && npm run build
 npm run install-vault -- /path/to/vault
 ```
 
+## Support
+
+Vellum is free and open source, made in my spare time. If it saves you time, you can [buy me a coffee on Ko-fi](https://ko-fi.com/zelvet_velvet). Thank you!
+
 ## License
 
 MIT
