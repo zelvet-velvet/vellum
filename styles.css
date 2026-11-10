@@ -194,7 +194,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-pl { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl .vl-padd { width: 26px; height: 26px; opacity: 0; }
 .vl-prow:hover .vl-padd, .vl-ws.is-phone .vl-padd { opacity: 1; }
-.vl .vl-newp { margin: 8px 0 0; justify-content: center; height: 40px; border-radius: 8px; border-style: dashed; color: var(--text-muted); }
+.vl .vl-newp { margin: 8px 0 0; justify-content: center; align-items: center; gap: 6px; height: 44px; padding: 0 12px; line-height: 1; border-radius: 8px; border-style: dashed; color: var(--text-muted); }
 .vl-rfoot { margin-top: auto; padding: 16px 8px 4px; }
 .vl-rfoot .vl-dev { width: 100%; justify-content: space-between; }
 /* the pill at the foot of the stage */
@@ -404,3 +404,4 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* the device stays at the foot of the screens list (it scrolls above it) */
 .vl-rfoot { position: sticky; bottom: -12px; z-index: 2; margin: auto -8px -12px; padding: 12px 16px; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); }
 .vl-railbox > .vl-newp { margin-bottom: 14px; }   /* a gap between the last screen button and the device below it */
+.vl .vl-newp > span { display: inline-flex; align-items: center; }   /* the icon on the text's middle line */
