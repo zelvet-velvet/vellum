@@ -666,9 +666,53 @@ class Editor {
                 const it = findItem(b.items, id)?.item;
                 // the gravity point the item keeps, on the block
                 if (it && b.items.includes(it)) { const [ax, ay] = axes(it.g); const d = el.createDiv({ cls: "vl-anchor" }); d.style.left = `${(ax + 1) * 50}%`; d.style.top = `${(ay + 1) * 50}%`; }
+                if (it && b.items.includes(it) && RESIZE.includes(it.type)) this.itemGrips(el, b, it);
             } else el.createDiv({ cls: "vl-grip", attr: { "data-grip": "1" } });
         }
         return el;
+    }
+
+    // a chosen picture / shape (placed in its block, not in a row): a handle at both bottom corners to resize it
+    itemGrips(bEl: HTMLElement, b: Block, it: Item) {
+        const box = this.itemBox(bEl, b, it); if (!box) return;
+        for (const c of ["bl", "br"] as const) {
+            const g = bEl.createDiv({ cls: `vl-igrip is-${c}`, attr: { "data-igrip": c, "aria-label": "Resize (Shift: keep the shape, Alt: 1 px)" } });
+            g.style.left = `${c === "bl" ? box.L : box.L + box.W}px`; g.style.top = `${box.T + box.H}px`;
+        }
+    }
+    // an item's box in its block's points, as drawn (hug and fill too)
+    itemBox(bEl: HTMLElement, b: Block, it: Item) {
+        const iEl = bEl.querySelector<HTMLElement>(`[data-id="${it.id}"]`), br = bEl.getBoundingClientRect();
+        if (!iEl || !br.width) return null;
+        const ir = iEl.getBoundingClientRect(), k = br.width / b.w;
+        return { L: (ir.left - br.left) / k, T: (ir.top - br.top) / k, W: ir.width / k, H: ir.height / k };
+    }
+    // drag a corner: w / h change live (snapped like blocks, Alt 1 px, Shift keeps the shape); the opposite edge stays put,
+    // whatever the item's gravity (its offset follows); a "fill" size becomes a number
+    resizeItem(e: PointerEvent, p: Page, b: Block, scr: HTMLElement, corner: "bl" | "br") {
+        const it = this.item()?.item, bEl = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
+        const box0 = it && bEl ? this.itemBox(bEl, b, it) : null;
+        if (!it || !box0) return;
+        const L0 = Math.round(box0.L), T0 = Math.round(box0.T), W0 = Math.round(box0.W), H0 = Math.round(box0.H);
+        const [ax, ay] = axes(it.g), x0 = e.clientX, y0 = e.clientY, z = this.v.zoom;
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
+            if (!moved && Math.abs(dx) + Math.abs(dy) < 2) return;
+            if (!moved) { moved = true; this.begin(); }
+            const sn = (v: number) => Math.max(4, m.altKey ? Math.round(v) : Math.round(v / SNAP) * SNAP);
+            const W = sn(corner === "br" ? W0 + dx : W0 - dx);
+            const H = m.shiftKey && W0 && H0 ? Math.max(4, Math.round((W * H0) / W0)) : sn(H0 + dy);
+            const L = corner === "br" ? L0 : L0 + W0 - W;
+            it.w = W; it.h = H;
+            it.dx = ax < 0 ? L : ax > 0 ? b.w - L - W : Math.round(L + W / 2 - b.w / 2);
+            it.dy = ay < 0 ? T0 : ay > 0 ? b.h - T0 - H : Math.round(T0 + H / 2 - b.h / 2);
+            this.redrawBlock(scr, p, b);
+            this.livePanel();
+        };
+        const up = () => { scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); if (moved) { this.end(); this.drawPanel(); } };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
 
     // ---- pointer: a tap chooses, a drag moves (snaps to 4 px, Alt for 1 px)
@@ -688,6 +732,8 @@ class Editor {
             this.choose(l ? { page: p.id, block: l.block.id } : { page: p.id });
             return;
         }
+        const ig = t.closest<HTMLElement>("[data-igrip]");
+        if (ig && this.sel?.item && this.sel.block === b.id) { this.resizeItem(e, p, b, scr, ig.dataset.igrip as "bl" | "br"); return; }
         // first tap on a block chooses the block; an item is chosen once its block is (or straight away with a double tap)
         const blockChosen = before?.page === p.id && before.block === b.id;
         const target: Sel = pickId && blockChosen ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
@@ -1102,10 +1148,13 @@ class Editor {
             this.text(s, () => it.src ?? "", (v) => { it.src = v; }, { placeholder: "https://… or a vault path", title: "Picture address" });
             this.chips(s, [["cover", "Cover: fills the box, cropped", "crop"], ["contain", "Contain: all of it, inside the box", "minimize-2"], ["fill", "Stretch: the box's shape", "move-diagonal-2"]], it.fit ?? "cover", (v) => { it.fit = v; });
             const ps = this.section(body, "Position");
+            const pos = (it.pos ?? "center").trim();
+            this.chips(ps, [["top", "Top", "align-vertical-justify-start"], ["center", "Middle", "align-vertical-justify-center"], ["bottom", "Bottom", "align-vertical-justify-end"]], pos, (v) => { if (v === "center") delete it.pos; else it.pos = v; });
             this.text(ps, () => it.pos ?? "", (v) => { if (v.trim()) it.pos = v; else delete it.pos; }, { placeholder: "center · center 30% · left top", title: "Picture position (CSS object-position)" });
             const r = this.section(body, "Box").createDiv({ cls: "vl-nums" });
             this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
             this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
+            this.sizeNums(body, it, b.items.includes(it));
         } else if (it.type === "icon") {
             // the name, and the icons it matches (Obsidian's set) to pick from
             const s = this.section(body, "Icon");
@@ -1141,7 +1190,15 @@ class Editor {
             this.itemList(c, b, it.items ?? (it.items = []));
             this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "img", "icon", "row", "col"]);
             this.shapeStyle(body, it, true);
-        } else this.shapeStyle(body, it, false);
+        } else { this.shapeStyle(body, it, false); this.sizeNums(body, it, b.items.includes(it)); }
+    }
+    // exact size and offset as numbers (a hug / fill size shows as drawn; typing a number fixes it); the corner handles change them too
+    sizeNums(body: HTMLElement, it: Item, top: boolean) {
+        const r = this.section(body, "Size and place").createDiv({ cls: "vl-nums" });
+        const drawn = (axis: "w" | "h") => { const el = (this.wall ?? document).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); return el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40; };
+        this.num(r, "W", () => (typeof it.w === "number" ? it.w : drawn("w")), (v) => { it.w = v; }, { min: 1 });
+        this.num(r, "H", () => (typeof it.h === "number" ? it.h : drawn("h")), (v) => { it.h = v; }, { min: 1 });
+        if (top) { this.num(r, "X", () => it.dx ?? 0, (v) => { it.dx = v; }); this.num(r, "Y", () => it.dy ?? 0, (v) => { it.dy = v; }); }
     }
     shapeStyle(body: HTMLElement, it: Item, box: boolean) {
         if (!box) this.chips(this.section(body, "Shape"), [["rect", "Rectangle", "square"], ["ellipse", "Circle", "circle"]], it.type as string, (v) => { it.type = v as ItemType; });
@@ -1184,6 +1241,7 @@ class Editor {
     }
 }
 
+const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions

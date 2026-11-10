@@ -326,3 +326,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: 9px; --icon-stroke: 2.5px; }
 .vl-overmark { position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: var(--k); color: var(--background-primary); pointer-events: none; z-index: 4; --icon-size: 10px; --icon-stroke: 2.5px; }
 .vl-frameinfo { font-size: var(--font-ui-smaller); line-height: 1.4; color: var(--text-muted); }
+/* a chosen picture / shape: resize handles at its bottom corners */
+.vl-igrip { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 3px; background: var(--interactive-accent); box-shadow: 0 0 0 1.5px var(--background-primary); z-index: 6; touch-action: none; }
+.vl-igrip.is-br { cursor: nwse-resize; }
+.vl-igrip.is-bl { cursor: nesw-resize; }
