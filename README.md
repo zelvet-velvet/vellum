@@ -124,7 +124,7 @@ src: Design/Screens
 | **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas), `items` |
 | **Any item** | `g` (anchor: `tl t tr l c r bl b br`), `dx dy`, `w h` (a number, `"hug"` or `"fill"`), `op`, `note` |
 | `text` | `v size wt font color ls lh upper` |
-| `rect` `ellipse` `line` | `fill stroke sw r` |
+| `rect` `ellipse` `line` | `fill stroke sw r` (`r`: one radius, or four: `[tl, tr, br, bl]`) |
 | `img` | `src` (`https://…` or a vault path), `fit` (`cover` · `contain` · `fill`), `pos` (CSS object-position), `r` |
 | `icon` | `name` (Lucide), `color size sw` |
 | `row` `col` | `items gap pad main cross`, `fill stroke sw r` |

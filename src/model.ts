@@ -15,7 +15,8 @@ export interface Item {
     // text
     v?: string; size?: number; wt?: number; font?: string; color?: string; ls?: number; lh?: number; upper?: boolean;
     // shapes (rect, ellipse, line)
-    fill?: string; stroke?: string; sw?: number; r?: number; op?: number;
+    // r: one radius for every corner, or four, clockwise from the top left ([tl, tr, br, bl], as CSS border-radius)
+    fill?: string; stroke?: string; sw?: number; r?: number | number[]; op?: number;
     // img: a picture by address (https://…) or a vault path; fit as CSS object-fit, pos as CSS object-position
     src?: string; fit?: "cover" | "contain" | "fill"; pos?: string;
     // icon: a Lucide icon by name (Obsidian's set), drawn size × size in color (sw: its stroke width, else the theme's)

@@ -1420,7 +1420,7 @@ class Editor {
             this.edit(() => { it.w = W; it.h = H; });
         }]]);
         const r = this.section(body, "Corners and opacity").createDiv({ cls: "vl-nums" });
-        this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
+        this.num(r, "Radius", () => (Array.isArray(it.r) ? it.r[0] ?? 0 : it.r ?? 0), (v) => { it.r = v || undefined; }, { min: 0 });
         this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
     }
     // exact size and offset as numbers (a hug / fill size shows as drawn; typing a number fixes it); the corner handles change them too
@@ -1437,7 +1437,7 @@ class Editor {
         const o = this.section(body, "Outline");
         const r = o.createDiv({ cls: "vl-nums" });
         this.num(r, "Thickness", () => it.sw ?? 0, (v) => { it.sw = v || undefined; }, { min: 0 });
-        if (it.type !== "ellipse") this.num(r, "Radius", () => it.r ?? 0, (v) => { it.r = v || undefined; }, { min: 0 });
+        if (it.type !== "ellipse") this.num(r, "Radius", () => (Array.isArray(it.r) ? it.r[0] ?? 0 : it.r ?? 0), (v) => { it.r = v || undefined; }, { min: 0 });
         this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
         this.colors(o, it.stroke ?? "line", (v) => { it.stroke = v; });
     }

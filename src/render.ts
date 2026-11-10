@@ -29,6 +29,8 @@ let resolve = (src: string) => src;
 export const setPictureResolver = (fn: (src: string) => string) => { resolve = fn; };
 export const pictureUrl = (src?: string) => { const s = (src ?? "").trim(); return !s ? "" : /^(https?|data|app|blob|file):/i.test(s) ? s : resolve(s.replace(/^\/+/, "")); };
 const loaded = new Set<string>();   // pictures already shown once: drawn again (a drag, a redraw) without the tile flashing
+// a corner radius: one number, or four (top left, top right, bottom right, bottom left)
+export const radiusOf = (r?: number | number[]) => (Array.isArray(r) ? [0, 1, 2, 3].map((i) => px(Number(r[i] ?? r[0]) || 0)).join(" ") : px(r ?? 0));
 const px = (v: number) => `${Math.round(v * 100) / 100}px`;
 
 // an item placed by gravity with CSS only (no measuring): start = left / top + offset, end = right / bottom + offset,
@@ -82,7 +84,7 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
         case "rect": case "ellipse": {
             s.background = colorOf(t, it.fill);
             if (it.sw) s.border = `${px(it.sw)} solid ${colorOf(t, it.stroke ?? "line")}`;
-            s.borderRadius = it.type === "ellipse" ? "50%" : px(it.r ?? 0);
+            s.borderRadius = it.type === "ellipse" ? "50%" : radiusOf(it.r);
             if (it.w === "hug" || it.w === undefined) s.width = "40px";
             if (it.h === "hug" || it.h === undefined) s.height = "40px";
             break;
@@ -95,7 +97,7 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
         }
         case "img": {
             // a soft tile with an image icon while the picture loads, or when it can not be loaded; never a broken glyph
-            s.borderRadius = px(it.r ?? 0);
+            s.borderRadius = radiusOf(it.r);
             if (it.w === "hug" || it.w === undefined) s.width = "80px";
             if (it.h === "hug" || it.h === undefined) s.height = "80px";
             setIcon(el.createDiv({ cls: "vl-imgph" }), "image");
@@ -134,7 +136,7 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
             s.justifyContent = { start: "flex-start", center: "center", end: "flex-end", between: "space-between" }[it.main ?? "start"];
             if (it.fill) s.background = colorOf(t, it.fill);
             if (it.sw) s.border = `${px(it.sw)} solid ${colorOf(t, it.stroke ?? "line")}`;
-            if (it.r) s.borderRadius = px(it.r);
+            if (it.r) s.borderRadius = radiusOf(it.r);
             const up = it.type === "col" ? ({ start: "left", center: "center", end: "right" } as const)[it.cross ?? "start"] : "left";
             for (const c of it.items ?? []) drawItem(t, el, c, it.type, up);
             break;
