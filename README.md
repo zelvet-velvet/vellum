@@ -50,6 +50,7 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 | Screens tree | Every screen, sub screens under the screen they open from (a chevron folds a branch); rest the pointer on one (long press on a phone) for a large look; the picture button shows a picture of each, as big as the tree is wide (drag its border); **+** adds a screen opened from it; the device at the foot |
 | The phone | Click a block, then a text or shape in it; drag to move (Alt: 1 px), the block's corner to resize; double-click a text to type; click beside the phone to let go |
 | Pill under the phone | Edit (frames, safe areas) / Show (the screen alone) / Map (every screen as a tree; a click opens one), Portrait / Landscape, zoom (Ctrl + wheel), Fit |
+| Safe areas | Shaded while editing; blocks stay out of them unless the block's **Under the bars too** is on. A screen's settings set their size (every screen, per orientation) |
 | A block's place | Align it in the screen (left, centre, right, top, middle, bottom, full width, fill), its width × height in the middle of a box with its distance to each edge around it; click a distance and step it with − / + (Shift: 8) |
 | Settings panel | Only what is chosen; with nothing chosen, the screen itself (name, colour, opened from and its frame, note) |
 | Frames | On a screen that uses its parent's frame, the frame's blocks are faded and locked: choose one for **Override here** (a copy of it on this screen only) or **Edit in** the screen it belongs to; an override has a small mark and **Back to the frame** |
@@ -57,6 +58,28 @@ In Reading view (or Live Preview, outside the block) it shows a card: **Open edi
 A chosen picture, rectangle or circle has a handle at both bottom corners: drag to resize (Shift keeps the shape, Alt moves 1 px). A picture's settings show the whole picture with the part its box shows framed: click or drag there to choose that part.
 
 Keys: arrows nudge 1 px (Shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (and closes the editor at the top).
+
+## Design with an AI agent
+
+Vellum is built to sit between you and a coding agent (Claude Code, Codex, Cursor…): the agent reads and writes the screens as small JSON files, you see them on a real phone and fix them by hand, and neither of you has to describe a layout in words or read one off a screenshot. The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and ZeLedger were made this way, with Claude Code.
+
+**Set up once**
+
+1. Keep the screens as a folder in your vault (the ribbon button makes `Screens/` on the first save), with one file per screen.
+2. Give your agent the folder's path and this README's [format](#the-format) (or ask it to read the README in the plugin's repo). That is all it needs: no plugin API, no server.
+
+**The loop**
+
+1. **The agent drafts.** Ask it to record your app's real screens ("read the app's pages and write each as a Vellum screen in `Design/Screens`"), or to propose new ones. It can copy real text, pictures by address (`img`), icons by Lucide name (`icon`), and use a frame (`inherit`) for screens that share a layout.
+2. **You adjust.** Open the editor: drag, resize, snap, retype; write what you want in a block's or an item's **Note** ("too crowded", "this should scroll"). Save.
+3. **The agent builds.** It reads the screens you changed (git shows exactly which lines), follows the notes, and changes the app to match; or writes the next version of the screen for you to look at.
+
+**Tips**
+
+- Ask for **mocks**: two or three proposals as sub screens of the real one, with `"mock": true`; keep the one you like and delete the rest.
+- Keep **ids** stable: the agent should change a block in place, not write a new one, so diffs stay small and frames keep their overrides.
+- Block **kinds** (title, list, card, action…) and names tell the agent what each part is for; notes tell it what to do.
+- The agent can write while the editor is open: Vellum reads changed files again by itself, and your unsaved edits are offered back, never overwritten.
 
 ## The look
 
@@ -74,7 +97,8 @@ Items use named colours (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent
 ```
 
 - **Page**: `name`, `parent` + `link` (the screen it opens from, and how), `inherit` (`true`: the parent is its frame), `device` (override), `bg`, `mock` (a proposal), `note`, `blocks` (portrait) and `land` (its landscape layout, if it has one: **Make landscape from portrait** starts it).
-- **Block**: `name`, `kind` (what it is), `x y w h` in screen points, `note`, `items`.
+- **Block**: `name`, `kind` (what it is), `x y w h` in screen points, `bleed` (`true`: it may go into the safe areas; drags keep other blocks out of them), `note`, `items`.
+- **Doc**: `device`, and `safe` / `safeLand` (the safe areas set for this doc, upright / sideways: `top bottom left right`, each optional; else the device's own; in a folder doc they live in `_doc.json`).
 - **Item**: `type` `text | rect | ellipse | line | img | icon | row | col`; place: `g` (`tl t tr l c r bl b br`), `dx dy`, `w h` (number, `"hug"`, `"fill"`); text: `v size wt font color ls lh`; shapes: `fill stroke sw r op`; pictures: `src` (`https://…` or a vault path) `fit` (`cover | contain | fill`) `pos` (CSS object-position, default `center`) `r op`; icons: `name` (a Lucide name, Obsidian's set) `color size sw op`; rows / columns: `items gap pad main cross`.
 - **Frames**: a page with `"inherit": true` draws its parent's blocks (and theirs, if the parent inherits too) under its own, in the same layout (portrait or `land`), and its parent's `bg` unless it has one. An own block with the same `id` as one of the frame's takes that block's place (an override); the page stores only its own blocks and overrides.
 

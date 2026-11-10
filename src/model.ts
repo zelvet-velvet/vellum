@@ -23,12 +23,15 @@ export interface Item {
     // row / col
     gap?: number; pad?: number; items?: Item[]; cross?: "start" | "center" | "end"; main?: "start" | "center" | "end" | "between";
 }
-export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; note?: string; items: Item[] }
+// bleed: it may go into the safe areas (under the status bar, the home strip); else drags keep it inside them
+export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; note?: string; items: Item[] }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks
 export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; inherit?: boolean; device?: string; side?: boolean; land?: Block[]; mock?: boolean; bg?: string; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
-export interface Doc { id: string; device: string; pages: Page[] }
+// safe / safeLand: the safe areas set for this doc (each side optional), upright and sideways; else the device's own
+export type Insets = { top: number; bottom: number; left: number; right: number };
+export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; pages: Page[] }
 
 export const GRAVITIES: Gravity[] = ["tl", "t", "tr", "l", "c", "r", "bl", "b", "br"];
 export const uid = () => Math.random().toString(36).slice(2, 8);
@@ -48,14 +51,24 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
             if (q.inherit !== true) delete q.inherit;
             return q;
         });
-        return { doc: { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages } };
+        const doc: Doc = { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages };
+        const sf = insetsOf(v.safe), sl = insetsOf(v.safeLand);
+        if (sf) doc.safe = sf; if (sl) doc.safeLand = sl;
+        return { doc };
     } catch (e) {
         return { doc: empty, error: `The vellum JSON could not be read: ${(e as Error).message}` };
     }
 };
 // one page per line: a change to a page is one line in git
-export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, "pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
+export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, ` + (d.safe ? `"safe": ${JSON.stringify(d.safe)}, ` : "") + (d.safeLand ? `"safeLand": ${JSON.stringify(d.safeLand)}, ` : "") + `"pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
 
+// safe area overrides as read: only numbers 0–400 on the four sides, none = undefined
+export const insetsOf = (v: unknown): Partial<Insets> | undefined => {
+    if (!v || typeof v !== "object") return undefined;
+    const out: Partial<Insets> = {};
+    for (const k of ["top", "bottom", "left", "right"] as const) { const n = (v as Record<string, unknown>)[k]; if (typeof n === "number" && n >= 0 && n <= 400) out[k] = n; }
+    return Object.keys(out).length ? out : undefined;
+};
 // gravity as its two axes: -1 start, 0 middle, 1 end
 export const axes = (g: Gravity = "tl"): [number, number] => [g.includes("l") ? -1 : g.includes("r") ? 1 : 0, g.includes("t") ? -1 : g.includes("b") ? 1 : 0];
 export const gravityOf = (x: number, y: number): Gravity => GRAVITIES[(y + 1) * 3 + (x + 1)];

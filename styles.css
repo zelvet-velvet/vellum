@@ -390,3 +390,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
     .vls-row .vls-ctl { width: 100%; justify-content: flex-end; }
     .vls-token { grid-template-columns: 24px 64px minmax(0, 1fr) 28px; gap: 8px; }
 }
+/* a section whose title folds it */
+.vl-sech.is-fold { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+.vl-sech.is-fold:hover { color: var(--text-muted); }
+.vl-secchev { display: inline-flex; margin-left: auto; transition: transform 0.15s ease; --icon-size: 14px; }
+.vl-sec.is-folded .vl-secchev { transform: rotate(-90deg); }
+.vl-sec.is-folded > .vl-secb { display: none; }

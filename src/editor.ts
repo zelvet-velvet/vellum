@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
-import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
+import { axes, bgOf, Block, Insets, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
 import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
 import { FolderStore, srcOf } from "./store";
 
@@ -198,7 +198,7 @@ class Editor {
     // landscape from portrait: full-width blocks stretch to the new width, the rest keep their place under the status bar;
     // each keeps its id (a block of a frame and its overrides are the same block in both layouts)
     makeLand(p: Page) { this.edit(() => {
-        const d = deviceOf(p.device ?? this.doc.device), up = screenOf(d, false), sd = screenOf(d, true);
+        const up = this.screen(p, false), sd = this.screen(p, true);
         const roomUp = up.W - up.safe.left - up.safe.right, roomSd = sd.W - sd.safe.left - sd.safe.right;
         p.land = p.blocks.map((b) => {
             const c: Block = JSON.parse(JSON.stringify(b));
@@ -208,6 +208,16 @@ class Editor {
             return c;
         });
     }); }
+    // a page's screen as drawn: the device's, with the safe areas set for this doc (upright / sideways)
+    screen(p: Page, land = this.land) {
+        const sc = screenOf(deviceOf(p.device ?? this.doc.device), land), o = land ? this.doc.safeLand : this.doc.safe;
+        return { ...sc, safe: { ...sc.safe, ...o } as Insets };
+    }
+    // the room a block keeps to: inside the safe areas, or the whole screen when it may go under the bars (bleed)
+    room(p: Page, b?: Block) {
+        const { W, H, safe } = this.screen(p);
+        return b?.bleed ? { l: 0, t: 0, r: W, b: H } : { l: safe.left, t: safe.top, r: W - safe.right, b: H - safe.bottom };
+    }
     // the blocks drawn on a page (its frame's under its own) in the layout on show; layer(): the chosen one among them
     layers(p: Page): Layer[] { return layersOf(this.doc.pages, p, this.land); }
     layer() { const p = this.page(); return p && this.sel?.block ? this.layers(p).find((l) => l.block.id === this.sel?.block) : undefined; }
@@ -630,7 +640,7 @@ class Editor {
         return { slots: x, rows: depthMax + 1 };
     }
     drawPage(p: Page) {
-        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, this.land), z = this.v.zoom, show = this.v.show;
+        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
         fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
         const phone = fig.createDiv({ cls: "vl-phone" });
@@ -739,7 +749,7 @@ class Editor {
         return { x, y };
     }
     blockLines(p: Page, b: Block): Lines {
-        const { W, H, safe } = screenOf(deviceOf(p.device ?? this.doc.device), this.land), x: number[] = [], y: number[] = [];
+        const { W, H, safe } = this.screen(p), x: number[] = [], y: number[] = [];
         if (snap.frame) {
             const l = safe.left, r = W - safe.right, t = safe.top, bo = H - safe.bottom;
             x.push(0, W / 2, W, l, r); y.push(0, H / 2, H, t, bo);
@@ -822,6 +832,7 @@ class Editor {
         // what the drag snaps to, measured once as it starts (the rest stays put): the item's box and its block's lines,
         // or the block's lines on the screen
         let ib: { L: number; T: number; W: number; H: number } | null = null, lines: Lines = { x: [], y: [] };
+        const R = this.room(p, b), keep = !b.bleed && inRoom(b, R);
         scr.setPointerCapture(e.pointerId);
         const move = (m: PointerEvent) => {
             const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
@@ -856,6 +867,7 @@ class Editor {
                 const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
                 b.x = g1 ? Math.round(L + g1.d) : sn(L); b.y = g2 ? Math.round(T + g2.d) : sn(T);
             }
+            if (!dragItem && keep) clampTo(b, R, grip);
             this.redrawBlock(scr, p, b);
             this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy));
             this.livePanel();
@@ -918,7 +930,7 @@ class Editor {
         const f = this.item(), b = this.block();
         this.edit(() => {
             if (f) { const [ax, ay] = axes(f.item.g); if (f.item.w !== "fill") f.item.dx = (f.item.dx ?? 0) + (ax > 0 ? -dx : dx); if (f.item.h !== "fill") f.item.dy = (f.item.dy ?? 0) + (ay > 0 ? -dy : dy); }
-            else if (b) { b.x += dx; b.y += dy; }
+            else if (b) { const p = this.page()!, R = this.room(p, b), keep = !b.bleed && inRoom(b, R); b.x += dx; b.y += dy; if (keep) clampTo(b, R, false); }
         });
     }
     duplicate() {
@@ -981,7 +993,22 @@ class Editor {
     getters = new Map<HTMLInputElement, () => number | string>();
 
     // controls
-    section(parent: HTMLElement, title: string) { const s = parent.createDiv({ cls: "vl-sec" }); s.createDiv({ cls: "vl-sech", text: title }); return s.createDiv({ cls: "vl-secb" }); }
+    // a section: its title and its body; fold: a click on the title folds it (kept on the device, by title)
+    section(parent: HTMLElement, title: string, fold = false) {
+        const s = parent.createDiv({ cls: "vl-sec" }), h = s.createDiv({ cls: "vl-sech", text: title }), body = s.createDiv({ cls: "vl-secb" });
+        if (!fold) return body;
+        const KEY = "vellum:secfold";
+        let shut: string[] = [];
+        try { shut = JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { /* */ }
+        h.addClass("is-fold"); setIcon(h.createSpan({ cls: "vl-secchev" }), "chevron-down");
+        s.toggleClass("is-folded", shut.includes(title));
+        h.addEventListener("click", () => {
+            s.toggleClass("is-folded", !s.hasClass("is-folded"));
+            shut = s.hasClass("is-folded") ? [...new Set([...shut, title])] : shut.filter((t) => t !== title);
+            try { localStorage.setItem(KEY, JSON.stringify(shut)); } catch { /* */ }
+        });
+        return body;
+    }
     // a number: type it, or drag its label sideways to scrub; live while it changes, one undo step for the whole change
     num(parent: HTMLElement, name: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number } = {}) {
         const w = parent.createDiv({ cls: "vl-num" });
@@ -1088,12 +1115,24 @@ class Editor {
         if (par) this.chips(st, [["own", "Own blocks only"], ["frame", `On ${par.name}'s frame`]], p.inherit ? "frame" : "own", (v) => { if (v === "frame") p.inherit = true; else delete p.inherit; });
         const n = this.section(body, "Note");
         this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this page is for" });
+        // the safe areas: the device's, or set for this doc (every screen, this orientation)
+        const sa = this.section(body, `Safe areas · every screen, ${this.land ? "landscape" : "portrait"}`, true);
+        const own = screenOf(deviceOf(p.device ?? this.doc.device), this.land).safe, key = this.land ? "safeLand" : "safe";
+        const nums = sa.createDiv({ cls: "vl-nums" });
+        for (const [k, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
+            this.num(nums, name, () => this.screen(p).safe[k], (v) => {
+                const o = { ...this.doc[key] };
+                if (v === own[k]) delete o[k]; else o[k] = v;
+                if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
+            }, { min: 0, max: 400 });
+        }
+        if (this.doc[key]) this.actions(sa, [["rotate-ccw", `The device's own (${own.top} / ${own.bottom} / ${own.left} / ${own.right})`, () => this.edit(() => { delete this.doc[key]; })]]);
         const a = this.section(body, "Add a block");
         const g = a.createDiv({ cls: "vl-chips is-icons" });
         for (const k of this.kinds) {
             const c = this.kindChip(g, k, false);
             c.addEventListener("click", () => this.edit(() => {
-                const dev = deviceOf(p.device ?? this.doc.device), { W, safe } = screenOf(dev, this.land);
+                const { W, safe } = this.screen(p);
                 const low = drawnBlocks(this.doc.pages, p, this.land).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
                 const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
                 this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
@@ -1115,8 +1154,10 @@ class Editor {
             o.createDiv({ cls: "vl-frameinfo", text: `Takes the place of ${this.page(l.over)?.name ?? "the frame"}'s ${b.name} on this screen.` });
             this.actions(o, [["undo-2", "Back to the frame", () => this.edit(() => { const own = this.blocks(p); own.splice(own.indexOf(b), 1); this.sel = { page: p.id, block: b.id }; })]]);
         }
-        this.placeTool(this.section(body, "Place"), p, b);
-        const it = this.section(body, "Items");
+        const pl = this.section(body, "Place");
+        this.placeTool(pl, p, b);
+        this.chips(pl, [["in", "Inside the safe area"], ["bleed", "Under the bars too"]], b.bleed ? "bleed" : "in", (v) => { if (v === "bleed") b.bleed = true; else { delete b.bleed; const R = this.room(p, b); if (!inRoom(b, R)) clampTo(b, R, false); } });
+        const it = this.section(body, "Items", true);
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "img", "icon", "row", "col"]);
         const n = this.section(body, "Note");
@@ -1134,12 +1175,12 @@ class Editor {
         if (owner) acts.push(["arrow-up-right", `Edit in ${owner.name}`, () => { this.setView({ page: owner.id }); this.sel = { page: owner.id, block: l.block.id }; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }]);
         this.actions(body, acts);
     }
-    // where a block sits: align it in the screen's room (inside the safe areas), its size in the middle, its distance to
+    // where a block sits: align it in the screen's room (inside the safe areas, or the whole screen when it may go under
+    // the bars), its size in the middle, its distance to
     // each edge around it; a distance chosen is changed by the stepper under it
     gapSide: "l" | "t" | "r" | "b" = "l";
     placeTool(pl: HTMLElement, p: Page, b: Block) {
-        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = screenOf(dev, this.land);
-        const room = { l: safe.left, t: safe.top, r: W - safe.right, b: H - safe.bottom };
+        const room = this.room(p, b);
         const gap = { l: () => b.x - room.l, r: () => room.r - b.x - b.w, t: () => b.y - room.t, b: () => room.b - b.y - b.h };
         const setGap = (side: "l" | "t" | "r" | "b", d: number) => {
             if (side === "l") b.x = room.l + d; else if (side === "r") b.x = room.r - b.w - d;
@@ -1445,6 +1486,12 @@ class ImagePick extends FuzzySuggestModal<TFile> {
     getItemText(f: TFile) { return f.path; }
     onChooseItem(f: TFile) { this.pick(f); }
 }
+// a block inside a room; kept in it: moved back in (resize: its size cut to the room instead)
+const inRoom = (b: Block, R: { l: number; t: number; r: number; b: number }) => b.x >= R.l && b.y >= R.t && b.x + b.w <= R.r && b.y + b.h <= R.b;
+const clampTo = (b: Block, R: { l: number; t: number; r: number; b: number }, resize: boolean) => {
+    if (resize) { b.w = Math.max(8, Math.min(b.w, R.r - b.x)); b.h = Math.max(8, Math.min(b.h, R.b - b.y)); return; }
+    b.x = Math.max(R.l, Math.min(b.x, R.r - b.w)); b.y = Math.max(R.t, Math.min(b.y, R.b - b.h));
+};
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
