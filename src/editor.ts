@@ -11,7 +11,23 @@ import { FolderStore, srcOf } from "./store";
 // Unsaved work is kept on the device (localStorage) until saved into the note.
 export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[] }
 
-const SNAP = 4;
+// snapping while dragging / resizing: to the grid, and (on) to the edges and middles of the frame (an item's block, a
+// block's screen and safe area), margin lines inside it and the other items / blocks; Alt: none (1 px). Set in the plugin's
+// settings; the magnet in the pill turns it on and off
+export interface SnapCfg { on: boolean; dist: number; grid: number; margins: number[]; frame: boolean; others: boolean; guides: boolean }
+export const SNAP_DEFAULT: SnapCfg = { on: true, dist: 6, grid: 4, margins: [16], frame: true, others: true, guides: true };
+let snap: SnapCfg = { ...SNAP_DEFAULT }, keepSnap = () => {};
+export const setSnap = (c: SnapCfg, save: () => void) => { snap = c; keepSnap = save; };
+const grid = () => Math.max(1, snap.grid || 1);
+type Lines = { x: number[]; y: number[] };
+// the nearest line within reach of any of the points: how far to shift, and the line
+const near = (pts: number[], lines: number[], reach: number) => {
+    let best: { d: number; at: number } | null = null;
+    for (const q of pts) for (const l of lines) { const d = l - q; if (Math.abs(d) <= reach && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: l }; }
+    return best;
+};
+// an item's offset from its gravity point, from its box's left (or top) edge in its block
+const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
 type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean };   // map: the whole tree in the stage   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws
 type Sel = { page: string; block?: string; item?: string } | null;
@@ -319,6 +335,9 @@ class Editor {
             const x = ori.createEl("button", { cls: this.land === land ? "is-on" : "", attr: { "aria-label": label } });
             setIcon(x, icon); if (!x.querySelector("svg")) x.setText(label);
             x.addEventListener("click", () => { if (this.land === land) return; this.setView({ land }); this.sel = null; this.thumbs.clear(); this.draw(); });
+        }
+        if (!this.v.map && !this.v.show) {
+            this.btn(pill, "magnet", snap.on ? "Snapping on: to edges, middles and other items (Alt while dragging: off; details in Settings → Vellum)" : "Snapping off: the grid only", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }).toggleClass("is-on", snap.on);
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
@@ -687,6 +706,40 @@ class Editor {
         const ir = iEl.getBoundingClientRect(), k = br.width / b.w;
         return { L: (ir.left - br.left) / k, T: (ir.top - br.top) / k, W: ir.width / k, H: ir.height / k };
     }
+    // the lines a box snaps to: an item's in its block (block points), a block's on the screen
+    itemLines(bEl: HTMLElement, b: Block, it: Item): Lines {
+        const x: number[] = [], y: number[] = [];
+        if (snap.frame) {
+            x.push(0, b.w / 2, b.w); y.push(0, b.h / 2, b.h);
+            for (const m of snap.margins) { x.push(m, b.w - m); y.push(m, b.h - m); }
+        }
+        if (snap.others) for (const o of b.items) {
+            if (o === it) continue;
+            const r = this.itemBox(bEl, b, o); if (!r) continue;
+            x.push(r.L, r.L + r.W / 2, r.L + r.W); y.push(r.T, r.T + r.H / 2, r.T + r.H);
+        }
+        return { x, y };
+    }
+    blockLines(p: Page, b: Block): Lines {
+        const { W, H, safe } = screenOf(deviceOf(p.device ?? this.doc.device), this.land), x: number[] = [], y: number[] = [];
+        if (snap.frame) {
+            const l = safe.left, r = W - safe.right, t = safe.top, bo = H - safe.bottom;
+            x.push(0, W / 2, W, l, r); y.push(0, H / 2, H, t, bo);
+            for (const m of snap.margins) { x.push(l + m, r - m); y.push(t + m, bo - m); }
+        }
+        if (snap.others) for (const { block: o } of this.layers(p)) {
+            if (o.id === b.id) continue;
+            x.push(o.x, o.x + o.w / 2, o.x + o.w); y.push(o.y, o.y + o.h / 2, o.y + o.h);
+        }
+        return { x, y };
+    }
+    // the lines a drag snapped to, across the screen (screen points); none = cleared
+    guides(scr: HTMLElement, xs: number[] = [], ys: number[] = []) {
+        scr.querySelectorAll(".vl-guide").forEach((g) => g.remove());
+        if (!snap.guides) return;
+        for (const v of xs) { const g = scr.createDiv({ cls: "vl-guide is-v" }); g.style.left = `${v}px`; }
+        for (const v of ys) { const g = scr.createDiv({ cls: "vl-guide is-h" }); g.style.top = `${v}px`; }
+    }
     // drag a corner: w / h change live (snapped like blocks, Alt 1 px, Shift keeps the shape); the opposite edge stays put,
     // whatever the item's gravity (its offset follows); a "fill" size becomes a number
     resizeItem(e: PointerEvent, p: Page, b: Block, scr: HTMLElement, corner: "bl" | "br") {
@@ -696,22 +749,30 @@ class Editor {
         const L0 = Math.round(box0.L), T0 = Math.round(box0.T), W0 = Math.round(box0.W), H0 = Math.round(box0.H);
         const [ax, ay] = axes(it.g), x0 = e.clientX, y0 = e.clientY, z = this.v.zoom;
         let moved = false;
+        const lines = this.itemLines(bEl!, b, it);
         scr.setPointerCapture(e.pointerId);
         const move = (m: PointerEvent) => {
             const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
             if (!moved && Math.abs(dx) + Math.abs(dy) < 2) return;
             if (!moved) { moved = true; this.begin(); }
-            const sn = (v: number) => Math.max(4, m.altKey ? Math.round(v) : Math.round(v / SNAP) * SNAP);
-            const W = sn(corner === "br" ? W0 + dx : W0 - dx);
-            const H = m.shiftKey && W0 && H0 ? Math.max(4, Math.round((W * H0) / W0)) : sn(H0 + dy);
+            const sn = (v: number) => Math.max(4, m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+            const on = snap.on && !m.altKey, reach = snap.dist / z, gx: number[] = [], gy: number[] = [];
+            // the moving edges snap to a line in reach, else the size to the grid
+            const gX = on ? near([corner === "br" ? L0 + W0 + dx : L0 + dx], lines.x, reach) : null;
+            if (gX) gx.push(gX.at);
+            const W = gX ? Math.max(4, Math.round(corner === "br" ? gX.at - L0 : L0 + W0 - gX.at)) : sn(corner === "br" ? W0 + dx : W0 - dx);
+            const gY = on && !m.shiftKey ? near([T0 + H0 + dy], lines.y, reach) : null;
+            if (gY) gy.push(gY.at);
+            const H = m.shiftKey && W0 && H0 ? Math.max(4, Math.round((W * H0) / W0)) : gY ? Math.max(4, Math.round(gY.at - T0)) : sn(H0 + dy);
             const L = corner === "br" ? L0 : L0 + W0 - W;
             it.w = W; it.h = H;
             it.dx = ax < 0 ? L : ax > 0 ? b.w - L - W : Math.round(L + W / 2 - b.w / 2);
             it.dy = ay < 0 ? T0 : ay > 0 ? b.h - T0 - H : Math.round(T0 + H / 2 - b.h / 2);
             this.redrawBlock(scr, p, b);
+            this.guides(scr, gx.map((v) => v + b.x), gy.map((v) => v + b.y));
             this.livePanel();
         };
-        const up = () => { scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); if (moved) { this.end(); this.drawPanel(); } };
+        const up = () => { scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); this.guides(scr); if (moved) { this.end(); this.drawPanel(); } };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
 
@@ -740,23 +801,50 @@ class Editor {
         const dragItem = target?.item ? findItem(b.items, dragId!)?.item : undefined;
         const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, start = { ...b }, istart = dragItem ? { dx: dragItem.dx ?? 0, dy: dragItem.dy ?? 0 } : null;
         let moved = false;
+        // what the drag snaps to, measured once as it starts (the rest stays put): the item's box and its block's lines,
+        // or the block's lines on the screen
+        let ib: { L: number; T: number; W: number; H: number } | null = null, lines: Lines = { x: [], y: [] };
         scr.setPointerCapture(e.pointerId);
         const move = (m: PointerEvent) => {
             const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
             if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
-            if (!moved) { moved = true; this.begin(); if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); } }
-            const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / SNAP) * SNAP);
+            if (!moved) {
+                moved = true; this.begin();
+                const be = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
+                if (dragItem && be) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); } else lines = this.blockLines(p, b);
+                if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); }
+            }
+            const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+            const on = snap.on && !m.altKey, reach = snap.dist / z, gx: number[] = [], gy: number[] = [];
+            const pick = (pts: number[], ls: number[], out: number[]) => { const g = on ? near(pts, ls, reach) : null; if (g) out.push(g.at); return g; };
+            let ox = 0, oy = 0;   // guides in screen points: an item's are in its block
             if (dragItem && istart) {
                 const [ax, ay] = axes(dragItem.g);
-                if (dragItem.w !== "fill") dragItem.dx = sn(istart.dx + (ax > 0 ? -dx : dx));
-                if (dragItem.h !== "fill") dragItem.dy = sn(istart.dy + (ay > 0 ? -dy : dy));
-            } else if (grip) { b.w = Math.max(8, sn(start.w + dx)); b.h = Math.max(8, sn(start.h + dy)); }
-            else { b.x = sn(start.x + dx); b.y = sn(start.y + dy); }
+                ox = b.x; oy = b.y;
+                if (dragItem.w !== "fill") {
+                    const L = (ib?.L ?? 0) + dx, W = ib?.W ?? 0, g = ib ? pick([L, L + W / 2, L + W], lines.x, gx) : null;
+                    dragItem.dx = g ? toD(ax, L + g.d, W, b.w) : sn(istart.dx + (ax > 0 ? -dx : dx));
+                }
+                if (dragItem.h !== "fill") {
+                    const T = (ib?.T ?? 0) + dy, H = ib?.H ?? 0, g = ib ? pick([T, T + H / 2, T + H], lines.y, gy) : null;
+                    dragItem.dy = g ? toD(ay, T + g.d, H, b.h) : sn(istart.dy + (ay > 0 ? -dy : dy));
+                }
+            } else if (grip) {
+                const gR = pick([start.x + start.w + dx], lines.x, gx), gB = pick([start.y + start.h + dy], lines.y, gy);
+                b.w = Math.max(8, gR ? Math.round(gR.at - start.x) : sn(start.w + dx));
+                b.h = Math.max(8, gB ? Math.round(gB.at - start.y) : sn(start.h + dy));
+            } else {
+                const L = start.x + dx, T = start.y + dy;
+                const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
+                b.x = g1 ? Math.round(L + g1.d) : sn(L); b.y = g2 ? Math.round(T + g2.d) : sn(T);
+            }
             this.redrawBlock(scr, p, b);
+            this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy));
             this.livePanel();
         };
         const up = () => {
             scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            this.guides(scr);
             if (moved) { this.end(); return; }
             const again = target?.item && before?.item === target.item;
             this.choose(target);
@@ -805,7 +893,7 @@ class Editor {
         if (e.key === "Escape") { const s = this.sel; this.choose(s?.item ? { page: s.page, block: s.block } : s?.block ? { page: s.page } : null); return true; }
         if (e.key === "Delete" || e.key === "Backspace") { this.remove(); return true; }
         const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
-        if (d && this.sel?.block) { this.nudge(d[0] * (e.shiftKey ? SNAP : 1), d[1] * (e.shiftKey ? SNAP : 1)); return true; }
+        if (d && this.sel?.block) { this.nudge(d[0] * (e.shiftKey ? grid() : 1), d[1] * (e.shiftKey ? grid() : 1)); return true; }
         return false;
     }
     nudge(dx: number, dy: number) {

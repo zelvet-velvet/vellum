@@ -337,3 +337,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-imgcrop { position: absolute; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 3px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.45); pointer-events: none; }
 .vl-srcrow { display: flex; gap: 4px; align-items: center; }
 .vl-srcrow > .vl-text { flex: 1; min-width: 0; }
+/* snapping: the lines a drag snapped to */
+.vl-guide { position: absolute; z-index: 8; pointer-events: none; background: var(--color-pink, #e93147); }
+.vl-guide.is-v { top: 0; bottom: 0; width: 1px; margin-left: -0.5px; }
+.vl-guide.is-h { left: 0; right: 0; height: 1px; margin-top: -0.5px; }
+.vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }

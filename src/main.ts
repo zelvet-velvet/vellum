@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, Setting, TFolder } from "obsidian";
-import { openVellum, registerVellum } from "./editor";
+import { openVellum, registerVellum, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
 import { BASE_THEME, Theme } from "./render";
 
 // the mark (ribbon, the editor's tab): a phone, and a sheet of tracing paper over it with a gravity point; 100 × 100, line icons
@@ -8,16 +8,18 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7" stroke-linec
 // Vellum: phone screens drawn and edited in a note (```vellum blocks). The look (named colours and fonts that items use)
 // comes from the settings; by default it follows the Obsidian theme.
 // folder: the screens the ribbon button opens (one JSON file per screen); made on the first save
-interface Settings { folder: string; colors: Record<string, string>; fonts: Record<string, string> }
-const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, fonts: { ...BASE_THEME.fonts } };
+// snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
+interface Settings { folder: string; colors: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg }
+const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT } };
 
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts } };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap } };
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme() }));
+        setSnap(this.settings.snap, () => { void this.save(); });
         // the editor straight on the screens folder: no note or block needed
         this.addRibbonIcon("vellum", "Open Vellum", () => { void openVellum(this.settings.folder); });
         this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
@@ -51,8 +53,24 @@ class VellumSettings extends PluginSettingTab {
         for (const name of Object.keys(s.fonts)) {
             new Setting(c).setName(name).addText((t) => t.setValue(s.fonts[name]).onChange(async (v) => { s.fonts[name] = v.trim(); await this.plugin.save(); }));
         }
+        new Setting(c).setName("Snapping").setHeading();
+        const sn = s.snap, keep = async () => { await this.plugin.save(); };
+        new Setting(c).setName("Snap to edges and middles").setDesc("While dragging or resizing, a block or an item snaps to the lines near it, with a guide line; Alt turns it off for a drag (1 px). The magnet under the phone switches this too.")
+            .addToggle((t) => t.setValue(sn.on).onChange(async (v) => { sn.on = v; await keep(); }));
+        new Setting(c).setName("Snap distance").setDesc("How near a line pulls (screen pixels).")
+            .addSlider((sl) => sl.setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange(async (v) => { sn.dist = v; await keep(); }));
+        new Setting(c).setName("Grid").setDesc("Points a drag moves by when no line is near (1 = free). Shift with an arrow key moves this far too.")
+            .addText((t) => t.setValue(String(sn.grid)).onChange(async (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; await keep(); } }));
+        new Setting(c).setName("Margins").setDesc("Lines this far inside each edge (the block's for an item; the safe area's for a block), comma separated; empty for none.")
+            .addText((t) => t.setPlaceholder("16, 24").setValue(sn.margins.join(", ")).onChange(async (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); await keep(); }));
+        new Setting(c).setName("The frame").setDesc("An item: its block's edges and middle. A block: the screen's, and the safe area's edges.")
+            .addToggle((t) => t.setValue(sn.frame).onChange(async (v) => { sn.frame = v; await keep(); }));
+        new Setting(c).setName("Other items and blocks").setDesc("The edges and middles of the other items in the block, or of the other blocks on the screen.")
+            .addToggle((t) => t.setValue(sn.others).onChange(async (v) => { sn.others = v; await keep(); }));
+        new Setting(c).setName("Guide lines").setDesc("Show the line a drag snapped to.")
+            .addToggle((t) => t.setValue(sn.guides).onChange(async (v) => { sn.guides = v; await keep(); }));
         new Setting(c).setName("Follow the Obsidian theme").setDesc("Put every colour and font back to the defaults.")
-            .addButton((b) => b.setButtonText("Reset").setWarning().onClick(async () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder }; await this.plugin.save(); this.display(); }));
+            .addButton((b) => b.setButtonText("Reset").setWarning().onClick(async () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap }; await this.plugin.save(); this.display(); }));
     }
 }
 
