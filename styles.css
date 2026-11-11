@@ -606,4 +606,4 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-droptx { font: 500 12px var(--font-monospace); color: var(--text-normal); }
 .vl-dropk { font-size: 10.5px; color: var(--text-faint); }
 /* an item lit on the phone while the pointer rests on its row in the panel */
-.vl-screen:not(.is-show) .vl-it.is-hl { box-shadow: 0 0 0 1.5px var(--interactive-accent), 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 25%, transparent); border-radius: 2px; }
+.vl-screen:not(.is-show) .vl-it.is-hl { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }   /* an outline: items with their own outline (an inset shadow) keep it */
