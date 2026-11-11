@@ -175,7 +175,7 @@ src: Design/Screens
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | Duplicate · delete |
 | <kbd>Ctrl</kbd> <kbd>S</kbd> | Save |
 | <kbd>Alt</kbd> / <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
-| Hold a number box, then drag up / down | Change it (the arrows beside it step it; Shift: ×10) |
+| Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ
 
