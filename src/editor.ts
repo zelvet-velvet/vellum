@@ -1117,7 +1117,7 @@ class Editor {
     // a number: type it, or drag its label sideways to scrub; live while it changes, one undo step for the whole change
     // a number box, as ZeLedger's amount tiles: the value is text. Hold the box (a mouse or a finger), then drag up or down
     // to change it, a bubble showing the value; a quick click or tap turns it into a field to type in (Enter keeps it, Esc
-    // puts it back); the arrows step it; with the box focused, ↑ ↓ step and Enter types
+    // puts it back); with the box focused, ↑ ↓ step and Enter types
     num(parent: HTMLElement, name: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; unit?: string } = {}) {
         const w = parent.createDiv({ cls: "vl-num", attr: { tabindex: "0", role: "spinbutton", "aria-label": name } });
         w.createSpan({ cls: "vl-numl", text: name });
@@ -1154,7 +1154,7 @@ class Editor {
             if (k.key === "Enter") { k.preventDefault(); type(); }
             else if (k.key === "ArrowUp" || k.key === "ArrowDown") { k.preventDefault(); k.stopPropagation(); this.begin(); apply(get() + (k.key === "ArrowUp" ? 1 : -1) * st * editCfg.arrow * (k.shiftKey ? 10 : 1)); this.end(); }
         });
-        this.numberExtras(w, null, name, get, set, { ...o, refresh: show, anyPointer: true });
+        this.numberExtras(w, null, name, get, set, { ...o, refresh: show, anyPointer: true, arrows: false });
         return w;
     }
     // a number box's extras: ▲▼ arrows (a press moves one arrow step, Shift ten of them, holding repeats) and hold-and-drag:

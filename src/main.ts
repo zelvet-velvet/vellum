@@ -126,9 +126,9 @@ class VellumSettings extends PluginSettingTab {
         const sn = s.snap;
         // editing: number boxes
         const ed = s.edit;
-        const eg = this.card(c, "editing", "Editing", `Arrows ×${ed.arrow}`);
-        this.input(this.row(eg, "Arrow step", "How many steps one press of a number box's arrow moves (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; eg.parentElement?.querySelector(".vls-sum")?.setText(`Arrows ×${n}`); this.save(); } }, { cls: "is-num", type: "number" });
-        new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it (a phone's way; works with a mouse too).")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
+        const eg = this.card(c, "editing", "Editing", `Drag step ×${ed.arrow}`);
+        this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; eg.parentElement?.querySelector(".vls-sum")?.setText(`Drag step ×${n}`); this.save(); } }, { cls: "is-num", type: "number" });
+        new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
 
         const sp = this.card(c, "snapping", "Snapping", sn.on ? "On" : "Off");
         const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
