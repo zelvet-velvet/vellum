@@ -1043,21 +1043,13 @@ class Editor {
         i.addEventListener("input", () => { if (i.value !== "" && !Number.isNaN(Number(i.value))) apply(Number(i.value)); });
         i.addEventListener("blur", () => { this.end(); i.value = String(get()); });
         i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
-        l.addEventListener("pointerdown", (e) => {
-            e.preventDefault(); this.begin();
-            const x0 = e.clientX, v0 = get();
-            l.setPointerCapture(e.pointerId);
-            const mv = (m: PointerEvent) => { apply(v0 + Math.round((m.clientX - x0) / 3) * (o.step ?? 1)); i.value = String(get()); };
-            const up = () => { l.removeEventListener("pointermove", mv); l.removeEventListener("pointerup", up); this.end(); };
-            l.addEventListener("pointermove", mv); l.addEventListener("pointerup", up);
-        });
-        this.numberExtras(w, i, name, get, set, o);
+        this.numberExtras(w, i, name, get, set, { ...o, handle: l });
         return w;
     }
     // a number box's extras: ▲▼ arrows (a press moves one arrow step, Shift ten of them, holding repeats) and hold-and-drag:
     // hold the box still, then drag up or down; a bubble shows the value and the change; letting go keeps it, a cancel
     // puts it back. host: the box; arrows: where the arrows go (false: none); set is live (one undo step per change)
-    numberExtras(host: HTMLElement, input: HTMLInputElement, label: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; arrows?: HTMLElement | false } = {}) {
+    numberExtras(host: HTMLElement, input: HTMLInputElement, label: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; arrows?: HTMLElement | false; handle?: HTMLElement } = {}) {
         const st = o.step ?? 1, clamp = (v: number) => Math.min(o.max ?? Infinity, Math.max(o.min ?? -Infinity, v));
         const put = (v: number) => { set(+clamp(Math.round(v / st) * st).toFixed(6)); input.value = String(get()); this.draftPut(); this.drawPages(); this.drawBar(); this.livePanel(); };
         if (o.arrows !== false) {
@@ -1078,9 +1070,10 @@ class Editor {
                 b.addEventListener("click", (e) => e.preventDefault());
             }
         }
-        if (!editCfg.hold) return;
-        // hold and drag, as ZeLedger does it: 280 ms still, then a step every 9 px, faster after ten steps
-        let timer = 0, active = false, x0 = 0, y0 = 0, v0 = 0, id = -1, bub: HTMLElement | null = null;
+        // dragging a value. A computer: the label is a handle (no hold): drag up or right for more, Shift ten times as fast,
+        // Alt finer. A finger: hold the box still (280 ms, as ZeLedger does it), then drag up or down. A step every 9 px,
+        // faster after ten; a bubble shows the value and the change; letting go keeps it, a cancel puts it back
+        let timer = 0, active = false, x0 = 0, y0 = 0, v0 = 0, id = -1, bub: HTMLElement | null = null, both = false, fine = 1;
         const notches = (dy: number) => { const u = Math.abs(dy) / 9; return Math.sign(dy) * Math.floor(u < 10 ? u : 10 + Math.pow(u - 10, 1.35)); };
         const fmt = (v: number) => String(+v.toFixed(4));
         const paint = () => {
@@ -1092,11 +1085,7 @@ class Editor {
         };
         host.addEventListener("touchmove", (e) => { if (active) e.preventDefault(); }, { passive: false });
         host.addEventListener("contextmenu", (e) => { if (active || timer) e.preventDefault(); });
-        host.addEventListener("pointerdown", (e) => {
-            if (e.button !== 0 || active || (e.target as HTMLElement).closest(".vl-arrows, .vl-numl")) return;
-            x0 = e.clientX; y0 = e.clientY; id = e.pointerId;
-            window.clearTimeout(timer);
-            timer = window.setTimeout(() => {
+        const start = () => {
                 timer = 0; active = true; input.blur(); v0 = get(); this.begin();
                 try { host.setPointerCapture(id); } catch { /* */ }
                 host.addClass("is-scrub");
@@ -1108,13 +1097,38 @@ class Editor {
                 bub.style.left = `${Math.min(rr.width - 70, Math.max(70, hr.left - rr.left + hr.width / 2))}px`;
                 bub.style.top = `${Math.max(64, hr.top - rr.top - 8)}px`;
                 paint();
-            }, 280);
+        };
+        if (o.handle) {
+            const hd = o.handle;
+            hd.addClass("vl-drag");
+            hd.addEventListener("pointerdown", (e) => {
+                if (e.button !== 0 || active) return;
+                e.preventDefault(); e.stopPropagation();
+                x0 = e.clientX; y0 = e.clientY; id = e.pointerId; both = true;
+                try { hd.setPointerCapture(id); } catch { /* */ }
+                start();
+            });
+            hd.addEventListener("pointermove", (e) => { if (e.pointerId === id && active) move(e); });
+            hd.addEventListener("pointerup", (e) => { if (e.pointerId === id) finish(true); });
+            hd.addEventListener("pointercancel", (e) => { if (e.pointerId === id) finish(false); });
+        }
+        host.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0 || active || !editCfg.hold || e.pointerType === "mouse" || (e.target as HTMLElement).closest(".vl-arrows, .vl-drag")) return;
+            x0 = e.clientX; y0 = e.clientY; id = e.pointerId; both = false;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(start, 280);
         });
-        host.addEventListener("pointermove", (e) => {
-            if (e.pointerId !== id) return;
-            if (!active) { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { window.clearTimeout(timer); timer = 0; } return; }
+        const move = (e: PointerEvent) => {
             e.preventDefault();
-            put(v0 + notches(y0 - e.clientY) * st * editCfg.arrow); paint();
+            // up (or right, with a mouse); Shift: ten times the step; Alt: four times the distance for each step
+            fine = e.shiftKey ? 10 : 1;
+            const d = (both ? (y0 - e.clientY) + (e.clientX - x0) : y0 - e.clientY) / (e.altKey ? 4 : 1);
+            put(v0 + notches(d) * st * editCfg.arrow * fine); paint();
+        };
+        host.addEventListener("pointermove", (e) => {
+            if (e.pointerId !== id || both) return;
+            if (!active) { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { window.clearTimeout(timer); timer = 0; } return; }
+            move(e);
         });
         const finish = (keep: boolean) => {
             window.clearTimeout(timer); timer = 0;
@@ -1127,8 +1141,8 @@ class Editor {
             host.addEventListener("click", eat, { capture: true, once: true });
             window.setTimeout(() => host.removeEventListener("click", eat, { capture: true }), 400);
         };
-        host.addEventListener("pointerup", (e) => { if (e.pointerId === id) finish(true); });
-        host.addEventListener("pointercancel", (e) => { if (e.pointerId === id) finish(false); });
+        host.addEventListener("pointerup", (e) => { if (e.pointerId === id && !both) finish(true); });
+        host.addEventListener("pointercancel", (e) => { if (e.pointerId === id && !both) finish(false); });
     }
     // a choice of words or swatches: a tap is the answer
     // a choice: words, an icon (its words in the tooltip: [value, words, icon]), or a colour swatch alone (bare)
@@ -1297,7 +1311,7 @@ class Editor {
                 i.addEventListener("input", () => { if (i.value !== "" && !Number.isNaN(Number(i.value))) val(Number(i.value)); });
                 i.addEventListener("blur", () => { this.end(); this.keepColor(hexOf(c)); });
                 i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
-                this.numberExtras(w, i, name, get, val, { min: 0, max, arrows: false });
+                this.numberExtras(w, i, name, get, val, { min: 0, max, arrows: false, handle: w.querySelector<HTMLElement>(".vl-numl") ?? undefined });
                 refresh.push(() => { if (i.ownerDocument.activeElement !== i) i.value = String(Math.round(get())); });
             };
             if (this.colorMode === "rgb") {

@@ -467,3 +467,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-cdot.is-none { background: linear-gradient(135deg, transparent 44%, var(--color-red) 44% 56%, transparent 56%), var(--background-primary); }
 /* a chosen block's name tag is a handle: a press chooses the block (not an item in it), a drag moves it */
 .vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px 2px; border-radius: 4px 4px 0 0; background: var(--k); color: var(--background-primary); transform: translate(-1px, -100%); }
+/* a number box's label is a drag handle (a mouse: drag up or right for more) */
+.vl .vl-drag { cursor: ns-resize; touch-action: none; -webkit-user-select: none; user-select: none; }
+.vl .vl-num .vl-drag:hover { color: var(--text-normal); }
