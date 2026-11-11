@@ -963,6 +963,7 @@ class Editor {
 
     // ---- the panel: only what is chosen, as controls
     drawPanel() {
+        this.closePicker();
         this.keepTop = this.panel?.querySelector(".vl-pbody")?.scrollTop ?? 0;
         this.panel?.remove(); this.panel = null; this.getters.clear();
         this.drawBar();
@@ -1175,88 +1176,162 @@ class Editor {
         box.focus();
         box.setSelectionRange(box.value.length, box.value.length);
     }
-    // a colour: the theme's named colours, your recent ones, the eyedropper (a colour from the screen, where the system
-    // has one), and the editor of any colour (RGB or HSL sliders with numbers, opacity, or any CSS colour typed)
-    colorOpen: string | null = null;
+    // a colour: a bar showing it (its swatch, its name or value; a tap opens the picker) and a palette row under it (the
+    // theme's colours, the recent ones, the eyedropper): one tap picks
     colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false) {
-        const key = (parent.parentElement?.querySelector(".vl-sech")?.textContent ?? "colour") + "·" + (this.sel?.item ?? this.sel?.block ?? this.sel?.page ?? "");
         const names = Object.keys(this.theme.colors);
+        const bar = parent.createEl("button", { cls: "vl-cbar", attr: { "aria-label": "Colour: open the picker" } });
+        const sw = bar.createSpan({ cls: "vl-cbar-sw" }), tx = bar.createSpan({ cls: "vl-cbar-tx" });
+        setIcon(bar.createSpan({ cls: "vl-cbar-ch" }), "chevron-down");
+        let palette: HTMLElement | null = null;
+        const show = (v?: string) => {
+            const empty = !v || v === "none";
+            palette?.querySelectorAll(".vl-chip.is-swatch").forEach((x) => x.toggleClass("is-on", x.getAttr("aria-label") === (empty ? "none" : v)));
+            sw.style.setProperty("--c", empty ? "transparent" : colorOf(this.theme, v));
+            sw.toggleClass("is-none", empty); tx.setText(empty ? "None" : v!);
+            tx.toggleClass("is-name", !empty && names.includes(v!));
+        };
+        show(on);
+        bar.addEventListener("click", () => { if (this.picker?.anchor === bar) this.closePicker(); else this.openPicker(bar, on, pick, show, none); });
+        // the palette: the theme's names, then recent colours, then the eyedropper
         const opts: [string, string][] = [...(none ? [["none", "none"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
         const g = this.chips(parent, opts, on ?? (none ? "none" : undefined), pick, (v) => colorOf(this.theme, v), true);
-        const own = (c: string) => { this.edit(() => pick(c)); this.keepColor(c); };
+        g.addClass("vl-palette"); palette = g;
         const recent = this.recentColors().filter((c) => !names.includes(c));
         if (recent.length) g.createSpan({ cls: "vl-csep" });
         for (const c of recent) {
             const b = g.createEl("button", { cls: "vl-chip is-swatch" + (c === on ? " is-on" : ""), attr: { "aria-label": c } });
             b.createSpan({ cls: "vl-sw" }).style.background = c;
-            b.addEventListener("click", () => own(c));
+            b.addEventListener("click", () => { this.edit(() => pick(c)); this.keepColor(c); });
         }
-        g.createSpan({ cls: "vl-csep" });
-        const Drop = (this.root?.win as (Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }) | undefined)?.EyeDropper;
-        if (Drop) {
+        const drop = this.eyedropper();
+        if (drop) {
+            g.createSpan({ cls: "vl-csep" });
             const d = g.createEl("button", { cls: "vl-chip is-icon vl-cbtn", attr: { "aria-label": "Pick a colour from the screen" } });
             setIcon(d, "pipette");
-            d.addEventListener("click", () => { new Drop().open().then((r) => own(r.sRGBHex), () => { /* closed with Esc */ }); });
+            d.addEventListener("click", () => { drop().then((c) => { this.edit(() => pick(c)); this.keepColor(c); }, () => { /* Esc */ }); });
         }
-        const open = this.colorOpen === key;
-        const m = g.createEl("button", { cls: "vl-chip is-icon vl-cbtn" + (open ? " is-on" : ""), attr: { "aria-label": open ? "Hide the colour editor" : "Any colour: RGB, HSL, hex, CSS" } });
-        setIcon(m, "palette");
-        m.addEventListener("click", () => { this.colorOpen = open ? null : key; this.drawPanel(); });
-        if (open) this.colorEditor(parent, on, pick, names);
+    }
+    eyedropper(): (() => Promise<string>) | null {
+        const D = (this.root?.win as (Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }) | undefined)?.EyeDropper;
+        return D ? () => new D().open().then((r) => r.sRGBHex) : null;
     }
     // recent custom colours, newest first (kept on the device for this vault)
     recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]"); } catch { return []; } }
     keepColor(c: string) { if (!c || c === "none" || c in this.theme.colors) return; setLocal("vellum:recentColors", JSON.stringify([c, ...this.recentColors().filter((x) => x !== c)].slice(0, 8))); }
-    colorMode: "rgb" | "hsl" = (getLocal("vellum:colorMode") as "rgb" | "hsl") || "rgb";
-    colorEditor(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, names: string[]) {
-        const c = this.rgbaOf(on), hsl = rgbToHsl(c.r, c.g, c.b);
-        const box = parent.createDiv({ cls: "vl-ced" });
-        const top = box.createDiv({ cls: "vl-ced-top" });
-        const sw = top.createDiv({ cls: "vl-ced-sw" });
-        const txt = top.createEl("input", { cls: "vl-ced-text", attr: { type: "text", spellcheck: "false", placeholder: "#hex, rgb(), hsl(), a name, var(--…)", "aria-label": "Any CSS colour" } });
-        txt.value = on && !names.includes(on) && on !== "none" ? on : hexOf(c);
-        txt.addEventListener("keydown", (k) => { if (k.key === "Enter") txt.blur(); });
-        txt.addEventListener("change", () => {
-            const v = txt.value.trim();
-            if (v && CSS.supports("color", v)) { this.edit(() => pick(v)); this.keepColor(v); }
-            else txt.addClass("is-bad");
-        });
-        this.chips(top, [["rgb", "RGB"], ["hsl", "HSL"]], this.colorMode, (v) => { this.colorMode = v as "rgb" | "hsl"; setLocal("vellum:colorMode", v); });
-        // the colour as it is being set: RGB and HSL kept in step, opacity apart
-        const rows: (() => void)[] = [];
-        const paint = () => { sw.style.setProperty("--c", hexOf(c)); for (const r of rows) r(); };
-        const commit = () => { const h = hexOf(c); txt.value = h; txt.removeClass("is-bad"); pick(h); this.draftPut(); this.drawPages(); this.drawBar(); paint(); };
-        const fromHsl = () => { const r = hslToRgb(hsl.h, hsl.s, hsl.l); c.r = r.r; c.g = r.g; c.b = r.b; };
-        const fromRgb = () => { const h = rgbToHsl(c.r, c.g, c.b); if (h.s && h.l > 0 && h.l < 100) hsl.h = h.h; hsl.s = h.s; hsl.l = h.l; };
-        const row = (name: string, max: number, get: () => number, set: (v: number) => void, track: () => string) => {
-            const r = box.createDiv({ cls: "vl-crow" });
-            r.createSpan({ cls: "vl-crowl", text: name });
-            const range = r.createEl("input", { cls: "vl-crange", attr: { type: "range", min: "0", max: String(max), step: "1", "aria-label": name } });
-            const nw = r.createDiv({ cls: "vl-num vl-cnum" });
-            const ni = nw.createEl("input", { attr: { type: "number", min: "0", max: String(max), step: "1", "aria-label": name } });
-            const val = (v: number) => { set(Math.min(max, Math.max(0, Math.round(v)))); commit(); };
-            range.addEventListener("pointerdown", () => this.begin());
-            range.addEventListener("input", () => { this.begin(); val(Number(range.value)); });
-            range.addEventListener("change", () => { this.end(); this.keepColor(hexOf(c)); });
-            ni.addEventListener("focus", () => this.begin());
-            ni.addEventListener("input", () => { if (ni.value !== "") val(Number(ni.value)); });
-            ni.addEventListener("blur", () => { this.end(); this.keepColor(hexOf(c)); });
-            this.numberExtras(nw, ni, name, get, (v) => val(v), { min: 0, max });
-            rows.push(() => { const v = String(Math.round(get())); if (range.value !== v) range.value = v; if (ni.ownerDocument.activeElement !== ni) ni.value = v; range.style.setProperty("--track", track()); });
+    colorMode: "hex" | "rgb" | "hsl" = (getLocal("vellum:colorMode") as "hex" | "rgb" | "hsl") || "hex";
+    // the picker: a panel floating by its bar. The colour square (saturation across, brightness down), the hue and opacity
+    // bars, then the exact value (hex or any CSS colour, or RGB / HSL numbers) and the eyedropper, then recent colours.
+    // Each drag or typed change is one undo step; a tap anywhere else, or Esc, closes it
+    picker: { el: HTMLElement; anchor: HTMLElement; off: () => void } | null = null;
+    closePicker() { const p = this.picker; if (!p) return; this.picker = null; p.off(); p.el.remove(); }
+    openPicker(anchor: HTMLElement, on: string | undefined, pick: (v: string) => void, show: (v?: string) => void, none: boolean) {
+        this.closePicker();
+        const R = this.root; if (!R) return;
+        const c = this.rgbaOf(on), hsv = rgbToHsv(c.r, c.g, c.b);
+        const el = R.createDiv({ cls: "vl-cpop" });
+        // the colour square, the hue bar, the opacity bar
+        const sq = el.createDiv({ cls: "vl-csq" }), sqk = sq.createDiv({ cls: "vl-cknob" });
+        const hue = el.createDiv({ cls: "vl-cstrip is-hue" }), huek = hue.createDiv({ cls: "vl-cknob" });
+        const al = el.createDiv({ cls: "vl-cstrip is-alpha" }), alk = al.createDiv({ cls: "vl-cknob" });
+        // the exact value
+        const vals = el.createDiv({ cls: "vl-cvals" });
+        const drop = this.eyedropper();
+        if (drop) { const d = vals.createEl("button", { cls: "vl-cicon", attr: { "aria-label": "Pick a colour from the screen" } }); setIcon(d, "pipette"); d.addEventListener("click", () => { drop().then((h) => { const x = this.rgbaOf(h); Object.assign(c, x); Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); this.begin(); set(); this.end(); this.keepColor(hexOf(c)); }, () => { /* Esc */ }); }); }
+        const fields = vals.createDiv({ cls: "vl-cfields" });
+        const modes = el.createDiv({ cls: "vl-cmodes" });
+        // recent colours, and none where it is allowed
+        const foot = el.createDiv({ cls: "vl-cfoot" });
+        const paint = () => {
+            const hueC = `hsl(${hsv.h}, 100%, 50%)`, solid = `rgb(${c.r}, ${c.g}, ${c.b})`;
+            sq.style.setProperty("--hue", hueC);
+            sqk.style.left = `${hsv.s}%`; sqk.style.top = `${100 - hsv.v}%`; sqk.style.setProperty("--c", solid);
+            huek.style.left = `${(hsv.h / 360) * 100}%`; huek.style.setProperty("--c", hueC);
+            al.style.setProperty("--c", solid); alk.style.left = `${c.a * 100}%`; alk.style.setProperty("--c", hexOf(c));
+            for (const f of refresh) f();
         };
-        const rgbStr = (r: number, g: number, b: number) => `rgb(${r}, ${g}, ${b})`;
-        if (this.colorMode === "rgb") {
-            row("R", 255, () => c.r, (v) => { c.r = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(0, c.g, c.b)}, ${rgbStr(255, c.g, c.b)})`);
-            row("G", 255, () => c.g, (v) => { c.g = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(c.r, 0, c.b)}, ${rgbStr(c.r, 255, c.b)})`);
-            row("B", 255, () => c.b, (v) => { c.b = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(c.r, c.g, 0)}, ${rgbStr(c.r, c.g, 255)})`);
-        } else {
-            const hs = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
-            row("H", 360, () => hsl.h, (v) => { hsl.h = v; fromHsl(); }, () => `linear-gradient(90deg, ${[0, 60, 120, 180, 240, 300, 360].map((h) => hs(h, hsl.s, hsl.l)).join(", ")})`);
-            row("S", 100, () => hsl.s, (v) => { hsl.s = v; fromHsl(); }, () => `linear-gradient(90deg, ${hs(hsl.h, 0, hsl.l)}, ${hs(hsl.h, 100, hsl.l)})`);
-            row("L", 100, () => hsl.l, (v) => { hsl.l = v; fromHsl(); }, () => `linear-gradient(90deg, ${hs(hsl.h, hsl.s, 0)}, ${hs(hsl.h, hsl.s, 50)}, ${hs(hsl.h, hsl.s, 100)})`);
+        const refresh: (() => void)[] = [];
+        // a change from the square, the bars or the numbers: the item takes the hex, live
+        const set = () => { const h = hexOf(c); pick(h); show(h); this.draftPut(); this.drawPages(); this.drawBar(); paint(); };
+        const fromHsv = () => { const r = hsvToRgb(hsv.h, hsv.s, hsv.v); c.r = r.r; c.g = r.g; c.b = r.b; };
+        const drag = (area: HTMLElement, at: (x: number, y: number) => void) => {
+            area.addEventListener("pointerdown", (e) => {
+                e.preventDefault(); this.begin(); area.setPointerCapture(e.pointerId);
+                const go = (m: PointerEvent) => { const r = area.getBoundingClientRect(); at(Math.min(1, Math.max(0, (m.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (m.clientY - r.top) / r.height))); set(); };
+                go(e);
+                const up = () => { area.removeEventListener("pointermove", go); area.removeEventListener("pointerup", up); area.removeEventListener("pointercancel", up); this.end(); this.keepColor(hexOf(c)); };
+                area.addEventListener("pointermove", go); area.addEventListener("pointerup", up); area.addEventListener("pointercancel", up);
+            });
+        };
+        drag(sq, (x, y) => { hsv.s = Math.round(x * 100); hsv.v = Math.round((1 - y) * 100); fromHsv(); });
+        drag(hue, (x) => { hsv.h = Math.round(x * 360); fromHsv(); });
+        drag(al, (x) => { c.a = Math.round(x * 100) / 100; });
+        // the exact value: hex (any CSS colour typed is taken as it is: a name, var(--…), rgb()), or numbers
+        const drawFields = () => {
+            fields.empty(); refresh.length = 0;
+            if (this.colorMode === "hex") {
+                const t = fields.createEl("input", { cls: "vl-chex", attr: { type: "text", spellcheck: "false", "aria-label": "Hex or any CSS colour" } });
+                t.value = on && !(on in this.theme.colors) && on !== "none" && !/^#/.test(on) ? on : hexOf(c);
+                refresh.push(() => { if (t.ownerDocument.activeElement !== t) t.value = hexOf(c); });
+                t.addEventListener("keydown", (k) => { if (k.key === "Enter") t.blur(); });
+                t.addEventListener("change", () => {
+                    const v = t.value.trim(); if (!v) return;
+                    if (!CSS.supports("color", v)) { t.addClass("is-bad"); return; }
+                    t.removeClass("is-bad");
+                    Object.assign(c, this.rgbaOf(v)); Object.assign(hsv, rgbToHsv(c.r, c.g, c.b));
+                    this.begin(); pick(v); show(v); this.draftPut(); this.drawPages(); this.end(); this.keepColor(v); paint(); t.value = v;
+                });
+                return;
+            }
+            const box = (name: string, max: number, get: () => number, put: (v: number) => void) => {
+                const w = fields.createDiv({ cls: "vl-num vl-cnum" });
+                w.createSpan({ cls: "vl-numl", text: name });
+                const i = w.createEl("input", { attr: { type: "number", min: "0", max: String(max), step: "1", "aria-label": name } });
+                const val = (v: number) => { put(Math.min(max, Math.max(0, Math.round(v)))); set(); };
+                i.addEventListener("focus", () => this.begin());
+                i.addEventListener("input", () => { if (i.value !== "" && !Number.isNaN(Number(i.value))) val(Number(i.value)); });
+                i.addEventListener("blur", () => { this.end(); this.keepColor(hexOf(c)); });
+                i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
+                this.numberExtras(w, i, name, get, val, { min: 0, max, arrows: false });
+                refresh.push(() => { if (i.ownerDocument.activeElement !== i) i.value = String(Math.round(get())); });
+            };
+            if (this.colorMode === "rgb") {
+                box("R", 255, () => c.r, (v) => { c.r = v; Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); });
+                box("G", 255, () => c.g, (v) => { c.g = v; Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); });
+                box("B", 255, () => c.b, (v) => { c.b = v; Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); });
+            } else {
+                const hl = () => rgbToHsl(c.r, c.g, c.b);
+                const fromHsl = (h: number, s: number, l: number) => { Object.assign(c, hslToRgb(h, s, l)); Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); hsv.h = h; };
+                box("H", 360, () => hsv.h, (v) => { const x = hl(); fromHsl(v, x.s, x.l); });
+                box("S", 100, () => hl().s, (v) => { fromHsl(hsv.h, v, hl().l); });
+                box("L", 100, () => hl().l, (v) => { fromHsl(hsv.h, hl().s, v); });
+            }
+            box("A", 100, () => Math.round(c.a * 100), (v) => { c.a = v / 100; });
+        };
+        for (const [m, label] of [["hex", "HEX"], ["rgb", "RGB"], ["hsl", "HSL"]] as const) {
+            const b = modes.createEl("button", { cls: "vl-cmode" + (this.colorMode === m ? " is-on" : ""), text: label });
+            b.addEventListener("click", () => { this.colorMode = m; setLocal("vellum:colorMode", m); modes.querySelectorAll(".vl-cmode").forEach((x) => x.toggleClass("is-on", x === b)); drawFields(); paint(); });
         }
-        row("A", 100, () => Math.round(c.a * 100), (v) => { c.a = v / 100; }, () => `linear-gradient(90deg, ${rgbStr(c.r, c.g, c.b).replace("rgb", "rgba").replace(")", ", 0)")}, ${rgbStr(c.r, c.g, c.b)})`);
+        drawFields();
+        const recent = this.recentColors();
+        if (none) { const n = foot.createEl("button", { cls: "vl-cdot is-none", attr: { "aria-label": "None" } }); n.addEventListener("click", () => { this.edit(() => pick("none")); this.closePicker(); }); }
+        for (const h of recent) {
+            const d = foot.createEl("button", { cls: "vl-cdot", attr: { "aria-label": h } }); d.style.setProperty("--c", h);
+            d.addEventListener("click", () => { Object.assign(c, this.rgbaOf(h)); Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); this.begin(); set(); this.end(); this.keepColor(h); });
+        }
+        if (!recent.length && !none) foot.remove();
         paint();
+        // by the bar: under it, or above when there is no room; inside the editor
+        const rr = R.getBoundingClientRect(), ar = anchor.getBoundingClientRect(), pw = el.offsetWidth, ph = el.offsetHeight;
+        el.style.left = `${Math.max(8, Math.min(rr.width - pw - 8, ar.left - rr.left))}px`;
+        el.style.top = `${ar.bottom - rr.top + 6 + ph > rr.height - 8 ? Math.max(8, ar.top - rr.top - 6 - ph) : ar.bottom - rr.top + 6}px`;
+        // a tap anywhere else, or Esc, closes it
+        const doc = R.doc;
+        const outside = (e: Event) => { const t = e.target as Node; if (!el.contains(t) && !anchor.contains(t)) this.closePicker(); };
+        const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); this.closePicker(); } };
+        window.setTimeout(() => doc.addEventListener("pointerdown", outside, true));
+        doc.addEventListener("keydown", esc, true);
+        this.picker = { el, anchor, off: () => { doc.removeEventListener("pointerdown", outside, true); doc.removeEventListener("keydown", esc, true); } };
     }
     // any colour (a theme name, CSS) as red, green, blue (0–255) and opacity (0–1), as the browser draws it
     rgbaOf(v?: string): { r: number; g: number; b: number; a: number } {
@@ -1693,6 +1768,15 @@ const hslToRgb = (h: number, s: number, l: number) => {
     s /= 100; l /= 100;
     const k = (n: number) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
+};
+const rgbToHsv = (r: number, g: number, b: number) => {
+    const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, d = mx - mn, h = rgbToHsl(r, g, b).h;
+    return { h, s: Math.round(mx ? (d / mx) * 100 : 0), v: Math.round(mx * 100) };
+};
+const hsvToRgb = (h: number, s: number, v: number) => {
+    s /= 100; v /= 100;
+    const f = (n: number) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return { r: Math.round(f(5) * 255), g: Math.round(f(3) * 255), b: Math.round(f(1) * 255) };
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
