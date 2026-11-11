@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <b>English</b> · <a href="README.zh-TW.md">繁體中文</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="https://img.shields.io/github/v/release/zelvet-velvet/vellum?label=release&color=E9892B" alt="Latest release"></a>
   <a href="https://obsidian.md"><img src="https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.6-7C3AED?logo=obsidian&logoColor=white" alt="Obsidian 1.6.6 or newer"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
@@ -16,14 +20,14 @@
 
 Sketch your plugin's screens on a real phone frame, inside your vault. Vellum keeps each screen as a small JSON file: your agent reads exactly where everything is and builds the plugin to match, with no screenshots and no long descriptions. Colours, fonts and icons come from your Obsidian theme, so the mockup already looks like the plugin.
 
-<sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#faq).</sub>
+<sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#-faq).</sub>
 
 <p align="center">
-  <a href="#install">Install</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#with-your-agent">With your agent</a> ·
-  <a href="#file-format">File format</a> ·
-  <a href="#faq">FAQ</a>
+  <a href="#-install">Install</a> ·
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-with-your-agent">With your agent</a> ·
+  <a href="#-file-format">File format</a> ·
+  <a href="#-faq">FAQ</a>
 </p>
 
 <table>
