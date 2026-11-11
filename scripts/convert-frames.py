@@ -39,7 +39,9 @@ def text_box(it):
         return None
     size, lh = it.get("size", 15), it.get("lh") or 1.2
     v = str(it.get("v", "")).split("\n")[0]
-    w = it["w"] if isinstance(it.get("w"), (int, float)) else max(1, len(v)) * size * 0.6
+    # wide characters (CJK, kana, hangul, full-width forms) take about 1 em, others about 0.6
+    em = sum(1.0 if ord(c) >= 0x1100 and (0x1100 <= ord(c) <= 0x115F or 0x2E80 <= ord(c) <= 0xA4CF or 0xAC00 <= ord(c) <= 0xD7A3 or 0xF900 <= ord(c) <= 0xFAFF or 0xFE30 <= ord(c) <= 0xFE4F or 0xFF00 <= ord(c) <= 0xFF60 or 0xFFE0 <= ord(c) <= 0xFFE6) else 0.6 for c in v)
+    w = it["w"] if isinstance(it.get("w"), (int, float)) else max(0.6, em) * size
     return it.get("dx", 0), it.get("dy", 0), w, size * lh
 
 
@@ -116,19 +118,16 @@ def convert_block(b, log, where):
         if len(on) != 1 or on[0].get("type") != "text" or any(k in on[0] for k in ("fill", "sw")):
             continue
         t, tb = on[0], text_box(on[0])
+        # only a text centred on it becomes its box (a text off to one side keeps its rect: a box's padding is on every
+        # side, it can not hold an offset)
+        if abs((tb[0] + tb[2] / 2) - (rb[0] + rb[2] / 2)) > max(4, rb[2] * 0.06):
+            continue
         look = look_of(r)
         if isinstance(look.get("r"), (int, float)) and len(parts) == 2:
             pass   # the top half's radius rounds the whole tile now
         t.update(look)
-        centred = abs((tb[0] + tb[2] / 2) - (rb[0] + rb[2] / 2)) < 3
         t["w"], t["h"], t["dy"] = round(rb[2], 2), round(rb[3], 2), round(rb[1], 2)
-        if centred:
-            t["g"], t["dx"] = "t", round(rb[0] + rb[2] / 2 - bw / 2, 2)
-        else:
-            t["g"], t["dx"] = "tl", round(rb[0], 2)
-            pad = round(tb[0] - rb[0])
-            if pad > 0:
-                t["pad"] = pad
+        t["g"], t["dx"] = "t", round(rb[0] + rb[2] / 2 - bw / 2, 2)
         for p in parts:
             gone.add(id(p))
             used.add(id(p))
