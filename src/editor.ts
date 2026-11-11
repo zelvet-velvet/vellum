@@ -8,7 +8,7 @@ import { FolderStore, srcOf } from "./store";
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
 // screen chooses the page, on a block the block, on an item the item; drag moves it (blocks by x / y, items by their offset
 // from their gravity point), a block's corner resizes it; the panel shows only what is chosen, as controls (no syntax).
-// Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level.
+// Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (never out of the editor).
 // Unsaved work is kept on the device (Obsidian's local storage, per vault) until saved into the note.
 export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string> }   // ui: the editor's own colours that differ from Obsidian's
 
@@ -352,7 +352,7 @@ class Editor {
         const b = this.bar; if (!b?.isConnected) return;
         b.empty();
         const l = b.createDiv({ cls: "vl-tl" });
-        if (Platform.isMobile) this.btn(l, "x", "Close the editor (Esc)", () => this.closeWs()).addClass("vl-x");
+        if (Platform.isMobile) this.btn(l, "x", "Close the editor", () => this.closeWs()).addClass("vl-x");
         const cur = this.current();
         if (Platform.isMobile) {
             const rt = l.createEl("button", { cls: "vl-railbtn" + (this.v.rail ? " is-on" : ""), attr: { "aria-label": "Screens" } });
@@ -982,7 +982,7 @@ class Editor {
         if (mod && k === "z") { if (e.shiftKey) this.redo(); else this.undo(); return true; }
         if (mod && k === "y") { this.redo(); return true; }
         if (mod && k === "d") { this.duplicate(); return true; }
-        if (e.key === "Escape" && !this.sel) { this.closeWs(); return true; }
+        if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place
         if (e.key === "Escape") { const s = this.sel; this.choose(s?.item ? { page: s.page, block: s.block } : s?.block ? { page: s.page } : null); return true; }
         if (e.key === "Delete" || e.key === "Backspace") { this.remove(); return true; }
         const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];

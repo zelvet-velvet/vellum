@@ -21,6 +21,7 @@ Every panel uses one system. Reuse these before adding a control:
 - **Colours** are named tiles, not circles, which were hard to read. Recent colours are tiles named by their hex.
 - **Two sets of colours in the settings.** Editor theme (`UI_COLORS` in `render.ts`) overrides Obsidian's variables on the editor only. Screen colours are the phones' named colours. A screen colour naming an overridden variable reads a `--vlr--…` copy of Obsidian's value, so the editor theme never changes a screen.
 - **Settings colour cards** show their preview above the colours, never pinned while scrolling (it looked like a glitch); long lists are pages with ‹ › arrows, and the cards start folded. Pointing at a colour outlines every part of the preview it paints (`data-use`); hover colours switch their element into that state (`data-state`).
+- **Esc never closes the editor.** It lets go one level at a time (item, block, screen) and stops there; closing is the window's or the phone's close button.
 - **No eyedropper.** It was built three ways and removed: Chromium's magnifier ring is red and can't be restyled, it vanishes across monitors, and capturing the screen ourselves meant a snapshot of the user's desktop.
 - Choices are words (Real / Mock, Across / Down), not unexplained icons.
 - The right panel shouldn't look like a copy of a well-known design tool's inspector. The Gravity panel's phone diagram is the kind of thing that makes it Vellum's own.
