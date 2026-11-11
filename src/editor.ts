@@ -478,6 +478,14 @@ class Editor {
         const row = (p: Page, depth: number) => {
             if (seen.has(p.id)) return; seen.add(p.id);
             const kids = childrenOf(pages, p.id).filter((c) => !seen.has(c.id));
+            // the flow: how you get here, on the connector into this screen ("↳ tap a row")
+            if (p.link && depth) {
+                const ed = list.createDiv({ cls: "vl-pedge" });
+                const gi = ed.createDiv({ cls: "vl-pind" });
+                for (let i = 0; i < depth; i++) gi.createSpan({ cls: "vl-pguide" });
+                setIcon(ed.createSpan({ cls: "vl-pedgei" }), "corner-down-right");
+                ed.createSpan({ cls: "vl-pedget", text: p.link });
+            }
             const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") });
             const ind = w.createDiv({ cls: "vl-pind" });
             for (let i = 0; i < depth; i++) ind.createSpan({ cls: "vl-pguide" });
@@ -490,7 +498,7 @@ class Editor {
             this.peekOn(w, p);
             const t = w.createDiv({ cls: "vl-ptext" });
             t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
-            if (p.link) t.createDiv({ cls: "vl-pl", text: p.link });
+            if (p.link && !depth) t.createDiv({ cls: "vl-pl", text: p.link });
             w.addEventListener("click", () => this.openPage(p));
             const add = this.btn(w, "plus", `Add a screen opened from ${p.name}`, () => this.addPage(p));
             add.addClass("vl-padd"); add.addEventListener("click", (e) => e.stopPropagation());
@@ -999,7 +1007,17 @@ class Editor {
         if (b) { head.createSpan({ text: "›" }); crumb(b.name, { page: p.id, block: b.id }, !f); }
         else if (inh) { head.createSpan({ text: "›" }); crumb(inh.block.name, { page: p.id, block: inh.block.id }, true); }
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
-        if (this.sel) this.btn(head, "x", "Let go (Esc)", () => this.choose(null)).addClass("vl-close");
+        // the header's actions (always in reach): copy for the agent, duplicate, delete, let go
+        const acts = head.createDiv({ cls: "vl-hacts" });
+        this.btn(acts, "clipboard-copy", "Copy for the agent: where this is, what it is now, and a line for what to change", () => this.copyForAgent());
+        if (f || b) {
+            this.btn(acts, "copy", "Duplicate (Ctrl+D)", () => this.duplicate());
+            this.btn(acts, "trash-2", "Delete (Delete)", () => this.remove());
+        } else if (!inh) {
+            this.btn(acts, "copy", "Duplicate the screen", () => this.duplicate());
+            this.btn(acts, "trash-2", "Delete the screen", () => this.edit(() => { this.doc.pages.splice(this.doc.pages.indexOf(p), 1); this.sel = null; }));
+        }
+        if (this.sel) this.btn(acts, "x", "Let go (Esc)", () => this.choose(null)).addClass("vl-close");
         const body = P.createDiv({ cls: "vl-pbody" });
         if (f && b) this.itemPanel(body, b, f.item, b.items.includes(f.item));
         else if (b) this.blockPanel(body, p, b);
@@ -1008,6 +1026,22 @@ class Editor {
         body.scrollTop = this.keepTop; this.keepTop = 0;
     }
     keepTop = 0;
+    // what is chosen, written for a coding agent: where it lives (the folder, the file, the screen, the block, the item),
+    // what it is now (its JSON), and a line for what to change. Pasted to the agent, no need to describe which thing it is
+    copyForAgent() {
+        const p = this.page() ?? this.current(); if (!p) return;
+        const b = this.block() ?? this.layer()?.block, f = this.item();
+        const file = this.store ? `${this.store.files.get(p.id) ?? `${this.store.dir}/${p.name}.json`}` : `${this.ctx?.sourcePath ?? "the note"} (a vellum block)`;
+        const where = [`Vellum screen "${p.name}" (id ${p.id}) in ${file}`];
+        if (this.land) where.push("its landscape layout (land)");
+        if (b) where.push(`block "${b.name}" (id ${b.id}, kind ${b.kind}, x ${b.x} y ${b.y} w ${b.w} h ${b.h})`);
+        if (f) where.push(`item ${f.item.type}${f.item.type === "text" ? ` "${(f.item.v ?? "").split("\n")[0].slice(0, 40)}"` : ""} (id ${f.item.id})`);
+        const now = f ? f.item : b ?? { id: p.id, name: p.name, parent: p.parent, link: p.link, bg: p.bg, blocks: this.blocks(p).map((x) => `${x.name} (${x.id})`) };
+        const text = `${where.join(" · ")}\n\nNow:\n${JSON.stringify(now, null, 1)}\n\nWhat I want changed:\n`;
+        const done = () => this.hint("Copied for the agent: paste it and write what to change");
+        const nav = (this.root?.win ?? window).navigator;
+        nav.clipboard.writeText(text).then(done, () => this.writer("Copy this for the agent", text, () => { /* */ }));
+    }
     // while dragging: only the numbers change (the panel stays as it is)
     liveText = new Map<HTMLElement, () => string>();   // numbers shown as text (the gaps) kept live while dragging too
     livePanel() { for (const [el, g] of this.liveText) if (el.isConnected) el.setText(g()); else this.liveText.delete(el); this.panel?.querySelectorAll<HTMLInputElement>("input[data-live]").forEach((i) => { const g = this.getters.get(i); if (g && i.doc.activeElement !== i) i.value = String(g()); }); }
@@ -1415,7 +1449,6 @@ class Editor {
         }
         if (this.land && p.land) this.actions(body, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
         else if (this.land && p.blocks.length) this.actions(body, [["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]]);
-        this.actions(body, [["copy", "Duplicate page", () => this.duplicate()], ["trash-2", "Delete page", () => this.edit(() => { this.doc.pages.splice(this.doc.pages.indexOf(p), 1); this.sel = null; })]]);
     }
     blockPanel(body: HTMLElement, p: Page, b: Block) {
         const s = this.section(body, "Block");
@@ -1431,14 +1464,15 @@ class Editor {
         }
         const pl = this.section(body, "Place");
         this.placeTool(pl, p, b);
-        this.chips(pl, [["in", "Inside the safe area"], ["bleed", "Under the bars too"]], b.bleed ? "bleed" : "in", (v) => { if (v === "bleed") b.bleed = true; else { delete b.bleed; const R = this.room(p, b); if (!inRoom(b, R)) clampTo(b, R, false); } });
+        const bl = pl.createEl("button", { cls: "vl-pill" + (b.bleed ? " is-on" : ""), attr: { "aria-label": "May the block go into the safe areas (under the status bar, the home strip)?" } });
+        setIcon(bl.createSpan(), "panel-top"); bl.appendText("Under the bars too");
+        bl.addEventListener("click", () => this.edit(() => { if (!b.bleed) b.bleed = true; else { delete b.bleed; const R = this.room(p, b); if (!inRoom(b, R)) clampTo(b, R, false); } }));
         this.lookControls(this.section(body, "Look", true), b, { sides: true });
         const it = this.section(body, "Items", true);
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "img", "icon", "row", "col"]);
         const n = this.section(body, "Note");
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
-        this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
     }
     // a frame's block on a page that inherits it: locked here; copy it in to change it here, or edit it where it belongs
     framePanel(body: HTMLElement, p: Page, l: Layer) {
@@ -1451,17 +1485,76 @@ class Editor {
         if (owner) acts.push(["arrow-up-right", `Edit in ${owner.name}`, () => { this.setView({ page: owner.id }); this.sel = { page: owner.id, block: l.block.id }; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }]);
         this.actions(body, acts);
     }
-    // where a block sits: align it in the screen's room (inside the safe areas, or the whole screen when it may go under
-    // the bars), its size in the middle, its distance to
-    // each edge around it; a distance chosen is changed by the stepper under it
-    gapSide: "l" | "t" | "r" | "b" = "l";
+    // where a block sits, on a small phone: the safe areas, every block, the chosen one with its corner to resize; drag it
+    // to move, click another to choose it; its distance to each edge of the room on the diagram (a click types it). Under
+    // it the numbers (x, y, w, h: their labels drag), the align bar, and whether it may go under the bars
     placeTool(pl: HTMLElement, p: Page, b: Block) {
-        const room = this.room(p, b);
+        const room = this.room(p, b), { W, H, safe } = this.screen(p);
         const gap = { l: () => b.x - room.l, r: () => room.r - b.x - b.w, t: () => b.y - room.t, b: () => room.b - b.y - b.h };
         const setGap = (side: "l" | "t" | "r" | "b", d: number) => {
             if (side === "l") b.x = room.l + d; else if (side === "r") b.x = room.r - b.w - d;
             else if (side === "t") b.y = room.t + d; else b.y = room.b - b.h - d;
         };
+        const dia = pl.createDiv({ cls: "vl-gdia" });
+        const k = Math.min(200 / H, 180 / W), ph = dia.createDiv({ cls: "vl-gphone" });
+        Object.assign(ph.style, { width: `${W * k}px`, height: `${H * k}px` });
+        for (const [side, v] of Object.entries(safe)) if (v) {
+            const sa = ph.createDiv({ cls: `vl-gsafe is-${side}` });
+            sa.style[side === "top" || side === "bottom" ? "height" : "width"] = `${v * k}px`;
+        }
+        const others = this.layers(p).map((l) => l.block).filter((x) => x.id !== b.id);
+        for (const o of others) {
+            const r = ph.createDiv({ cls: "vl-gblk", attr: { "aria-label": `Choose ${o.name}` } });
+            Object.assign(r.style, { left: `${o.x * k}px`, top: `${o.y * k}px`, width: `${o.w * k}px`, height: `${o.h * k}px` });
+            r.addEventListener("click", () => this.choose({ page: p.id, block: o.id }));
+        }
+        const me = ph.createDiv({ cls: "vl-gblk is-me" }), grip = me.createDiv({ cls: "vl-ggrip", attr: { "aria-label": "Resize" } });
+        const tags: Record<string, HTMLElement> = {};
+        for (const [side, name] of [["l", "Left"], ["r", "Right"], ["t", "Top"], ["b", "Bottom"]] as const) {
+            const t = dia.createEl("button", { cls: `vl-gdist is-${side}`, attr: { "aria-label": `${name} distance: click to type` } });
+            tags[side] = t;
+            t.addEventListener("click", () => {
+                // typed in place: Enter or leaving it sets the distance, Esc keeps it as it was
+                const i = createEl("input", { cls: "vl-gdin", attr: { type: "number" } }); i.value = String(gap[side]());
+                i.style.left = t.style.left; i.style.top = t.style.top;
+                t.replaceWith(i); i.focus(); i.select();
+                let done = false;
+                const fin = (keep: boolean) => { if (done) return; done = true; const n = Number(i.value); if (keep && i.value !== "" && !Number.isNaN(n)) this.edit(() => setGap(side, Math.round(n))); else this.drawPanel(); };
+                i.addEventListener("keydown", (e) => { if (e.key === "Enter") fin(true); if (e.key === "Escape") { e.stopPropagation(); fin(false); } });
+                i.addEventListener("blur", () => fin(true));
+            });
+        }
+        const paint = () => {
+            Object.assign(me.style, { left: `${b.x * k}px`, top: `${b.y * k}px`, width: `${b.w * k}px`, height: `${b.h * k}px` });
+            const pr = ph.offsetLeft, pt = ph.offsetTop;
+            tags.l.setText(String(gap.l())); tags.r.setText(String(gap.r())); tags.t.setText(String(gap.t())); tags.b.setText(String(gap.b()));
+            Object.assign(tags.l.style, { left: `${pr + (room.l + gap.l() / 2) * k}px`, top: `${pt + (b.y + b.h / 2) * k}px` });
+            Object.assign(tags.r.style, { left: `${pr + (b.x + b.w + gap.r() / 2) * k}px`, top: `${pt + (b.y + b.h / 2) * k}px` });
+            Object.assign(tags.t.style, { left: `${pr + (b.x + b.w / 2) * k}px`, top: `${pt + (room.t + gap.t() / 2) * k}px` });
+            Object.assign(tags.b.style, { left: `${pr + (b.x + b.w / 2) * k}px`, top: `${pt + (b.y + b.h + gap.b() / 2) * k}px` });
+        };
+        // drag the block (or its corner) on the diagram: the same snapping and safe room as on the phone
+        const drag = (el: HTMLElement, resize: boolean) => el.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); this.begin();
+            const x0 = e.clientX, y0 = e.clientY, s0 = { ...b }, R = this.room(p, b), keep = !b.bleed && inRoom(b, R);
+            const mv = (m: PointerEvent) => {
+                const dx = (m.clientX - x0) / k, dy = (m.clientY - y0) / k, sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+                if (resize) { b.w = Math.max(8, sn(s0.w + dx)); b.h = Math.max(8, sn(s0.h + dy)); } else { b.x = sn(s0.x + dx); b.y = sn(s0.y + dy); }
+                if (keep) clampTo(b, R, resize);
+                paint(); this.draftPut(); this.drawPages(); this.livePanel();
+            };
+            const up = () => { el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); this.end(); this.drawPanel(); };
+            el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+        });
+        drag(me, false); drag(grip, true);
+        window.setTimeout(paint);
+        // the numbers
+        const nums = pl.createDiv({ cls: "vl-nums is-four" });
+        this.num(nums, "X", () => b.x, (v) => { b.x = Math.round(v); });
+        this.num(nums, "Y", () => b.y, (v) => { b.y = Math.round(v); });
+        this.num(nums, "W", () => b.w, (v) => { b.w = Math.max(8, Math.round(v)); }, { min: 8 });
+        this.num(nums, "H", () => b.h, (v) => { b.h = Math.max(8, Math.round(v)); }, { min: 8 });
         // align: to an edge of the room, its middle, or fill its width / all of it
         const al = pl.createDiv({ cls: "vl-align" });
         const A: [string, string, () => void][] = [
@@ -1480,40 +1573,9 @@ class Editor {
             if (icon === "|") { al.createSpan({ cls: "vl-alsep" }); continue; }
             this.icon(this.btn(al, icon, label, () => this.edit(act)), icon, label);
         }
-        // the box: distances around, the size in the middle
-        const box = pl.createDiv({ cls: "vl-gbox" });
-        const side = (k: "l" | "t" | "r" | "b", name: string) => {
-            const x = box.createEl("button", { cls: `vl-gap is-${k}` + (this.gapSide === k ? " is-on" : ""), text: String(gap[k]()), attr: { "aria-label": `${name} gap` } });
-            this.liveText.set(x, () => String(gap[k]()));
-            x.addEventListener("click", () => { this.gapSide = k; this.drawPanel(); });
-        };
-        side("t", "Top"); side("l", "Left"); side("r", "Right"); side("b", "Bottom");
-        const mid = box.createDiv({ cls: "vl-gsize" });
-        const dim = (get: () => number, set: (v: number) => void, label: string) => {
-            const wrap = mid.createDiv({ cls: "vl-dimw" });
-            const i = wrap.createEl("input", { attr: { type: "number", min: "8", "aria-label": label, "data-live": "1" } });
-            i.value = String(get()); this.getters.set(i, get);
-            i.addEventListener("focus", () => this.begin());
-            i.addEventListener("input", () => { const v = Number(i.value); if (v >= 8) { set(Math.round(v)); this.draftPut(); this.drawPages(); } });
-            i.addEventListener("blur", () => { this.end(); this.drawPanel(); });
-            i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
-            this.numberExtras(wrap, i, label, get, (v) => set(Math.round(v)), { min: 8 });
-        };
-        dim(() => b.w, (v) => { b.w = v; }, "Width");
-        mid.createSpan({ text: "×" });
-        dim(() => b.h, (v) => { b.h = v; }, "Height");
-        // the stepper for the chosen side (Shift: 8 at a time)
-        const names = { l: "Left", r: "Right", t: "Top", b: "Bottom" } as const;
-        const st = pl.createDiv({ cls: "vl-step" });
-        st.createSpan({ cls: "vl-steplabel", text: `${names[this.gapSide]} gap` });
-        const k = this.gapSide;
-        const step = (e: MouseEvent, d: number) => this.edit(() => setGap(k, gap[k]() + d * (e.shiftKey ? 8 : 1)));
-        const minus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "Less (Shift: 8)" } }); setIcon(minus, "minus"); minus.addEventListener("click", (e) => step(e, -1));
-        const v = st.createEl("input", { cls: "vl-stepval", attr: { type: "number", "aria-label": `${names[k]} gap` } });
-        v.value = String(gap[k]());
-        v.addEventListener("change", () => { const n = Number(v.value); if (!Number.isNaN(n)) this.edit(() => setGap(k, Math.round(n))); });
-        this.numberExtras(v, v, `${names[k]} gap`, () => gap[k](), (n) => setGap(k, Math.round(n)), { arrows: false });
-        const plus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "More (Shift: 8)" } }); setIcon(plus, "plus"); plus.addEventListener("click", (e) => step(e, 1));
+        // the dragged numbers update the diagram too
+        const live = dia.createSpan({ cls: "vl-gdlive" });
+        this.liveText.set(live, () => { paint(); return ""; });
     }
     // a block kind: its icon in its colour, its name in the tooltip
     kindChip(g: HTMLElement, k: Kind, on: boolean) {
@@ -1541,15 +1603,10 @@ class Editor {
         this.actions(parent, types.map((t) => [names[t][0], names[t][1], () => this.edit(() => { const it = newItem(t); if (list !== b.items) { delete it.g; delete it.dx; delete it.dy; } list.push(it); this.sel = { page: this.sel!.page, block: b.id, item: it.id }; })] as [string, string, () => void]));
     }
     itemPanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
-        const tabs = body.createDiv({ cls: "vl-tabs" });
-        for (const [k, t] of [["style", "Style"], ["place", "Place"], ["note", "Note"]] as const) {
-            const x = tabs.createEl("button", { text: t, cls: this.tab === k ? "is-on" : "" });
-            x.addEventListener("click", () => { this.tab = k; this.drawPanel(); });
-        }
-        if (this.tab === "style") this.stylePanel(body, b, it);
-        else if (this.tab === "place") this.placePanel(body, it, top);
-        else this.text(this.section(body, "Note"), () => it.note ?? "", (v) => { if (v.trim()) it.note = v; else delete it.note; }, { area: true, placeholder: "Why it is here, what to change (for the agent)" });
-        this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
+        // one page: its look, where it sits, its note (each section folds)
+        this.stylePanel(body, b, it);
+        this.placePanel(body, b, it, top);
+        this.text(this.section(body, "Note", true), () => it.note ?? "", (v) => { if (v.trim()) it.note = v; else delete it.note; }, { area: true, placeholder: "Why it is here, what to change (for the agent)" });
     }
     stylePanel(body: HTMLElement, b: Block, it: Item) {
         if (it.type === "text") {
@@ -1762,33 +1819,49 @@ class Editor {
         this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
         this.colors(o, it.stroke ?? "line", (v) => { it.stroke = v; });
     }
-    placePanel(body: HTMLElement, it: Item, top: boolean) {
+    // where an item sits: its anchor set on the block itself (the block drawn small, the item's box in it, the nine points;
+    // a click anchors the item there and keeps it where it is), its offsets, its width and height rules
+    placePanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
+        const s = this.section(body, "Place", true);
         if (top) {
-            const s = this.section(body, "Anchor");
-            s.parentElement?.setAttr("aria-label", "The point of the block it keeps when the block grows");
-            const wrap = s.createDiv({ cls: "vl-gwrap" });
-            const grid = wrap.createDiv({ cls: "vl-grav" });
+            const bEl = this.wall?.querySelector<HTMLElement>(`.vl-block[data-block="${b.id}"]`), ib = bEl ? this.itemBox(bEl, b, it) : null;
+            const k = Math.min(250 / b.w, 110 / b.h), pv = s.createDiv({ cls: "vl-apv" });
+            Object.assign(pv.style, { width: `${b.w * k}px`, height: `${b.h * k}px` });
+            if (ib) { const r = pv.createDiv({ cls: "vl-abox" }); Object.assign(r.style, { left: `${ib.L * k}px`, top: `${ib.T * k}px`, width: `${Math.max(2, ib.W * k)}px`, height: `${Math.max(2, ib.H * k)}px` }); }
+            const [cx, cy] = axes(it.g);
             for (const g of GRAVITIES) {
-                const d = grid.createEl("button", { cls: g === (it.g ?? "tl") ? "is-on" : "", attr: { "aria-label": g } });
-                d.createSpan();
-                d.addEventListener("click", () => this.edit(() => { it.g = g; }));
+                const [ax, ay] = axes(g);
+                const d = pv.createEl("button", { cls: "vl-adot" + (g === (it.g ?? "tl") ? " is-on" : ""), attr: { "aria-label": `Hold on to the ${({ tl: "top left", t: "top", tr: "top right", l: "left", c: "middle", r: "right", bl: "bottom left", b: "bottom", br: "bottom right" } as Record<string, string>)[g]}` } });
+                Object.assign(d.style, { left: `${(ax + 1) * 50}%`, top: `${(ay + 1) * 50}%` });
+                d.addEventListener("click", () => this.edit(() => {
+                    // the item stays where it is: its offset is worked out from the new point
+                    if (ib) { if (it.w !== "fill") it.dx = toD(ax, ib.L, ib.W, b.w); if (it.h !== "fill") it.dy = toD(ay, ib.T, ib.H, b.h); }
+                    it.g = g;
+                }));
             }
-            const [ax, ay] = axes(it.g);
-            const nums = wrap.createDiv({ cls: "vl-nums is-col" });
-            if (it.w !== "fill") this.num(nums, ax < 0 ? "From left" : ax > 0 ? "From right" : "Off centre →", () => it.dx ?? 0, (v) => { it.dx = v; });
-            if (it.h !== "fill") this.num(nums, ay < 0 ? "From top" : ay > 0 ? "From bottom" : "Off centre ↓", () => it.dy ?? 0, (v) => { it.dy = v; });
+            // the line from the point it holds on to, to the same point of the item
+            if (ib) {
+                const px = (cx + 1) / 2, py = (cy + 1) / 2;
+                const svg = pv.createSvg("svg", { cls: "vl-aline", attr: { width: b.w * k, height: b.h * k } });
+                svg.createSvg("line", { attr: { x1: px * b.w * k, y1: py * b.h * k, x2: (ib.L + px * ib.W) * k, y2: (ib.T + py * ib.H) * k } });
+            }
+            const nums = s.createDiv({ cls: "vl-nums is-four" });
+            if (it.w !== "fill") this.num(nums, cx < 0 ? "← X" : cx > 0 ? "X →" : "X ↔", () => it.dx ?? 0, (v) => { it.dx = v; });
+            if (it.h !== "fill") this.num(nums, cy < 0 ? "↑ Y" : cy > 0 ? "Y ↓" : "Y ↕", () => it.dy ?? 0, (v) => { it.dy = v; });
         }
-        if (it.type === "icon") { this.section(body, "Size").createDiv({ cls: "vl-frameinfo", text: "An icon is as big as its Size (Style)." }); return; }
+        if (it.type === "icon") { s.createDiv({ cls: "vl-frameinfo", text: "An icon is as big as its Size." }); return; }
         for (const [axis, name] of [["w", "Width"], ["h", "Height"]] as const) {
-            const s = this.section(body, name);
+            const row = s.createDiv({ cls: "vl-frow" });
+            row.createSpan({ cls: "vl-frowl", text: name });
+            const ctl = row.createDiv({ cls: "vl-frowc" });
             const cur = it[axis];
             const rule = cur === "fill" ? "fill" : typeof cur === "number" ? "fixed" : "hug";
-            this.chips(s, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
+            this.chips(ctl, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
                 if (v === "fixed") { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40) as Size; }
                 else it[axis] = v as Size;
             });
-            if (rule === "fixed") this.num(s.createDiv({ cls: "vl-nums" }), "px", () => it[axis] as number, (v) => { it[axis] = v; }, { min: 1 });
-            if (rule === "fill" && top) this.num(s.createDiv({ cls: "vl-nums" }), "Margin", () => Math.abs((axis === "w" ? it.dx : it.dy) ?? 0), (v) => { if (axis === "w") it.dx = v; else it.dy = v; }, { min: 0 });
+            if (rule === "fixed") this.num(ctl, "pt", () => it[axis] as number, (v) => { it[axis] = v; }, { min: 1 });
+            if (rule === "fill" && top) this.num(ctl, "Margin", () => Math.abs((axis === "w" ? it.dx : it.dy) ?? 0), (v) => { if (axis === "w") it.dx = v; else it.dy = v; }, { min: 0 });
         }
     }
 }

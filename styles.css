@@ -470,3 +470,46 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* a number box's label is a drag handle (a mouse: drag up or right for more) */
 .vl .vl-drag { cursor: ns-resize; touch-action: none; -webkit-user-select: none; user-select: none; }
 .vl .vl-num .vl-drag:hover { color: var(--text-normal); }
+
+/* the panel's header actions: copy for the agent, duplicate, delete, let go */
+.vl-hacts { margin-left: auto; display: flex; align-items: center; gap: 0; align-self: flex-start; }
+.vl-hacts .vl-close { margin-left: 0; }
+
+/* Place: the phone diagram (drag the block, its corner to resize; distances on it, a click types one) */
+.vl-gdia { position: relative; display: flex; justify-content: center; padding: 14px 0; border-radius: 10px; border: 1px solid var(--background-modifier-border); background-color: var(--background-secondary);
+  background-image: linear-gradient(color-mix(in srgb, var(--text-faint) 12%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--text-faint) 12%, transparent) 1px, transparent 1px); background-size: 12px 12px; }
+.vl-gphone { position: relative; border: 1.5px solid var(--text-muted); border-radius: 12px; background: var(--background-primary); overflow: visible; }
+.vl-gsafe { position: absolute; background: repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--text-faint) 30%, transparent) 3px 4px); pointer-events: none; }
+.vl-gsafe.is-top { left: 0; right: 0; top: 0; border-radius: 10px 10px 0 0; } .vl-gsafe.is-bottom { left: 0; right: 0; bottom: 0; border-radius: 0 0 10px 10px; }
+.vl-gsafe.is-left { top: 0; bottom: 0; left: 0; } .vl-gsafe.is-right { top: 0; bottom: 0; right: 0; }
+.vl-gblk { position: absolute; border: 1px dashed var(--text-faint); border-radius: 2px; cursor: pointer; box-sizing: border-box; }
+.vl-gblk:hover { border-color: var(--text-muted); background: var(--background-modifier-hover); }
+.vl-gblk.is-me { border: 1.5px solid var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); cursor: move; z-index: 2; touch-action: none; }
+.vl-ggrip { position: absolute; right: -5px; bottom: -5px; width: 9px; height: 9px; border-radius: 2px; background: var(--interactive-accent); cursor: nwse-resize; touch-action: none; }
+.vl .vl-gdist { position: absolute; z-index: 3; transform: translate(-50%, -50%); height: 18px; min-width: 22px; padding: 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 5px; background: var(--background-primary); box-shadow: none;
+  font: 500 10.5px/1 var(--font-monospace); color: var(--interactive-accent); cursor: text; }
+.vl .vl-gdist:hover { border-color: var(--interactive-accent); }
+.vl .vl-gdin { position: absolute; z-index: 4; width: 56px; height: 22px; transform: translate(-50%, -50%); font: 500 12px var(--font-monospace); text-align: center; }
+.vl-gdlive { display: none; }
+.vl-nums.is-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vl .vl-pill { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: transparent; box-shadow: none; color: var(--text-muted); font-size: var(--font-ui-smaller); --icon-size: 13px; }
+.vl .vl-pill.is-on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 15%, transparent); }
+
+/* an item's place: the block drawn small, the item's box in it, the nine points (the chosen one lit), the line between */
+.vl-apv { position: relative; margin: 8px auto 10px; border: 1.5px solid var(--interactive-accent); border-radius: 6px; background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }
+.vl-abox { position: absolute; border: 1px solid var(--text-muted); border-radius: 2px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); pointer-events: none; }
+.vl .vl-adot { position: absolute; z-index: 2; width: 18px; height: 18px; padding: 0; transform: translate(-50%, -50%); border: 0; border-radius: 50%; background: transparent; box-shadow: none; display: grid; place-items: center; cursor: pointer; }
+.vl .vl-adot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--text-muted); background: var(--background-primary); box-sizing: border-box; }
+.vl .vl-adot:hover::after { border-color: var(--text-normal); }
+.vl .vl-adot.is-on::after { width: 12px; height: 12px; border: 0; background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 30%, transparent); }
+.vl-aline { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.vl-aline line { stroke: var(--interactive-accent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+/* a row: its label at the left, the control at the right */
+.vl-frow { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; gap: 8px; }
+.vl-frowl { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl-frowc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.vl-frowc .vl-num { flex: 1; min-width: 90px; }
+/* the screens list as a flow: how you get to a screen sits on the connector into it */
+.vl-pedge { display: flex; align-items: center; gap: 4px; height: 18px; margin-top: 2px; padding-left: 6px; font-size: 11px; color: var(--text-faint); pointer-events: none; }
+.vl-pedgei { display: flex; color: var(--interactive-accent); opacity: 0.8; --icon-size: 11px; margin-left: 10px; }
+.vl-pedget { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
