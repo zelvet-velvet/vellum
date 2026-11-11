@@ -287,7 +287,7 @@ class Editor {
         this.rail.addEventListener("click", (e) => { if (e.target === this.rail) { this.setView({ rail: false }); this.draw(); } });   // phone: a tap on the dim closes the list
         const mid = body.createDiv({ cls: "vl-mid" });
         this.wall = mid.createDiv({ cls: "vl-stage" });
-        this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
+        this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, { x: e.clientX, y: e.clientY }); }, { passive: false });
         this.wall.addEventListener("click", (e) => { if (e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
         this.side = Platform.isMobile ? R : body;
@@ -375,10 +375,19 @@ class Editor {
         const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
         fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
     }
-    zoomBy(f: number) {
+    // at: the pointer (Ctrl+wheel): the spot under it stays under it. Its place in the map or the phone, as a fraction,
+    // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
+    zoomBy(f: number, at?: { x: number; y: number }) {
+        const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
+        const r0 = at ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
         if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(3, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
         else this.setView({ fit: false, zoom: Math.min(4, Math.max(0.2, Math.round(this.v.zoom * f * 100) / 100)) });
         this.drawPages();
+        const r1 = r0 ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
+        if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
+        const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
+        this.wall.scrollLeft += r1.left + u * r1.width - at.x;
+        this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
     // a new main page, or one opened from a page
     addPage(parent?: Page) { this.edit(() => {
