@@ -144,17 +144,26 @@ class Editor {
         const was = serialiseDoc(JSON.parse(before) as Doc) !== this.saved;
         if (before !== this.snap()) { this.past.push(before); this.future = []; }
         this.draftPut(); this.drawPages(); if (panel) this.drawPanel(); else this.drawBar();
-        if (!was && this.dirty) this.hint("Unsaved: kept on this device until you save");
+        if (!was && this.dirty) this.hint("Unsaved: kept on this device until you save", undefined, false);
     }
     // a short note under the Save button for a few seconds (floats: nothing moves)
-    hint(text: string) {
+    // a short note by the button it is about (else under Save): a mark and a few words, gone after a moment
+    hint(text: string, at?: HTMLElement, ok = true) {
         const R = this.root; if (!R?.isConnected) return;
         R.querySelector(".vl-hint")?.remove();
-        const sv = this.bar?.querySelector<HTMLElement>(".is-savebtn");
-        const h = R.createDiv({ cls: "vl-hint", text });
-        if (sv) { const rr = R.getBoundingClientRect(), sr = sv.getBoundingClientRect(); h.style.left = `${sr.right - rr.left}px`; h.style.top = `${sr.bottom - rr.top + 6}px`; h.style.transform = "translateX(-100%)"; }
-        window.setTimeout(() => h.addClass("is-out"), 2200);
-        window.setTimeout(() => h.remove(), 2600);
+        const a = at?.isConnected ? at : this.bar?.querySelector<HTMLElement>(".is-savebtn");
+        const h = R.createDiv({ cls: "vl-hint" + (ok ? " is-ok" : "") });
+        setIcon(h.createSpan({ cls: "vl-hinti" }), ok ? "check" : "info");
+        h.createSpan({ text });
+        if (a) {
+            const rr = R.getBoundingClientRect(), ar = a.getBoundingClientRect();
+            h.style.top = `${ar.bottom - rr.top + 8}px`;
+            const left = Math.min(rr.width - h.offsetWidth - 8, Math.max(8, ar.left - rr.left + ar.width / 2 - h.offsetWidth / 2));
+            h.style.left = `${left}px`;
+            h.style.setProperty("--arrow", `${ar.left - rr.left + ar.width / 2 - left}px`);
+        }
+        window.setTimeout(() => h.addClass("is-out"), 1800);
+        window.setTimeout(() => h.remove(), 2200);
     }
     undo() { const s = this.past.pop(); if (!s) return; this.future.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
     redo() { const s = this.future.pop(); if (!s) return; this.past.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
@@ -940,6 +949,7 @@ class Editor {
         if (this.handle(e)) { e.preventDefault(); e.stopPropagation(); }
     }
     handle(e: KeyboardEvent): boolean {
+        if (this.picking) return false;   // the eyedropper takes Esc
         const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable]");
         const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
         if (mod && k === "s") { this.save(); return true; }
@@ -1010,8 +1020,8 @@ class Editor {
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
         // the header's actions (always in reach): copy for the agent, duplicate, delete, let go
         const acts = head.createDiv({ cls: "vl-hacts" });
-        this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference());
-        this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent());
+        const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference(refB));
+        const agB: HTMLElement = this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent(agB));
         if (f || b) {
             this.btn(acts, "copy", "Duplicate (Ctrl+D)", () => this.duplicate());
             this.btn(acts, "trash-2", "Delete (Delete)", () => this.remove());
@@ -1040,11 +1050,11 @@ class Editor {
         if (f) parts.push(`${f.item.type}${f.item.type === "text" ? ` "${(f.item.v ?? "").split("\n")[0].slice(0, 30)}"` : f.item.type === "icon" ? ` ${f.item.name ?? ""}` : ""} ${f.item.id}`);
         return parts.join(" › ");
     }
-    copyReference() {
+    copyReference(at?: HTMLElement) {
         const t = this.reference(); if (!t) return;
-        (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint("Reference copied"), () => this.writer("Copy this reference", t, () => { /* */ }));
+        (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint("Reference copied", at), () => this.writer("Copy this reference", t, () => { /* */ }));
     }
-    copyForAgent() {
+    copyForAgent(at?: HTMLElement) {
         const p = this.page() ?? this.current(); if (!p) return;
         const b = this.block() ?? this.layer()?.block, f = this.item();
         const file = this.store ? `${this.store.files.get(p.id) ?? `${this.store.dir}/${p.name}.json`}` : `${this.ctx?.sourcePath ?? "the note"} (a vellum block)`;
@@ -1054,7 +1064,7 @@ class Editor {
         if (f) where.push(`item ${f.item.type}${f.item.type === "text" ? ` "${(f.item.v ?? "").split("\n")[0].slice(0, 40)}"` : ""} (id ${f.item.id})`);
         const now = f ? f.item : b ?? { id: p.id, name: p.name, parent: p.parent, link: p.link, bg: p.bg, blocks: this.blocks(p).map((x) => `${x.name} (${x.id})`) };
         const text = `${where.join(" · ")}\n\nNow:\n${JSON.stringify(now, null, 1)}\n\nWhat I want changed:\n`;
-        const done = () => this.hint("Copied for the agent: paste it and write what to change");
+        const done = () => this.hint("Copied for the agent", at);
         const nav = (this.root?.win ?? window).navigator;
         nav.clipboard.writeText(text).then(done, () => this.writer("Copy this for the agent", text, () => { /* */ }));
     }
@@ -1314,9 +1324,39 @@ class Editor {
             }
         }
     }
+    // Vellum's own eyedropper (no system magnifier): a crosshair over the editor and a tag showing the colour under the
+    // pointer; a click picks it, Esc cancels. Over a text: its colour (Alt: what is behind it); else the first background
+    picking = false;
     eyedropper(): (() => Promise<string>) | null {
-        const D = (this.root?.win as (Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }) | undefined)?.EyeDropper;
-        return D ? () => new D().open().then((r) => r.sRGBHex) : null;
+        const R = this.root; if (!R) return null;
+        return () => new Promise<string>((ok, no) => {
+            const doc = R.doc, cover = R.createDiv({ cls: "vl-dropcover" }), tip = R.createDiv({ cls: "vl-droptip" });
+            const sw = tip.createSpan({ cls: "vl-dropsw" }), tx = tip.createSpan({ cls: "vl-droptx" });
+            tip.createSpan({ cls: "vl-dropk", text: "Click · Esc" });
+            this.picking = true;
+            let cur = "";
+            const sample = (x: number, y: number, behind: boolean) => {
+                for (const el of doc.elementsFromPoint(x, y)) {
+                    if (el === cover || el === tip || tip.contains(el)) continue;
+                    const cs = getComputedStyle(el);
+                    if (!behind && el.closest(".vl-i-text") === el && el.textContent) return cs.color;
+                    if (cs.backgroundColor && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(cs.backgroundColor)) return cs.backgroundColor;
+                }
+                return "";
+            };
+            const hex = (c: string) => { const m = (c.match(/[\d.]+/g) ?? []).map(Number); return m.length >= 3 ? hexOf({ r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }) : ""; };
+            const move = (e: PointerEvent) => {
+                cur = hex(sample(e.clientX, e.clientY, e.altKey));
+                const rr = R.getBoundingClientRect();
+                tip.style.left = `${e.clientX - rr.left + 16}px`; tip.style.top = `${e.clientY - rr.top + 16}px`;
+                sw.style.background = cur || "transparent"; tx.setText(cur || "—");
+            };
+            const stop = () => { this.picking = false; cover.remove(); tip.remove(); R.win.removeEventListener("keydown", key, true); };
+            const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); no(new Error("cancelled")); } };
+            cover.addEventListener("pointermove", move);
+            cover.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); move(e); stop(); if (cur) ok(cur); else no(new Error("no colour")); });
+            R.win.addEventListener("keydown", key, true);
+        });
     }
     // recent custom colours, newest first (kept on the device for this vault)
     recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]"); } catch { return []; } }
@@ -1438,7 +1478,7 @@ class Editor {
         el.style.top = `${ar.bottom - rr.top + 6 + ph > rr.height - 8 ? Math.max(8, ar.top - rr.top - 6 - ph) : ar.bottom - rr.top + 6}px`;
         // a tap anywhere else, or Esc, closes it
         const doc = R.doc;
-        const outside = (e: Event) => { const t = e.target as Node; if (!el.contains(t) && !anchor.contains(t)) this.closePicker(); };
+        const outside = (e: Event) => { const t = e.target as Node; if (!this.picking && !el.contains(t) && !anchor.contains(t)) this.closePicker(); };
         const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); this.closePicker(); } };
         window.setTimeout(() => doc.addEventListener("pointerdown", outside, true));
         doc.addEventListener("keydown", esc, true);
@@ -1654,6 +1694,9 @@ class Editor {
             pick.createSpan({ cls: "vl-rowtx", text: label(it) });
             const d = detail(it); if (d) pick.createSpan({ cls: "vl-rowsub", text: d });
             pick.addEventListener("click", () => this.choose({ page: this.sel!.page, block: b.id, item: it.id }));
+            // the pointer on a row lights its item on the phone
+            const lit = (on: boolean) => this.wall?.querySelectorAll(`.vl-block[data-block="${b.id}"] .vl-it[data-id="${it.id}"]`).forEach((x) => x.toggleClass("is-hl", on));
+            r.addEventListener("mouseenter", () => lit(true)); r.addEventListener("mouseleave", () => lit(false));
             // reorder: drag the grip; a line shows where it goes
             grip.addEventListener("pointerdown", (e) => {
                 e.preventDefault(); grip.setPointerCapture(e.pointerId);
