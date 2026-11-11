@@ -48,17 +48,18 @@ export const setPictureResolver = (fn: (src: string) => string) => { resolve = f
 export const pictureUrl = (src?: string) => { const s = (src ?? "").trim(); return !s ? "" : /^(https?|data|app|blob|file):/i.test(s) ? s : resolve(s.replace(/^\/+/, "")); };
 const loaded = new Set<string>();
 // a box's own look: its fill, a radius, an outline all round or on some sides only ("t" "r" "b" "l"), drawn inside it
-// (an inset shadow: nothing in it moves)
+// (nothing in it moves). All round: an inset shadow. Some sides: a stripe along each, under the fill's colour layer; an
+// inset shadow with an offset leaves hairlines on the other sides once the phone is scaled
 export const applyLook = (t: Theme, s: CSSStyleDeclaration, o: { fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string }) => {
-    if (o.fill && o.fill !== "none") s.background = colorOf(t, o.fill);
+    const fill = o.fill && o.fill !== "none" ? colorOf(t, o.fill) : "";
+    if (fill) s.background = fill;
     if (o.r) s.borderRadius = radiusOf(o.r);
     if (o.sw) {
-        const c = colorOf(t, o.stroke ?? "line"), w = px(o.sw), sd = o.sides || "trbl", out: string[] = [];
-        if (sd.includes("t")) out.push(`inset 0 ${w} 0 0 ${c}`);
-        if (sd.includes("b")) out.push(`inset 0 -${w} 0 0 ${c}`);
-        if (sd.includes("l")) out.push(`inset ${w} 0 0 0 ${c}`);
-        if (sd.includes("r")) out.push(`inset -${w} 0 0 0 ${c}`);
-        s.boxShadow = out.join(", ");
+        const c = colorOf(t, o.stroke ?? "line"), w = px(o.sw), sd = o.sides || "trbl";
+        if (["t", "r", "b", "l"].every((x) => sd.includes(x))) { s.boxShadow = `inset 0 0 0 ${w} ${c}`; return; }
+        const at = { t: `top / 100% ${w}`, b: `bottom / 100% ${w}`, l: `left / ${w} 100%`, r: `right / ${w} 100%` } as const;
+        const lines = (["t", "b", "l", "r"] as const).filter((x) => sd.includes(x)).map((x) => `linear-gradient(${c}, ${c}) ${at[x]} no-repeat`);
+        s.background = [...lines, fill].filter(Boolean).join(", ");
     }
 };   // pictures already shown once: drawn again (a drag, a redraw) without the tile flashing
 // a corner radius: one number, or four (top left, top right, bottom right, bottom left)
