@@ -1372,6 +1372,8 @@ class Editor {
         const R = this.root; if (!R) return null;
         // a computer: the system's eyedropper (any pixel on the screen, other windows too, with its magnifier; its ring
         // takes the colour under the pointer); a phone has none: Vellum's own, inside its window
+        const anywhere = screenPicker();
+        if (anywhere) return () => this.pickAnywhere(anywhere);
         const Sys = (R.win as Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
         if (Sys) return () => { this.picking = true; return new Sys().open().then((r) => r.sRGBHex).finally(() => { this.picking = false; }); };
         return () => new Promise<string>((ok, no) => {
@@ -1401,6 +1403,51 @@ class Editor {
             cover.addEventListener("pointermove", move);
             cover.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); move(e); stop(); if (cur) ok(cur); else no(new Error("no colour")); });
             R.win.addEventListener("keydown", key, true);
+        });
+    }
+    // a colour from anywhere on any screen (a computer): a snapshot of every screen as picking starts; Vellum's magnifier
+    // shows the pixels around the pointer wherever it is (other windows, other monitors), the hex under it; a click in
+    // Vellum's window, or Space / Enter anywhere, picks; Esc cancels
+    pickAnywhere(sp: ScreenPicker): Promise<string> {
+        const R = this.root; if (!R) return Promise.reject(new Error("no editor"));
+        this.picking = true;
+        const box = R.createDiv({ cls: "vl-loupe" });
+        const cv = box.createEl("canvas", { attr: { width: 110, height: 110 } }), ctx = cv.getContext("2d")!;
+        const foot = box.createDiv({ cls: "vl-loupef" }), sw = foot.createSpan({ cls: "vl-dropsw" }), tx = foot.createSpan({ cls: "vl-droptx", text: "…" });
+        box.createDiv({ cls: "vl-loupek", text: "Space or click: pick · Esc" });
+        const cover = R.createDiv({ cls: "vl-dropcover is-clear" });
+        return new Promise<string>((ok, no) => {
+            let shots: Shot[] = [], raf = 0, cur = "", done = false;
+            const stop = () => { done = true; this.picking = false; cancelAnimationFrame(raf); box.remove(); cover.remove(); R.win.removeEventListener("keydown", key, true); };
+            const pick = () => { if (!cur) return; stop(); ok(cur); };
+            const key = (e: KeyboardEvent) => {
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); no(new Error("cancelled")); }
+                else if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); pick(); }
+            };
+            R.win.addEventListener("keydown", key, true);
+            cover.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); pick(); });
+            const frame = () => {
+                if (done) return;
+                const p = sp.cursor(), sh = shots.find((x) => p.x >= x.b.x && p.x < x.b.x + x.b.width && p.y >= x.b.y && p.y < x.b.y + x.b.height);
+                if (sh) {
+                    const px = Math.floor((p.x - sh.b.x) * sh.k), py = Math.floor((p.y - sh.b.y) * sh.k);
+                    // 11 × 11 pixels around the pointer, 10 times as large; the middle one framed
+                    const img = ctx.createImageData(11, 11);
+                    for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) {
+                        const sx = Math.min(sh.w - 1, Math.max(0, px + x - 5)), sy = Math.min(sh.h - 1, Math.max(0, py + y - 5)), i = (sy * sh.w + sx) * 4, o = (y * 11 + x) * 4;
+                        img.data[o] = sh.px[i + 2]; img.data[o + 1] = sh.px[i + 1]; img.data[o + 2] = sh.px[i]; img.data[o + 3] = 255;
+                    }
+                    const tmp = activeDocument.createElement("canvas"); tmp.width = 11; tmp.height = 11; tmp.getContext("2d")!.putImageData(img, 0, 0);
+                    ctx.imageSmoothingEnabled = false; ctx.drawImage(tmp, 0, 0, 110, 110);
+                    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 2; ctx.strokeRect(50, 50, 10, 10);
+                    ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = 1; ctx.strokeRect(48.5, 48.5, 13, 13);
+                    const c = (py * sh.w + px) * 4;
+                    cur = hexOf({ r: sh.px[c + 2], g: sh.px[c + 1], b: sh.px[c], a: 1 });
+                    sw.style.background = cur; tx.setText(cur);
+                }
+                raf = requestAnimationFrame(frame);
+            };
+            sp.shots().then((s) => { shots = s; frame(); }, (e: Error) => { stop(); no(e); });
         });
     }
     // recent custom colours, newest first (kept on the device for this vault)
@@ -2096,6 +2143,33 @@ const lookOn = (o: { fill?: string; sw?: number }) => !!(o.fill && o.fill !== "n
 const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | number[] }) => {
     const f = o.fill && o.fill !== "none" ? (o.fill.includes("(") ? "custom fill" : o.fill) : "", line = o.sw ? `outline ${o.sw}${o.sides ? ` ${o.sides}` : ""}` : "";
     return [f, line].filter(Boolean).join(" · ") || "none";
+};
+// picking a colour anywhere on the screen (a computer): Electron's screen module (the pointer anywhere, every display)
+// and its screen capture, through Obsidian's own remote; none of it on a phone, or where capture is not allowed
+type Shot = { b: { x: number; y: number; width: number; height: number }; k: number; w: number; h: number; px: Uint8Array };
+type ScreenPicker = { cursor(): { x: number; y: number }; shots(): Promise<Shot[]> };
+const screenPicker = (): ScreenPicker | null => {
+    if (Platform.isMobile) return null;
+    type Disp = { id: number; bounds: Shot["b"]; scaleFactor: number };
+    type Img = { toBitmap(): Uint8Array; getSize(): { width: number; height: number } };
+    type Remote = { screen: { getCursorScreenPoint(): { x: number; y: number }; getAllDisplays(): Disp[] }; desktopCapturer: { getSources(o: unknown): Promise<{ display_id: string; thumbnail: Img }[]> } };
+    let remote: Remote | undefined;
+    try { remote = ((window as unknown as { require?: (m: string) => { remote?: Remote } }).require?.("electron"))?.remote; } catch { return null; }
+    if (!remote?.screen || !remote.desktopCapturer) return null;
+    const r = remote;
+    return {
+        cursor: () => r.screen.getCursorScreenPoint(),
+        shots: async () => {
+            const ds = r.screen.getAllDisplays();
+            const big = ds.reduce((m, d) => ({ width: Math.max(m.width, Math.round(d.bounds.width * d.scaleFactor)), height: Math.max(m.height, Math.round(d.bounds.height * d.scaleFactor)) }), { width: 0, height: 0 });
+            const srcs = await r.desktopCapturer.getSources({ types: ["screen"], thumbnailSize: big });
+            return ds.map((d, i) => {
+                const src = srcs.find((x) => x.display_id === String(d.id)) ?? srcs[i]; if (!src) return null;
+                const sz = src.thumbnail.getSize();
+                return { b: d.bounds, k: sz.width / d.bounds.width, w: sz.width, h: sz.height, px: src.thumbnail.toBitmap() };
+            }).filter((x): x is Shot => !!x && x.w > 0);
+        },
+    };
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`

@@ -620,3 +620,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-bubble-v.is-tick { animation: vl-tick 0.12s ease-out; }
 @keyframes vl-tick { from { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { .vl .vl-bubble-v.is-tick { animation: none; } }
+/* the eyedropper's magnifier: the pixels around the pointer (anywhere on any screen), the hex under them */
+.vl-loupe { position: absolute; z-index: 62; right: 16px; bottom: 72px; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4); pointer-events: none; }
+.vl-loupe canvas { width: 110px; height: 110px; border-radius: 8px; image-rendering: pixelated; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+.vl-loupef { display: flex; align-items: center; gap: 7px; }
+.vl-loupek { font-size: 10.5px; color: var(--text-faint); }
+.vl-dropcover.is-clear { background: transparent; }
