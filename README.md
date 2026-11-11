@@ -110,9 +110,13 @@ One screen is one small file. The agent reads exactly where each thing is, and c
 Read github.com/zelvet-velvet/vellum's README for the file format.
 Write each page of my app as a Vellum screen in Design/Screens, one JSON file per screen.
 Use real text, pictures by https address and icons by Lucide name. Keep ids stable.
+Draw a card's background or outline with the block's own fill / stroke, and a chip or tile with the text's own box,
+not with rectangles under them.
 ```
 
 > [!TIP]
+> Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.
+>
 > Ask for two or three **mocks** (`"mock": true`) as sub screens and keep the one you like. The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
 
 <sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and ZeLedger were designed this way, with Claude Code.</sub>
@@ -148,9 +152,9 @@ src: Design/Screens
 | :--- | :--- |
 | **Doc** | `device`; `safe`, `safeLand` (`top bottom left right`, each optional) |
 | **Page** | `name`, `note`, `parent`, `link` (how you get there), `inherit` (`true`: the parent is its frame), `device`, `bg`, `mock`, `blocks`, `land` (the landscape layout) |
-| **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas), `items` |
+| **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas), its own look: `fill stroke sw r` and `sides` (the outline on some sides only: `"b"`, `"tb"`…), `items` |
 | **Any item** | `g` (anchor: `tl t tr l c r bl b br`), `dx dy`, `w h` (a number, `"hug"` or `"fill"`), `op`, `note` |
-| `text` | `v size wt font color ls lh upper` |
+| `text` | `v size wt font color ls lh upper`, and a box of its own: `fill stroke sw r pad` (a chip, a tile, a button; with a set `h` the text sits in its middle) |
 | `rect` `ellipse` `line` | `fill stroke sw r` (`r`: one radius, or four: `[tl, tr, br, bl]`) |
 | `img` | `src` (`https://…` or a vault path), `fit` (`cover` · `contain` · `fill`), `pos` (CSS object-position), `r` |
 | `icon` | `name` (Lucide), `color size sw` |

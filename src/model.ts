@@ -13,6 +13,7 @@ export interface Item {
     dx?: number; dy?: number;   // offset from that point, inward (px)
     w?: Size; h?: Size;     // fixed px, hug the content, fill the block (or the row's room)
     // text
+    // a text can have a box of its own (fill, stroke, sw, r, pad below): a chip, a tile, a button
     v?: string; size?: number; wt?: number; font?: string; color?: string; ls?: number; lh?: number; upper?: boolean;
     // shapes (rect, ellipse, line)
     // r: one radius for every corner, or four, clockwise from the top left ([tl, tr, br, bl], as CSS border-radius)
@@ -25,7 +26,9 @@ export interface Item {
     gap?: number; pad?: number; items?: Item[]; cross?: "start" | "center" | "end"; main?: "start" | "center" | "end" | "between";
 }
 // bleed: it may go into the safe areas (under the status bar, the home strip); else drags keep it inside them
-export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; note?: string; items: Item[] }
+// fill / stroke / sw / r / sides: the block's own look (a card's background, an outline, a separator on chosen sides:
+// "t", "b", "tb"…); drawn by the block itself, so no rectangle under its items is needed
+export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string; note?: string; items: Item[] }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks

@@ -1,7 +1,7 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, Insets, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
-import { BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
+import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 
@@ -409,6 +409,8 @@ class Editor {
     }
     drawPages() {
         if (!this.wall?.isConnected) return;
+        // a redraw keeps where the stage was scrolled (choosing a block or an item does not jump to the top)
+        const sx = this.wall.scrollLeft, sy = this.wall.scrollTop, keep = () => { this.wall.scrollLeft = sx; this.wall.scrollTop = sy; };
         this.wall.empty();
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
         this.drawRail();   // first: its width is part of the room the phone fits in
@@ -426,7 +428,7 @@ class Editor {
                 this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
             }
             this.drawMap(box, tw, pick);
-            this.drawZoom();
+            this.drawZoom(); keep();
             return;
         }
         const cur = this.current();
@@ -439,7 +441,7 @@ class Editor {
             }
             this.drawPage(cur);
         }
-        this.drawZoom();
+        this.drawZoom(); keep();
     }
     // the screens rail: every page as a row, sub pages indented under the page they open from (with how you get there);
     // a tap opens it, + beside a row adds a page opened from it; the device for the whole note at the foot
@@ -712,6 +714,7 @@ class Editor {
         const inh = !!l?.from && !l.over;
         const el = scr.createDiv({ cls: "vl-block" + (sel ? " is-sel" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
+        applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
         if (!show) {
             const tag = el.createDiv({ cls: "vl-tag" });
@@ -840,7 +843,9 @@ class Editor {
         if (ig && this.sel?.item && this.sel.block === b.id) { this.resizeItem(e, p, b, scr, ig.dataset.igrip as "bl" | "br"); return; }
         // first tap on a block chooses the block; an item is chosen once its block is (or straight away with a double tap)
         const blockChosen = before?.page === p.id && before.block === b.id;
-        const target: Sel = pickId && blockChosen ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
+        // Ctrl / Cmd + click, or a press on the block's name tag: the block itself (a drag moves it), never an item in it
+        const wholeBlock = e.ctrlKey || e.metaKey || !!t.closest(".vl-tag");
+        const target: Sel = pickId && blockChosen && !wholeBlock ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
         const dragItem = target?.item ? findItem(b.items, dragId!)?.item : undefined;
         const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, start = { ...b }, istart = dragItem ? { dx: dragItem.dx ?? 0, dy: dragItem.dy ?? 0 } : null;
         let moved = false;
@@ -1413,6 +1418,7 @@ class Editor {
         const pl = this.section(body, "Place");
         this.placeTool(pl, p, b);
         this.chips(pl, [["in", "Inside the safe area"], ["bleed", "Under the bars too"]], b.bleed ? "bleed" : "in", (v) => { if (v === "bleed") b.bleed = true; else { delete b.bleed; const R = this.room(p, b); if (!inRoom(b, R)) clampTo(b, R, false); } });
+        this.lookControls(this.section(body, "Look", true), b, { sides: true });
         const it = this.section(body, "Items", true);
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "ellipse", "line", "img", "icon", "row", "col"]);
@@ -1545,6 +1551,7 @@ class Editor {
             this.chips(f, Object.keys(this.theme.fonts).map((k) => [k, k] as [string, string]), it.font ?? "ui", (v) => { it.font = v === "ui" ? undefined : v; });
             this.chips(f, [["no", "As typed", "case-sensitive"], ["up", "Capitals", "case-upper"]], it.upper ? "up" : "no", (v) => { it.upper = v === "up" || undefined; });
             this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
+            this.lookControls(this.section(body, "Box", true), it, { pad: true });
         } else if (it.type === "line") {
             const s = this.section(body, "Line");
             this.num(s.createDiv({ cls: "vl-nums" }), "Thickness", () => (typeof it.h === "number" ? it.h : 1), (v) => { it.h = v; }, { min: 1 });
@@ -1586,7 +1593,7 @@ class Editor {
             this.itemList(c, b, it.items ?? (it.items = []));
             this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "img", "icon", "row", "col"]);
             this.shapeStyle(body, it, true);
-        } else { this.shapeStyle(body, it, false); this.sizeNums(body, it, b.items.includes(it)); }
+        } else { this.shapeStyle(body, it, false); this.sizeNums(body, it, b.items.includes(it)); this.rectToLook(body, b, it); }
     }
     // a picture's settings: the whole picture with the part the box shows framed (click or drag it to choose that part),
     // its address (or a picture of the vault), how it fits, the focus as a 3 × 3 grid, its size
@@ -1683,6 +1690,53 @@ class Editor {
         this.num(r, "W", () => (typeof it.w === "number" ? it.w : drawn("w")), (v) => { it.w = v; }, { min: 1 });
         this.num(r, "H", () => (typeof it.h === "number" ? it.h : drawn("h")), (v) => { it.h = v; }, { min: 1 });
         if (top) { this.num(r, "X", () => it.dx ?? 0, (v) => { it.dx = v; }); this.num(r, "Y", () => it.dy ?? 0, (v) => { it.dy = v; }); }
+    }
+    // a box's own look (a block, a text): its fill, an outline (all round, or on some sides), a radius, a padding
+    lookControls(sec: HTMLElement, o: { fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string; pad?: number }, opt: { sides?: boolean; pad?: boolean } = {}) {
+        this.colors(sec, o.fill ?? "none", (v) => { if (v === "none") delete o.fill; else o.fill = v; }, true);
+        const r = sec.createDiv({ cls: "vl-nums" });
+        this.num(r, "Outline", () => o.sw ?? 0, (v) => { o.sw = v || undefined; }, { min: 0, step: 0.5 });
+        this.num(r, "Radius", () => (Array.isArray(o.r) ? o.r[0] ?? 0 : o.r ?? 0), (v) => { o.r = v || undefined; }, { min: 0 });
+        if (opt.pad) this.num(r, "Padding", () => o.pad ?? 0, (v) => { o.pad = v || undefined; }, { min: 0 });
+        if (opt.sides && o.sw) {
+            // the outline's sides: all of them, or only some (a separator: the bottom alone)
+            const g = sec.createDiv({ cls: "vl-chips is-icons" }), cur = o.sides || "trbl";
+            for (const [k, icon, name] of [["t", "panel-top", "Top"], ["r", "panel-right", "Right"], ["b", "panel-bottom", "Bottom"], ["l", "panel-left", "Left"]] as const) {
+                const c = g.createEl("button", { cls: "vl-chip is-icon" + (cur.includes(k) ? " is-on" : ""), attr: { "aria-label": `${name} side` } });
+                setIcon(c, icon);
+                c.addEventListener("click", () => this.edit(() => {
+                    const now = (o.sides || "trbl").includes(k) ? (o.sides || "trbl").replace(k, "") : (o.sides || "") + k;
+                    const sorted = "trbl".split("").filter((x) => now.includes(x)).join("");
+                    if (!sorted || sorted === "trbl") delete o.sides; else o.sides = sorted;
+                }));
+            }
+        }
+        if (o.sw) this.colors(sec, o.stroke ?? "line", (v) => { o.stroke = v; });
+    }
+    // a rectangle drawn as a frame: one that covers its block becomes the block's look; one under a single text becomes
+    // that text's box (a chip, a tile, a button). Agents draw frames with rectangles; this turns them into what they are
+    rectToLook(body: HTMLElement, b: Block, it: Item) {
+        if (it.type !== "rect" || !b.items.includes(it)) return;
+        const bEl = this.wall?.querySelector<HTMLElement>(`.vl-block[data-block="${b.id}"]`); if (!bEl) return;
+        const box = this.itemBox(bEl, b, it); if (!box) return;
+        const look = (to: { fill?: string; stroke?: string; sw?: number; r?: number | number[] }) => { if (it.fill) to.fill = it.fill; if (it.sw) { to.sw = it.sw; to.stroke = it.stroke; } if (it.r) to.r = it.r; };
+        const drop = () => b.items.splice(b.items.indexOf(it), 1);
+        if (box.L < 1 && box.T < 1 && Math.abs(box.W - b.w) < 1 && Math.abs(box.H - b.h) < 1) {
+            this.actions(body, [["square-dashed-bottom", "Make it the block's look", () => this.edit(() => { look(b); drop(); this.sel = { page: this.sel!.page, block: b.id }; })]]);
+            return;
+        }
+        // the items lying on it: exactly one text, and nothing else
+        const on = b.items.filter((x) => x !== it).map((x) => ({ x, r: this.itemBox(bEl, b, x) })).filter((o) => o.r && o.r.L + o.r.W / 2 > box.L && o.r.L + o.r.W / 2 < box.L + box.W && o.r.T + o.r.H / 2 > box.T && o.r.T + o.r.H / 2 < box.T + box.H);
+        if (on.length !== 1 || on[0].x.type !== "text") return;
+        const t = on[0].x, tr = on[0].r!;
+        this.actions(body, [["text-select", "Make it the text's box", () => this.edit(() => {
+            look(t);
+            const centred = Math.abs(tr.L + tr.W / 2 - (box.L + box.W / 2)) < 3;
+            t.w = Math.round(box.W); t.h = Math.round(box.H); t.dy = Math.round(box.T);
+            if (centred) { t.g = "t"; t.dx = toD(0, box.L, box.W, b.w); }
+            else { t.g = "tl"; t.dx = Math.round(box.L); t.pad = Math.max(0, Math.round(tr.L - box.L)) || undefined; }
+            drop(); this.sel = { page: this.sel!.page, block: b.id, item: t.id };
+        })]]);
     }
     shapeStyle(body: HTMLElement, it: Item, box: boolean) {
         if (!box) this.chips(this.section(body, "Shape"), [["rect", "Rectangle", "square"], ["ellipse", "Circle", "circle"]], it.type as string, (v) => { it.type = v as ItemType; });

@@ -465,3 +465,5 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-cdot { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.4);
   background: linear-gradient(var(--c, transparent), var(--c, transparent)), repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 6px 6px; }
 .vl .vl-cdot.is-none { background: linear-gradient(135deg, transparent 44%, var(--color-red) 44% 56%, transparent 56%), var(--background-primary); }
+/* a chosen block's name tag is a handle: a press chooses the block (not an item in it), a drag moves it */
+.vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px 2px; border-radius: 4px 4px 0 0; background: var(--k); color: var(--background-primary); transform: translate(-1px, -100%); }

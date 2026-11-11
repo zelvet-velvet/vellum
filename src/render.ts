@@ -28,7 +28,21 @@ const fontOf = (t: Theme, f?: string) => (f ? t.fonts[f] ?? f : t.fonts.ui);
 let resolve = (src: string) => src;
 export const setPictureResolver = (fn: (src: string) => string) => { resolve = fn; };
 export const pictureUrl = (src?: string) => { const s = (src ?? "").trim(); return !s ? "" : /^(https?|data|app|blob|file):/i.test(s) ? s : resolve(s.replace(/^\/+/, "")); };
-const loaded = new Set<string>();   // pictures already shown once: drawn again (a drag, a redraw) without the tile flashing
+const loaded = new Set<string>();
+// a box's own look: its fill, a radius, an outline all round or on some sides only ("t" "r" "b" "l"), drawn inside it
+// (an inset shadow: nothing in it moves)
+export const applyLook = (t: Theme, s: CSSStyleDeclaration, o: { fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string }) => {
+    if (o.fill && o.fill !== "none") s.background = colorOf(t, o.fill);
+    if (o.r) s.borderRadius = radiusOf(o.r);
+    if (o.sw) {
+        const c = colorOf(t, o.stroke ?? "line"), w = px(o.sw), sd = o.sides || "trbl", out: string[] = [];
+        if (sd.includes("t")) out.push(`inset 0 ${w} 0 0 ${c}`);
+        if (sd.includes("b")) out.push(`inset 0 -${w} 0 0 ${c}`);
+        if (sd.includes("l")) out.push(`inset ${w} 0 0 0 ${c}`);
+        if (sd.includes("r")) out.push(`inset -${w} 0 0 0 ${c}`);
+        s.boxShadow = out.join(", ");
+    }
+};   // pictures already shown once: drawn again (a drag, a redraw) without the tile flashing
 // a corner radius: one number, or four (top left, top right, bottom right, bottom left)
 export const radiusOf = (r?: number | number[]) => (Array.isArray(r) ? [0, 1, 2, 3].map((i) => px(Number(r[i] ?? r[0]) || 0)).join(" ") : px(r ?? 0));
 const px = (v: number) => `${Math.round(v * 100) / 100}px`;
@@ -79,6 +93,12 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
             s.lineHeight = String(it.lh ?? 1.2);
             if (it.upper) s.textTransform = "uppercase";
             s.whiteSpace = typeof it.w === "number" || it.w === "fill" ? "pre-wrap" : "pre";
+            // its own box: fill, outline, radius, padding; with a set height the text sits in the middle of it
+            if (it.fill || it.sw || it.pad) {
+                applyLook(t, s, it);
+                if (it.pad) s.padding = px(it.pad);
+                if (typeof it.h === "number" || it.h === "fill") { s.display = "flex"; s.alignItems = "center"; s.justifyContent = s.textAlign === "center" ? "center" : s.textAlign === "right" ? "flex-end" : "flex-start"; }
+            }
             break;
         }
         case "rect": case "ellipse": {
