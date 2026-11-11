@@ -11,6 +11,7 @@ it has a height). For every block (portrait and landscape), top-level items only
   2. a rect covering the whole block, at the back        -> the block's look
   3. a thin rect (<= 2 pt) along the block's top / bottom -> the block's outline on that side
   4. a rect (or two stacked halves, a flip tile) under exactly one text and nothing else (an icon counts) -> that text's box
+     (two stacked halves with nothing on them, an empty flip tile -> one rect)
 
 Only rects with a known place (anchored top left, sizes in points) are touched; anything unsure is left as it is.
 
@@ -167,6 +168,12 @@ def convert_block(b, log, where):
             tb = thing_box(it, bw, bh)
             if tb and inside(tb[0] + tb[2] / 2, tb[1] + tb[3] / 2, rb):
                 on.append(it)
+        if not on and len(parts) == 2:   # an empty flip tile: one rect, the top half's radius on every corner
+            r["h"] = round(rb[3], 2)
+            gone.add(id(parts[1]))
+            used.update((id(r), id(parts[1])))
+            log.append(f"{where}: empty tile ← two halves {r.get('id', '?')}")
+            continue
         if len(on) != 1 or on[0].get("type") != "text" or any(k in on[0] for k in ("fill", "sw")):
             continue
         t, tb = on[0], text_box(on[0])
