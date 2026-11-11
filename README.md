@@ -171,6 +171,7 @@ src: Design/Screens
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | Duplicate · delete |
 | <kbd>Ctrl</kbd> <kbd>S</kbd> · <kbd>Esc</kbd> | Save · go up a level |
 | <kbd>Alt</kbd> / <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
+| Hold a number box, then drag up / down | Change it (the arrows beside it step it; Shift: ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ
 

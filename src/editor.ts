@@ -20,6 +20,11 @@ export const SNAP_DEFAULT: SnapCfg = { on: true, dist: 6, grid: 4, margins: [16]
 let snap: SnapCfg = { ...SNAP_DEFAULT }, keepSnap = () => {};
 export const setSnap = (c: SnapCfg, save: () => void) => { snap = c; keepSnap = save; };
 const grid = () => Math.max(1, snap.grid || 1);
+// number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
+export interface EditCfg { arrow: number; hold: boolean }
+export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true };
+let editCfg: EditCfg = { ...EDIT_DEFAULT };
+export const setEdit = (c: EditCfg) => { editCfg = c; };
 type Lines = { x: number[]; y: number[] };
 // the nearest line within reach of any of the points: how far to shift, and the line
 const near = (pts: number[], lines: number[], reach: number) => {
@@ -1040,7 +1045,84 @@ class Editor {
             const up = () => { l.removeEventListener("pointermove", mv); l.removeEventListener("pointerup", up); this.end(); };
             l.addEventListener("pointermove", mv); l.addEventListener("pointerup", up);
         });
+        this.numberExtras(w, i, name, get, set, o);
         return w;
+    }
+    // a number box's extras: ▲▼ arrows (a press moves one arrow step, Shift ten of them, holding repeats) and hold-and-drag:
+    // hold the box still, then drag up or down; a bubble shows the value and the change; letting go keeps it, a cancel
+    // puts it back. host: the box; arrows: where the arrows go (false: none); set is live (one undo step per change)
+    numberExtras(host: HTMLElement, input: HTMLInputElement, label: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; arrows?: HTMLElement | false } = {}) {
+        const st = o.step ?? 1, clamp = (v: number) => Math.min(o.max ?? Infinity, Math.max(o.min ?? -Infinity, v));
+        const put = (v: number) => { set(+clamp(Math.round(v / st) * st).toFixed(6)); input.value = String(get()); this.draftPut(); this.drawPages(); this.drawBar(); this.livePanel(); };
+        if (o.arrows !== false) {
+            const box = (o.arrows ?? host).createDiv({ cls: "vl-arrows" });
+            for (const [dir, icon, name] of [[1, "chevron-up", "More"], [-1, "chevron-down", "Less"]] as const) {
+                const b = box.createEl("button", { cls: "vl-arrow", attr: { "aria-label": `${name} (Shift: ×10)`, tabindex: "-1" } });
+                setIcon(b, icon);
+                let wait = 0, rep = 0;
+                const stop = () => { window.clearTimeout(wait); window.clearInterval(rep); wait = rep = 0; this.end(); };
+                b.addEventListener("pointerdown", (e) => {
+                    e.preventDefault(); e.stopPropagation(); this.begin();
+                    const once = () => put(get() + dir * st * editCfg.arrow * (e.shiftKey ? 10 : 1));
+                    once();
+                    wait = window.setTimeout(() => { rep = window.setInterval(once, 70); }, 380);
+                    try { b.setPointerCapture(e.pointerId); } catch { /* */ }
+                });
+                b.addEventListener("pointerup", stop); b.addEventListener("pointercancel", stop);
+                b.addEventListener("click", (e) => e.preventDefault());
+            }
+        }
+        if (!editCfg.hold) return;
+        // hold and drag, as ZeLedger does it: 280 ms still, then a step every 9 px, faster after ten steps
+        let timer = 0, active = false, x0 = 0, y0 = 0, v0 = 0, id = -1, bub: HTMLElement | null = null;
+        const notches = (dy: number) => { const u = Math.abs(dy) / 9; return Math.sign(dy) * Math.floor(u < 10 ? u : 10 + Math.pow(u - 10, 1.35)); };
+        const fmt = (v: number) => String(+v.toFixed(4));
+        const paint = () => {
+            if (!bub) return;
+            const v = get(), d = +(v - v0).toFixed(4);
+            bub.querySelector(".vl-bubble-v")?.setText(fmt(v));
+            bub.querySelector(".vl-bubble-d")?.setText(d ? `${d > 0 ? "+" : "−"}${fmt(Math.abs(d))}` : "↕");
+            bub.toggleClass("is-up", d > 0); bub.toggleClass("is-down", d < 0);
+        };
+        host.addEventListener("touchmove", (e) => { if (active) e.preventDefault(); }, { passive: false });
+        host.addEventListener("contextmenu", (e) => { if (active || timer) e.preventDefault(); });
+        host.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0 || active || (e.target as HTMLElement).closest(".vl-arrows, .vl-numl")) return;
+            x0 = e.clientX; y0 = e.clientY; id = e.pointerId;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+                timer = 0; active = true; input.blur(); v0 = get(); this.begin();
+                try { host.setPointerCapture(id); } catch { /* */ }
+                host.addClass("is-scrub");
+                const R = this.root; if (!R) return;
+                bub = R.createDiv({ cls: "vl-bubble" });
+                bub.createDiv({ cls: "vl-bubble-k", text: label });
+                bub.createDiv({ cls: "vl-bubble-v" }); bub.createDiv({ cls: "vl-bubble-d" });
+                const rr = R.getBoundingClientRect(), hr = host.getBoundingClientRect();
+                bub.style.left = `${Math.min(rr.width - 70, Math.max(70, hr.left - rr.left + hr.width / 2))}px`;
+                bub.style.top = `${Math.max(64, hr.top - rr.top - 8)}px`;
+                paint();
+            }, 280);
+        });
+        host.addEventListener("pointermove", (e) => {
+            if (e.pointerId !== id) return;
+            if (!active) { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { window.clearTimeout(timer); timer = 0; } return; }
+            e.preventDefault();
+            put(v0 + notches(y0 - e.clientY) * st * editCfg.arrow); paint();
+        });
+        const finish = (keep: boolean) => {
+            window.clearTimeout(timer); timer = 0;
+            if (!active) return;
+            active = false; host.removeClass("is-scrub"); bub?.remove(); bub = null;
+            if (!keep) put(v0);
+            this.end();
+            // the click that ends a drag does not also put the caret in the box
+            const eat = (c: Event) => { c.preventDefault(); c.stopPropagation(); };
+            host.addEventListener("click", eat, { capture: true, once: true });
+            window.setTimeout(() => host.removeEventListener("click", eat, { capture: true }), 400);
+        };
+        host.addEventListener("pointerup", (e) => { if (e.pointerId === id) finish(true); });
+        host.addEventListener("pointercancel", (e) => { if (e.pointerId === id) finish(false); });
     }
     // a choice of words or swatches: a tap is the answer
     // a choice: words, an icon (its words in the tooltip: [value, words, icon]), or a colour swatch alone (bare)
@@ -1093,12 +1175,96 @@ class Editor {
         box.focus();
         box.setSelectionRange(box.value.length, box.value.length);
     }
+    // a colour: the theme's named colours, your recent ones, the eyedropper (a colour from the screen, where the system
+    // has one), and the editor of any colour (RGB or HSL sliders with numbers, opacity, or any CSS colour typed)
+    colorOpen: string | null = null;
     colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false) {
+        const key = (parent.parentElement?.querySelector(".vl-sech")?.textContent ?? "colour") + "·" + (this.sel?.item ?? this.sel?.block ?? this.sel?.page ?? "");
         const names = Object.keys(this.theme.colors);
         const opts: [string, string][] = [...(none ? [["none", "none"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
         const g = this.chips(parent, opts, on ?? (none ? "none" : undefined), pick, (v) => colorOf(this.theme, v), true);
-        const hex = g.createEl("input", { cls: "vl-hex", attr: { type: "text", placeholder: "#hex", value: on && !names.includes(on) && on !== "none" ? on : "" } });
-        hex.addEventListener("change", () => { if (/^#[0-9a-f]{3,8}$/i.test(hex.value.trim())) this.edit(() => pick(hex.value.trim())); });
+        const own = (c: string) => { this.edit(() => pick(c)); this.keepColor(c); };
+        const recent = this.recentColors().filter((c) => !names.includes(c));
+        if (recent.length) g.createSpan({ cls: "vl-csep" });
+        for (const c of recent) {
+            const b = g.createEl("button", { cls: "vl-chip is-swatch" + (c === on ? " is-on" : ""), attr: { "aria-label": c } });
+            b.createSpan({ cls: "vl-sw" }).style.background = c;
+            b.addEventListener("click", () => own(c));
+        }
+        g.createSpan({ cls: "vl-csep" });
+        const Drop = (this.root?.win as (Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }) | undefined)?.EyeDropper;
+        if (Drop) {
+            const d = g.createEl("button", { cls: "vl-chip is-icon vl-cbtn", attr: { "aria-label": "Pick a colour from the screen" } });
+            setIcon(d, "pipette");
+            d.addEventListener("click", () => { new Drop().open().then((r) => own(r.sRGBHex), () => { /* closed with Esc */ }); });
+        }
+        const open = this.colorOpen === key;
+        const m = g.createEl("button", { cls: "vl-chip is-icon vl-cbtn" + (open ? " is-on" : ""), attr: { "aria-label": open ? "Hide the colour editor" : "Any colour: RGB, HSL, hex, CSS" } });
+        setIcon(m, "palette");
+        m.addEventListener("click", () => { this.colorOpen = open ? null : key; this.drawPanel(); });
+        if (open) this.colorEditor(parent, on, pick, names);
+    }
+    // recent custom colours, newest first (kept on the device for this vault)
+    recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]"); } catch { return []; } }
+    keepColor(c: string) { if (!c || c === "none" || c in this.theme.colors) return; setLocal("vellum:recentColors", JSON.stringify([c, ...this.recentColors().filter((x) => x !== c)].slice(0, 8))); }
+    colorMode: "rgb" | "hsl" = (getLocal("vellum:colorMode") as "rgb" | "hsl") || "rgb";
+    colorEditor(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, names: string[]) {
+        const c = this.rgbaOf(on), hsl = rgbToHsl(c.r, c.g, c.b);
+        const box = parent.createDiv({ cls: "vl-ced" });
+        const top = box.createDiv({ cls: "vl-ced-top" });
+        const sw = top.createDiv({ cls: "vl-ced-sw" });
+        const txt = top.createEl("input", { cls: "vl-ced-text", attr: { type: "text", spellcheck: "false", placeholder: "#hex, rgb(), hsl(), a name, var(--…)", "aria-label": "Any CSS colour" } });
+        txt.value = on && !names.includes(on) && on !== "none" ? on : hexOf(c);
+        txt.addEventListener("keydown", (k) => { if (k.key === "Enter") txt.blur(); });
+        txt.addEventListener("change", () => {
+            const v = txt.value.trim();
+            if (v && CSS.supports("color", v)) { this.edit(() => pick(v)); this.keepColor(v); }
+            else txt.addClass("is-bad");
+        });
+        this.chips(top, [["rgb", "RGB"], ["hsl", "HSL"]], this.colorMode, (v) => { this.colorMode = v as "rgb" | "hsl"; setLocal("vellum:colorMode", v); });
+        // the colour as it is being set: RGB and HSL kept in step, opacity apart
+        const rows: (() => void)[] = [];
+        const paint = () => { sw.style.setProperty("--c", hexOf(c)); for (const r of rows) r(); };
+        const commit = () => { const h = hexOf(c); txt.value = h; txt.removeClass("is-bad"); pick(h); this.draftPut(); this.drawPages(); this.drawBar(); paint(); };
+        const fromHsl = () => { const r = hslToRgb(hsl.h, hsl.s, hsl.l); c.r = r.r; c.g = r.g; c.b = r.b; };
+        const fromRgb = () => { const h = rgbToHsl(c.r, c.g, c.b); if (h.s && h.l > 0 && h.l < 100) hsl.h = h.h; hsl.s = h.s; hsl.l = h.l; };
+        const row = (name: string, max: number, get: () => number, set: (v: number) => void, track: () => string) => {
+            const r = box.createDiv({ cls: "vl-crow" });
+            r.createSpan({ cls: "vl-crowl", text: name });
+            const range = r.createEl("input", { cls: "vl-crange", attr: { type: "range", min: "0", max: String(max), step: "1", "aria-label": name } });
+            const nw = r.createDiv({ cls: "vl-num vl-cnum" });
+            const ni = nw.createEl("input", { attr: { type: "number", min: "0", max: String(max), step: "1", "aria-label": name } });
+            const val = (v: number) => { set(Math.min(max, Math.max(0, Math.round(v)))); commit(); };
+            range.addEventListener("pointerdown", () => this.begin());
+            range.addEventListener("input", () => { this.begin(); val(Number(range.value)); });
+            range.addEventListener("change", () => { this.end(); this.keepColor(hexOf(c)); });
+            ni.addEventListener("focus", () => this.begin());
+            ni.addEventListener("input", () => { if (ni.value !== "") val(Number(ni.value)); });
+            ni.addEventListener("blur", () => { this.end(); this.keepColor(hexOf(c)); });
+            this.numberExtras(nw, ni, name, get, (v) => val(v), { min: 0, max });
+            rows.push(() => { const v = String(Math.round(get())); if (range.value !== v) range.value = v; if (ni.ownerDocument.activeElement !== ni) ni.value = v; range.style.setProperty("--track", track()); });
+        };
+        const rgbStr = (r: number, g: number, b: number) => `rgb(${r}, ${g}, ${b})`;
+        if (this.colorMode === "rgb") {
+            row("R", 255, () => c.r, (v) => { c.r = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(0, c.g, c.b)}, ${rgbStr(255, c.g, c.b)})`);
+            row("G", 255, () => c.g, (v) => { c.g = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(c.r, 0, c.b)}, ${rgbStr(c.r, 255, c.b)})`);
+            row("B", 255, () => c.b, (v) => { c.b = v; fromRgb(); }, () => `linear-gradient(90deg, ${rgbStr(c.r, c.g, 0)}, ${rgbStr(c.r, c.g, 255)})`);
+        } else {
+            const hs = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
+            row("H", 360, () => hsl.h, (v) => { hsl.h = v; fromHsl(); }, () => `linear-gradient(90deg, ${[0, 60, 120, 180, 240, 300, 360].map((h) => hs(h, hsl.s, hsl.l)).join(", ")})`);
+            row("S", 100, () => hsl.s, (v) => { hsl.s = v; fromHsl(); }, () => `linear-gradient(90deg, ${hs(hsl.h, 0, hsl.l)}, ${hs(hsl.h, 100, hsl.l)})`);
+            row("L", 100, () => hsl.l, (v) => { hsl.l = v; fromHsl(); }, () => `linear-gradient(90deg, ${hs(hsl.h, hsl.s, 0)}, ${hs(hsl.h, hsl.s, 50)}, ${hs(hsl.h, hsl.s, 100)})`);
+        }
+        row("A", 100, () => Math.round(c.a * 100), (v) => { c.a = v / 100; }, () => `linear-gradient(90deg, ${rgbStr(c.r, c.g, c.b).replace("rgb", "rgba").replace(")", ", 0)")}, ${rgbStr(c.r, c.g, c.b)})`);
+        paint();
+    }
+    // any colour (a theme name, CSS) as red, green, blue (0–255) and opacity (0–1), as the browser draws it
+    rgbaOf(v?: string): { r: number; g: number; b: number; a: number } {
+        const host = this.panel ?? this.root ?? activeDocument.body, el = host.createDiv();
+        el.style.color = !v || v === "none" ? "rgb(128, 128, 128)" : colorOf(this.theme, v);
+        const m = (getComputedStyle(el).color.match(/[\d.]+/g) ?? []).map(Number);
+        el.remove();
+        return { r: m[0] ?? 128, g: m[1] ?? 128, b: m[2] ?? 128, a: m.length > 3 ? m[3] : 1 };
     }
     actions(parent: HTMLElement, list: [string, string, () => void][]) {
         const g = parent.createDiv({ cls: "vl-acts" });
@@ -1229,12 +1395,14 @@ class Editor {
         side("t", "Top"); side("l", "Left"); side("r", "Right"); side("b", "Bottom");
         const mid = box.createDiv({ cls: "vl-gsize" });
         const dim = (get: () => number, set: (v: number) => void, label: string) => {
-            const i = mid.createEl("input", { attr: { type: "number", min: "8", "aria-label": label, "data-live": "1" } });
+            const wrap = mid.createDiv({ cls: "vl-dimw" });
+            const i = wrap.createEl("input", { attr: { type: "number", min: "8", "aria-label": label, "data-live": "1" } });
             i.value = String(get()); this.getters.set(i, get);
             i.addEventListener("focus", () => this.begin());
             i.addEventListener("input", () => { const v = Number(i.value); if (v >= 8) { set(Math.round(v)); this.draftPut(); this.drawPages(); } });
             i.addEventListener("blur", () => { this.end(); this.drawPanel(); });
             i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
+            this.numberExtras(wrap, i, label, get, (v) => set(Math.round(v)), { min: 8 });
         };
         dim(() => b.w, (v) => { b.w = v; }, "Width");
         mid.createSpan({ text: "×" });
@@ -1249,6 +1417,7 @@ class Editor {
         const v = st.createEl("input", { cls: "vl-stepval", attr: { type: "number", "aria-label": `${names[k]} gap` } });
         v.value = String(gap[k]());
         v.addEventListener("change", () => { const n = Number(v.value); if (!Number.isNaN(n)) this.edit(() => setGap(k, Math.round(n))); });
+        this.numberExtras(v, v, `${names[k]} gap`, () => gap[k](), (n) => setGap(k, Math.round(n)), { arrows: false });
         const plus = st.createEl("button", { cls: "vl-stepbtn", attr: { "aria-label": "More (Shift: 8)" } }); setIcon(plus, "plus"); plus.addEventListener("click", (e) => step(e, 1));
     }
     // a block kind: its icon in its colour, its name in the tooltip
@@ -1506,6 +1675,24 @@ const inRoom = (b: Block, R: { l: number; t: number; r: number; b: number }) => 
 const clampTo = (b: Block, R: { l: number; t: number; r: number; b: number }, resize: boolean) => {
     if (resize) { b.w = Math.max(8, Math.min(b.w, R.r - b.x)); b.h = Math.max(8, Math.min(b.h, R.b - b.y)); return; }
     b.x = Math.max(R.l, Math.min(b.x, R.r - b.w)); b.y = Math.max(R.t, Math.min(b.y, R.b - b.h));
+};
+// colour conversions: red, green, blue 0–255; hue 0–360, saturation and lightness 0–100; a hex with opacity when below 1
+const hexOf = (c: { r: number; g: number; b: number; a: number }) => "#" + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("") + (c.a < 1 ? Math.round(c.a * 255).toString(16).padStart(2, "0") : "");
+const rgbToHsl = (r: number, g: number, b: number) => {
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let h = 0, s = 0;
+    if (d) {
+        s = d / (1 - Math.abs(2 * l - 1));
+        h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        h = (h * 60 + 360) % 360;
+    }
+    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+};
+const hslToRgb = (h: number, s: number, l: number) => {
+    s /= 100; l /= 100;
+    const k = (n: number) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`

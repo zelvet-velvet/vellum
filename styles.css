@@ -408,3 +408,36 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-newp:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .vl .vl-newp > span { display: inline-flex; align-items: center; }
 .vl .vl-newp > span svg { width: 14px; height: 14px; }
+
+/* number boxes: ▲▼ arrows at the right, hold-and-drag (the box lights while dragging, a bubble shows the value) */
+.vl-num, .vl-dimw { position: relative; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.vl-arrows { display: flex; flex-direction: column; align-self: stretch; flex: none; border-left: 1px solid var(--background-modifier-border); }
+.vl .vl-arrow { flex: 1; width: 18px; min-height: 0; padding: 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--text-faint); --icon-size: 11px; --icon-stroke: 2.5px; }
+.vl .vl-arrow:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.vl .vl-arrow + .vl-arrow { border-top: 1px solid var(--background-modifier-border); }
+.vl-dimw { display: flex; align-items: stretch; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; background: var(--background-primary); }
+.vl .vl-dimw input { border: 0; border-radius: 0; background: transparent; width: 46px; }
+.vl-num.is-scrub, .vl-dimw.is-scrub, .vl-stepval.is-scrub { border-color: var(--interactive-accent); box-shadow: 0 0 0 1px var(--interactive-accent); }
+.vl-bubble { position: absolute; z-index: 40; transform: translate(-50%, -100%); min-width: 104px; padding: 7px 12px 6px; border-radius: 8px; background: var(--text-normal); color: var(--background-primary); box-shadow: 0 3px 0 var(--interactive-accent), 0 10px 24px rgba(0, 0, 0, 0.3); text-align: center; pointer-events: none; }
+.vl-bubble-k { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.vl-bubble-v { font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.vl-bubble-d { font-size: 11px; font-variant-numeric: tabular-nums; opacity: 0.8; }
+.vl-bubble.is-up .vl-bubble-d { color: var(--color-green); opacity: 1; }
+.vl-bubble.is-down .vl-bubble-d { color: var(--color-red); opacity: 1; }
+
+/* colours: a divider between the theme's, the recent ones and the tools; the editor of any colour */
+.vl-csep { width: 1px; height: 18px; background: var(--background-modifier-border); margin: 0 2px; }
+.vl .vl-chip.vl-cbtn { width: 28px; height: 26px; border-radius: 7px; }
+.vl-ced { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); }
+.vl-ced-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vl-ced-sw { width: 30px; height: 30px; flex: none; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+  background: linear-gradient(var(--c, transparent), var(--c, transparent)), repeating-conic-gradient(#999 0 25%, #ddd 0 50%) 0 0 / 10px 10px; }
+.vl .vl-ced-text { flex: 1; min-width: 120px; height: 30px; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.vl .vl-ced-text.is-bad { border-color: var(--color-red); }
+.vl-crow { display: grid; grid-template-columns: 14px minmax(0, 1fr) 76px; align-items: center; gap: 8px; }
+.vl-crowl { font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); text-align: center; }
+.vl .vl-crange { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0; padding: 0; border-radius: 7px; border: 0;
+  background: var(--track), repeating-conic-gradient(#999 0 25%, #ddd 0 50%) 0 0 / 8px 8px; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+.vl .vl-crange::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--background-primary); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.4); cursor: grab; }
+.vl .vl-cnum { height: 26px; }
+.vl .vl-cnum input { height: 24px; padding: 0 4px; }

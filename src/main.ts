@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, SliderComponent, TFolder, ToggleComponent } from "obsidian";
-import { openVellum, registerVellum, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
+import { EDIT_DEFAULT, EditCfg, openVellum, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
 import { BASE_THEME, Theme } from "./render";
 
@@ -10,18 +10,20 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7" stroke-linec
 // comes from the settings; by default it follows the Obsidian theme.
 // folder: the screens the ribbon button opens (one JSON file per screen); made on the first save
 // snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
-interface Settings { folder: string; colors: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg }
-const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT } };
+// edit: number boxes (the arrows' step, hold-and-drag)
+interface Settings { folder: string; colors: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg }
+const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT } };
 
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap } };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit } };
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme() }));
         setSnap(this.settings.snap, () => { void this.save(); });
+        setEdit(this.settings.edit);
         // the editor straight on the screens folder: no note or block needed
         this.addRibbonIcon("vellum", "Open Vellum", () => { void openVellum(this.settings.folder); });
         this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
@@ -122,6 +124,12 @@ class VellumSettings extends PluginSettingTab {
 
         // snapping
         const sn = s.snap;
+        // editing: number boxes
+        const ed = s.edit;
+        const eg = this.card(c, "editing", "Editing", `Arrows ×${ed.arrow}`);
+        this.input(this.row(eg, "Arrow step", "How many steps one press of a number box's arrow moves (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; eg.parentElement?.querySelector(".vls-sum")?.setText(`Arrows ×${n}`); this.save(); } }, { cls: "is-num", type: "number" });
+        new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it (a phone's way; works with a mouse too).")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
+
         const sp = this.card(c, "snapping", "Snapping", sn.on ? "On" : "Off");
         const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
         const rest = sp.createDiv({ cls: "vls-group" + (sn.on ? "" : " is-off") });
@@ -143,7 +151,7 @@ class VellumSettings extends PluginSettingTab {
         const foot = c.createDiv({ cls: "vls-foot" });
         foot.createSpan({ text: "Back to your Obsidian theme's colours and fonts." });
         const rb = foot.createEl("button", { cls: "mod-warning", text: "Reset look" });
-        rb.addEventListener("click", () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap }; this.save(); this.display(); });
+        rb.addEventListener("click", () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap, edit: s.edit }; this.save(); this.display(); });
     }
 }
 // rgb(…) / rgba(…) as #rrggbb (the colour picker takes only that)
