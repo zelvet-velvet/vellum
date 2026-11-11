@@ -12,6 +12,24 @@ export const BASE_THEME: Theme = {
     },
     fonts: { ui: "var(--font-interface)", display: "var(--font-interface)", mono: "var(--font-monospace)" },
 };
+// the editor's own UI colours, by what they colour: each sets these variables on the editor (the Settings' Editor theme card)
+export const UI_COLORS: { id: string; name: string; group: string; vars: string[]; follow?: string }[] = [
+    { id: "panels", name: "Panels", group: "Surfaces", vars: ["--background-primary"] },
+    { id: "side", name: "Side areas", group: "Surfaces", vars: ["--background-secondary"] },
+    { id: "hover", name: "Hover", group: "Surfaces", vars: ["--background-modifier-hover"] },
+    { id: "field", name: "Input boxes", group: "Surfaces", vars: ["--background-modifier-form-field"] },
+    { id: "border", name: "Borders", group: "Lines", vars: ["--background-modifier-border"] },
+    { id: "borderh", name: "Borders on hover", group: "Lines", vars: ["--background-modifier-border-hover"] },
+    { id: "text", name: "Text", group: "Text", vars: ["--text-normal"] },
+    { id: "muted", name: "Secondary text", group: "Text", vars: ["--text-muted"] },
+    { id: "faint", name: "Faint text", group: "Text", vars: ["--text-faint"] },
+    { id: "onaccent", name: "Text on accent", group: "Text", vars: ["--text-on-accent"] },
+    { id: "accent", name: "Accent", group: "Accent", vars: ["--interactive-accent"] },
+    { id: "accenth", name: "Accent hover", group: "Accent", vars: ["--interactive-accent-hover"] },
+    { id: "red", name: "Warnings", group: "Signals", vars: ["--color-red", "--text-error"] },
+    { id: "guide", name: "Snap guides", group: "Signals", vars: ["--vlu-guide"], follow: "var(--color-pink, #e93147)" },   // its own variable: block kinds use Obsidian's pink too
+];
+
 export const BASE_KINDS: Kind[] = [
     { id: "hero", icon: "hash", name: "summary / number", color: "var(--color-blue)" },
     { id: "nav", icon: "heading", name: "title / nav", color: "var(--text-faint)" },

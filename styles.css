@@ -165,7 +165,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-open svg { width: 15px; height: 15px; }
 
 /* ---- the workspace: over the whole window */
-.vl-ws { position: fixed; inset: 0; z-index: var(--layer-modal); display: flex; flex-direction: column; background: var(--background-secondary); padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.vl-ws { position: fixed; inset: 0; z-index: var(--layer-modal); display: flex; flex-direction: column; color: var(--text-normal); background: var(--background-secondary); padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .vl-top { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 48px; padding: 0 10px; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
 .vl-tl, .vl-tr { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .vl-tr { flex: none; }
@@ -342,7 +342,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-srcrow { display: flex; gap: 4px; align-items: center; }
 .vl-srcrow > .vl-text { flex: 1; min-width: 0; }
 /* snapping: the lines a drag snapped to */
-.vl-guide { position: absolute; z-index: 8; pointer-events: none; background: var(--color-pink, #e93147); }
+.vl-guide { position: absolute; z-index: 8; pointer-events: none; background: var(--vlu-guide, var(--color-pink, #e93147)); }
 .vl-guide.is-v { top: 0; bottom: 0; width: 1px; margin-left: -0.5px; }
 .vl-guide.is-h { left: 0; right: 0; height: 1px; margin-top: -0.5px; }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
@@ -350,7 +350,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* ---- the plugin's settings: folding cards of compact rows, everything centred on its line */
 .vl-settings { --vls-pad: 16px; --vls-line: color-mix(in srgb, var(--background-modifier-border) 70%, transparent); }
 .vls-intro { margin: 0 2px 16px; font-size: var(--font-ui-small); line-height: 1.5; color: var(--text-muted); }
-.vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: hidden; }
+.vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad) 0 12px; cursor: pointer; user-select: none; }
 .vls-head:hover { background: var(--background-modifier-hover); }
 .vls-head:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
@@ -377,9 +377,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-token { display: grid; grid-template-columns: 28px 76px minmax(0, 1fr) 28px; align-items: center; gap: 12px; min-height: 44px; padding: 6px var(--vls-pad); box-sizing: border-box; }
 .vls-token + .vls-token { border-top: 1px solid var(--vls-line); }
 .vl-settings .vls-token input.vls-input { width: 100%; }
-.vls-sw { position: relative; width: 24px; height: 24px; border-radius: 7px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 22%, transparent); cursor: pointer; }
-.vls-sw:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 22%, transparent), 0 0 0 2px var(--background-modifier-border-hover); }
-.vls-sw > input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .vls-tname { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; }
 .vls-aa { font-size: 17px; line-height: 1; text-align: center; color: var(--text-normal); }
 .vls-x { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; --icon-size: 14px; }
@@ -635,3 +632,101 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ppr.is-ctx .vl-ppn, .vl-ppr.is-off .vl-ppn { color: var(--text-faint); }
 .vl-ppr.is-off { cursor: default; }
 .vl-ppnone { padding: 12px 8px; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* Settings: the colour cards. A preview on top, the colours under it in two columns */
+.vls-prev { padding: 12px var(--vls-pad) 6px; }
+.vls-pager { display: flex; align-items: center; gap: 8px; margin: 2px var(--vls-pad) 2px; padding: 4px; border-radius: 10px; background: var(--background-secondary); }
+.vl-settings button.vls-pgb { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; --icon-size: 18px; }
+.vl-settings button.vls-pgb:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vls-pgm { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.vls-pgn { font-size: var(--font-ui-small); font-weight: 600; color: var(--text-normal); }
+.vls-pgd { display: flex; gap: 6px; }
+.vl-settings button.vls-dot { width: 6px; height: 6px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--text-faint); opacity: 0.5; box-shadow: none; cursor: pointer; }
+.vl-settings button.vls-dot.is-on { background: var(--interactive-accent); opacity: 1; }
+.vls-pages.is-paged { min-height: 236px; }
+.vls-beside .vls-pages.is-paged { min-height: 120px; }
+.vls-group:only-child { break-inside: auto; }
+.vls-prevcap { margin-top: 8px; text-align: center; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.vls-colbar { display: flex; align-items: center; gap: 8px; padding: 10px var(--vls-pad) 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vls-colbar > span { flex: 1; min-width: 0; }
+.vls-groups { columns: 2 240px; column-gap: 20px; padding: 0 calc(var(--vls-pad) - 8px) 8px; }
+.vls-group { break-inside: avoid; padding-bottom: 6px; }
+.vls-grp { padding: 10px 8px 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.vls-colour { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 5px 8px; border-radius: 8px; break-inside: avoid; box-sizing: border-box; }
+.vls-colour:hover { background: var(--background-modifier-hover); }
+.vls-cname { flex: 1; min-width: 0; }
+.vls-cn { font-size: var(--font-ui-small); color: var(--text-normal); }
+.vls-cdesc { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vls-cwarn { font-size: var(--font-ui-smaller); color: var(--text-error); }
+.vls-cwarn:empty { display: none; }
+/* the colour field: the colour, its value, the way back, in one box */
+.vls-cf { flex: none; display: flex; align-items: center; gap: 8px; width: 156px; height: 34px; padding: 0 4px 0 4px; box-sizing: border-box; border: 1px solid var(--background-modifier-border); border-radius: 9px; background: var(--background-modifier-form-field); }
+.vls-cf:hover { border-color: var(--background-modifier-border-hover); }
+.vls-cf:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
+.vls-cf.is-warn, .vls-cf.is-bad { border-color: var(--text-error); }
+.vl-settings button.vls-chip { flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; overflow: hidden; cursor: pointer; box-shadow: none; background: repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 8px 8px; }
+.vls-chip > span { display: block; width: 100%; height: 100%; border-radius: inherit; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 35%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--background-primary) 60%, transparent); }
+.vls-chip:hover > span { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 60%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--background-primary) 60%, transparent); }
+.vl-settings .vls-cf input.vls-cv { flex: 1; min-width: 0; width: auto; height: 26px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-family: var(--font-interface); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--text-normal); }
+.vl-settings .vls-cf input.vls-cv::placeholder { color: var(--text-muted); letter-spacing: 0; }
+.vls-cf.is-custom input.vls-cv { font-weight: 500; }
+.vl-settings button.vls-cb { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; --icon-size: 14px; }
+.vl-settings button.vls-cb:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.vl-cpop.vls-pop { position: fixed; z-index: calc(var(--layer-modal) + 10); }
+.vls-pop input { width: 100%; height: 30px; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.vls-pop input.is-bad { border-color: var(--text-error); }
+
+/* the editor preview: a top bar, the screens list, the stage, the panel */
+.vls-demo { border: 1px solid var(--background-modifier-border); border-radius: 12px; overflow: hidden; background: var(--background-primary); color: var(--text-normal); font-size: 12px; line-height: 1.3; }
+.vlsd-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 36px; padding: 0 12px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); }
+.vlsd-saves { display: flex; gap: 6px; }
+.vlsd-save { padding: 4px 12px; border-radius: 6px; font-weight: 600; background: var(--interactive-accent); color: var(--text-on-accent); }
+.vlsd-save.is-state { background: var(--interactive-accent-hover); }
+.vlsd-body { display: grid; grid-template-columns: 140px minmax(0, 1fr) 170px; height: 272px; }
+.vlsd-rail { padding: 10px 8px; border-right: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 2px; }
+.vlsd-h { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); padding: 2px 6px 6px; }
+.vlsd-r { padding: 5px 8px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vlsd-r.is-sub { margin-left: 14px; color: var(--text-muted); }
+.vlsd-r.is-on { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); font-weight: 600; }
+.vlsd-r.is-state { background: var(--background-modifier-hover); }
+.vlsd-stage { display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: var(--background-secondary); min-width: 0; }
+.vlsd-side { padding: 10px 12px; border-left: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 7px; color: var(--text-muted); }
+.vlsd-side .vlsd-h { padding: 0 0 2px; }
+.vlsd-in { height: 26px; margin-top: 3px; padding: 0 8px; display: flex; align-items: center; border-radius: 6px; border: 1px solid var(--background-modifier-border); background: var(--background-modifier-form-field); color: var(--text-normal); }
+.vlsd-in.is-state { border-color: var(--background-modifier-border-hover); }
+.vlsd-seg { display: flex; margin-top: 3px; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; }
+.vlsd-seg span { flex: 1; text-align: center; padding: 4px 2px; }
+.vlsd-seg span.is-on { background: var(--interactive-accent); color: var(--text-on-accent); }
+.vlsd-del { margin-top: auto; color: var(--text-error); }
+/* a phone in the screen colours: 150 px, and larger on its own */
+.vlsd-phone { position: relative; flex: none; width: 150px; aspect-ratio: 9 / 19.5; border-radius: 22px; overflow: hidden; padding: 30px 11px 11px; box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; font-size: 11px; line-height: 1.3; background: var(--vls-paper); color: var(--vls-text); box-shadow: 0 0 0 4px #1b1b1d, 0 0 0 5px #3a3a3e, 0 10px 24px rgba(0, 0, 0, 0.25); }
+.vlsd-title { font-size: 18px; font-weight: 700; }
+.vlsd-d { color: var(--vls-dim); }
+.vlsd-t { background: var(--vls-tile); border-radius: 8px; padding: 7px 8px; }
+.vlsd-line { border-top: 1px solid var(--vls-line); }
+.vlsd-loud { color: var(--vls-loud); font-weight: 600; }
+.vlsd-a { margin-top: auto; padding: 8px; border-radius: 8px; text-align: center; font-weight: 600; background: var(--vls-accent); color: #fff; }
+.vlsd-pair { position: relative; display: flex; gap: 6px; }
+.vlsd-pair .vlsd-t { flex: 1 1 0; min-width: 0; }
+.vlsd-t.is-drag { position: relative; box-shadow: 0 0 0 1.5px var(--interactive-accent); }
+.vlsd-grip { position: absolute; right: -4px; bottom: -4px; width: 7px; height: 7px; border-radius: 2px; background: var(--interactive-accent); }
+.vlsd-g { position: absolute; top: -0.5px; left: -11px; right: -11px; z-index: 1; border-top: 1px solid var(--vlu-guide, var(--color-pink, #e93147)); }
+.vlsd-g.is-v { top: 0; bottom: 0; left: auto; right: 10.5px; border-top: 0; border-left: 1px solid var(--vlu-guide, var(--color-pink, #e93147)); }
+.vlsd-solo { display: flex; justify-content: center; padding: 14px 8px; border-radius: 12px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
+.vlsd-stage .vlsd-phone { zoom: 0.8; }
+.vls-beside { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: start; }
+.vls-beside > .vls-prev { padding-right: 0; }
+.vls-beside .vls-groups { padding-top: 6px; }
+.vls-demo .is-lit, .vlsd-solo .is-lit { outline: 2px solid var(--color-blue); outline-offset: 1px; }
+.vls-demo .is-lit.is-area, .vlsd-solo .is-lit.is-area { outline-offset: -2px; }
+.vls-body { container-type: inline-size; }
+@container (max-width: 560px) {
+    .vls-beside { grid-template-columns: minmax(0, 1fr); }
+    .vls-beside > .vls-prev { padding-right: var(--vls-pad); }
+    .vlsd-body { grid-template-columns: minmax(0, 1fr) 170px; }
+    .vlsd-rail { display: none; }
+}
+@container (max-width: 380px) {
+    .vlsd-body { grid-template-columns: minmax(0, 1fr); }
+    .vlsd-side { display: none; }
+}

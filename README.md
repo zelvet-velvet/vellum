@@ -162,7 +162,7 @@ src: Design/Screens
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 
-**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value.
+**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value. The editor's own panels follow your Obsidian theme, or the Editor theme colours in the same settings.
 
 </details>
 

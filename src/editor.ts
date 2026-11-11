@@ -1,7 +1,7 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, Insets, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
-import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme } from "./render";
+import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 
@@ -10,7 +10,7 @@ import { FolderStore, srcOf } from "./store";
 // from their gravity point), a block's corner resizes it; the panel shows only what is chosen, as controls (no syntax).
 // Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level.
 // Unsaved work is kept on the device (Obsidian's local storage, per vault) until saved into the note.
-export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[] }
+export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string> }   // ui: the editor's own colours that differ from Obsidian's
 
 // snapping while dragging / resizing: to the grid, and (on) to the edges and middles of the frame (an item's block, a
 // block's screen and safe area), margin lines inside it and the other items / blocks; Alt: none (1 px). Set in the plugin's
@@ -72,12 +72,12 @@ const raise = (win: Window) => {
 };
 class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
-    wall!: HTMLElement; panel: HTMLElement | null = null; theme: Theme; kinds: Kind[];
+    wall!: HTMLElement; panel: HTMLElement | null = null; theme!: Theme; kinds: Kind[];
     tab: "style" | "place" | "note" = "style";
     // store: the folder the doc is kept in (src: in the block), with the doc as read; none = the JSON in the block itself
     // el / ctx: the ```vellum block it is drawn in; none = opened straight on a folder (the ribbon, a command)
     constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement | undefined, readonly ctx: MarkdownPostProcessorContext | undefined, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
-        this.theme = { colors: { ...BASE_THEME.colors, ...host.theme?.colors }, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
+        this.lookFrom(host);
         this.kinds = host.kinds ?? BASE_KINDS;
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
@@ -124,7 +124,31 @@ class Editor {
     }
     card: HTMLElement; root: HTMLElement | null = null;
     // the theme's colours as --vl-* on an element (the card in the note, the workspace on the body)
-    paint(e: HTMLElement) { for (const c of Object.keys(this.theme.colors)) e.style.setProperty(`--vl-${c}`, this.theme.colors[c]); for (const ev of ["pointerdown", "mousedown", "click", "touchstart", "dblclick"]) e.addEventListener(ev, (x) => x.stopPropagation()); }
+    // the look from the host. The editor's own colours are set as Obsidian's variables on the editor, which the screens inside
+    // it would inherit: a screen colour that names a changed variable reads a copy of Obsidian's value instead (--vlr--…)
+    ui: Record<string, string> = {};
+    lookFrom(host: VellumHost) {
+        this.ui = { ...host.ui };
+        const changed = new Set(UI_COLORS.filter((u) => this.ui[u.id]).flatMap((u) => u.vars));
+        const colors: Record<string, string> = { ...BASE_THEME.colors, ...host.theme?.colors };
+        for (const k of Object.keys(colors)) colors[k] = colors[k].replace(/var\((--[\w-]+)/g, (m, v: string) => (changed.has(v) ? `var(--vlr${v}` : m));
+        this.theme = { colors, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
+    }
+    paintLook(e: HTMLElement) {
+        for (const c of Object.keys(this.theme.colors)) e.style.setProperty(`--vl-${c}`, this.theme.colors[c]);
+        const obsidian = getComputedStyle(e.doc.body), own = e === this.root;   // (only the editor takes the colours; a note's preview just the copies)
+        for (const u of UI_COLORS) for (const name of u.vars) {
+            if (this.ui[u.id]) { e.style.setProperty(`--vlr${name}`, obsidian.getPropertyValue(name).trim()); if (own) e.style.setProperty(name, this.ui[u.id]); }
+            else { e.style.removeProperty(`--vlr${name}`); if (own) e.style.removeProperty(name); }
+        }
+    }
+    // the settings changed (or Obsidian's theme): the open editor takes them at once
+    relook(host: VellumHost) {
+        this.lookFrom(host); this.paintLook(this.card);
+        if (!this.root) { this.drawCard(); return; }
+        this.paintLook(this.root); this.thumbs.clear(); this.drawPanel(); this.drawPages();
+    }
+    paint(e: HTMLElement) { this.paintLook(e); for (const ev of ["pointerdown", "mousedown", "click", "touchstart", "dblclick"]) e.addEventListener(ev, (x) => x.stopPropagation()); }
 
     // ---- state, undo, drafts, save
     get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000 }; }
@@ -2150,7 +2174,7 @@ const clampTo = (b: Block, R: { l: number; t: number; r: number; b: number }, re
     b.x = Math.max(R.l, Math.min(b.x, R.r - b.w)); b.y = Math.max(R.t, Math.min(b.y, R.b - b.h));
 };
 // colour conversions: red, green, blue 0–255; hue 0–360, saturation and lightness 0–100; a hex with opacity when below 1
-const hexOf = (c: { r: number; g: number; b: number; a: number }) => "#" + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("") + (c.a < 1 ? Math.round(c.a * 255).toString(16).padStart(2, "0") : "");
+export const hexOf = (c: { r: number; g: number; b: number; a: number }) => "#" + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("") + (c.a < 1 ? Math.round(c.a * 255).toString(16).padStart(2, "0") : "");
 const rgbToHsl = (r: number, g: number, b: number) => {
     r /= 255; g /= 255; b /= 255;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
@@ -2167,11 +2191,11 @@ const hslToRgb = (h: number, s: number, l: number) => {
     const k = (n: number) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
 };
-const rgbToHsv = (r: number, g: number, b: number) => {
+export const rgbToHsv = (r: number, g: number, b: number) => {
     const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, d = mx - mn, h = rgbToHsl(r, g, b).h;
     return { h, s: Math.round(mx ? (d / mx) * 100 : 0), v: Math.round(mx * 100) };
 };
-const hsvToRgb = (h: number, s: number, v: number) => {
+export const hsvToRgb = (h: number, s: number, v: number) => {
     s /= 100; v /= 100;
     const f = (n: number) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
     return { r: Math.round(f(5) * 255), g: Math.round(f(3) * 255), b: Math.round(f(1) * 255) };
@@ -2204,6 +2228,7 @@ async function folderEditor(dir: string): Promise<Editor | undefined> {
 }
 // open the editor on a folder of screens (its own window on a computer, the full screen on a phone); the folder is made on
 // the first save
+export function refreshLook() { if (ref) for (const ed of editors.values()) ed.relook(ref.host()); }
 export async function openVellum(dir: string, page?: string): Promise<void> { (await folderEditor(dir))?.openWs(page); }
 
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)
