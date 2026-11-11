@@ -1,6 +1,6 @@
 {
   "name": "vellum",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Obsidian plugin: mobile mockups for Obsidian plugins and vault apps, designed with your coding agent.",
   "main": "main.js",
   "type": "module",
