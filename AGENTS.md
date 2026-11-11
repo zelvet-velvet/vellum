@@ -11,6 +11,7 @@ An Obsidian plugin for designing mobile screens with a coding agent: screens on 
 ```
 npm install
 npm run check                          # types
+npm run lint                           # the checks Obsidian's automated review runs
 npm run build                          # main.js (not in git)
 npm run install-vault -- <vault path>  # copy into a vault and enable it
 ```

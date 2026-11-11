@@ -3,7 +3,7 @@
   "name": "Vellum",
   "version": "0.8.1",
   "minAppVersion": "1.6.6",
-  "description": "Mobile mockups for Obsidian plugins and vault apps: lay out screens on real phone frames, saved as small JSON files your coding agent reads and builds from.",
+  "description": "Mobile mockups for plugins and vault apps: lay out screens on real phone frames, saved as small JSON files your coding agent reads and builds from.",
   "author": "Zaviel",
   "authorUrl": "https://github.com/zelvet-velvet",
   "fundingUrl": "https://ko-fi.com/zelvet_velvet",

@@ -33,7 +33,7 @@ export class FolderStore {
         for (const f of folder.children) {
             if (!(f instanceof TFile) || f.extension !== "json") continue;
             const text = await this.app.vault.read(f);
-            if (f.name === DOC) { try { meta = JSON.parse(text); } catch { bad.push(f.name); } continue; }
+            if (f.name === DOC) { try { meta = JSON.parse(text) as typeof meta; } catch { bad.push(f.name); } continue; }
             const { doc, error } = parseDoc(`{"pages": [${text}]}`);
             if (error || !doc.pages[0]) { bad.push(f.name); continue; }
             pages.push(doc.pages[0]); this.files.set(doc.pages[0].id, f.path);

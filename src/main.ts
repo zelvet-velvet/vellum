@@ -30,7 +30,7 @@ export default class VellumPlugin extends Plugin {
         // the editor straight on the screens folder: no note or block needed
         this.addRibbonIcon("vellum", "Open Vellum", () => { void openVellum(this.settings.folder); });
         this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
-        this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, async (f) => { this.settings.folder = f.path; await this.save(); void openVellum(f.path); }).open() });
+        this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addSettingTab(new VellumSettings(this.app, this));
     }
     theme(): Theme { return { colors: { ...this.settings.colors }, fonts: { ...this.settings.fonts } }; }
@@ -47,7 +47,7 @@ class VellumSettings extends PluginSettingTab {
     card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
         const KEY = "vellum:setopen3";
         let open: string[] = [];
-        try { open = JSON.parse(getLocal(KEY) ?? '["screens"]'); } catch { /* */ }   // at first only Screens is open
+        try { open = JSON.parse(getLocal(KEY) ?? '["screens"]') as string[]; } catch { /* */ }   // at first only Screens is open
         const card = c.createDiv({ cls: "vls-card" + (open.includes(key) ? "" : " is-folded") });
         const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
         setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");
