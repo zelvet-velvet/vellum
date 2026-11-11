@@ -1327,9 +1327,10 @@ class Editor {
         const bar = parent.createEl("button", { cls: "vl-cbar", attr: { "aria-label": "Colour: open the picker" } });
         const sw = bar.createSpan({ cls: "vl-cbar-sw" }), tx = bar.createSpan({ cls: "vl-cbar-tx" });
         setIcon(bar.createSpan({ cls: "vl-cbar-ch" }), "chevron-down");
+        const tiles: HTMLElement[] = [];
         const show = (v?: string) => {
             const empty = !v || v === "none";
-            parent.querySelectorAll(".vl-ctile").forEach((x) => x.toggleClass("is-on", x.getAttr("data-v") === (empty ? "none" : v)));
+            tiles.forEach((x) => x.toggleClass("is-on", x.getAttr("data-v") === (empty ? "none" : v)));
             sw.style.setProperty("--c", empty ? "transparent" : colorOf(this.theme, v));
             sw.toggleClass("is-none", empty); tx.setText(empty ? "None" : v!);
             tx.toggleClass("is-name", !empty && names.includes(v!));
@@ -1342,6 +1343,7 @@ class Editor {
         const cur = on ?? (none ? "none" : undefined);
         for (const v of opts) {
             const t = g.createEl("button", { cls: "vl-ctile" + (v === cur ? " is-on" : ""), attr: { "aria-label": v === "none" ? "No colour" : `${v}: ${this.theme.colors[v]}`, "data-v": v } });
+            tiles.push(t);
             const sw = t.createSpan({ cls: "vl-ctsw" + (v === "none" ? " is-none" : "") });
             if (v !== "none") sw.style.background = colorOf(this.theme, v);
             t.createSpan({ cls: "vl-ctn", text: v });
@@ -1353,6 +1355,7 @@ class Editor {
             const rr = parent.createDiv({ cls: "vl-tiles2 is-recent" });
             for (const c of recent) {
                 const t = rr.createEl("button", { cls: "vl-ctile" + (c === on ? " is-on" : ""), attr: { "aria-label": c, "data-v": c } });
+                tiles.push(t);
                 t.createSpan({ cls: "vl-ctsw is-check" }).style.setProperty("--c", c);
                 t.createSpan({ cls: "vl-ctn is-hex", text: /^#[0-9a-f]{6,8}$/i.test(c) ? c.slice(1).toUpperCase() : c });
                 t.addEventListener("click", () => { this.edit(() => pick(c)); this.keepColor(c); });
