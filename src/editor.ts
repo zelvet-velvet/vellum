@@ -1370,6 +1370,10 @@ class Editor {
     picking = false;
     eyedropper(): (() => Promise<string>) | null {
         const R = this.root; if (!R) return null;
+        // a computer: the system's eyedropper (any pixel on the screen, other windows too, with its magnifier; its ring
+        // takes the colour under the pointer); a phone has none: Vellum's own, inside its window
+        const Sys = (R.win as Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
+        if (Sys) return () => { this.picking = true; return new Sys().open().then((r) => r.sRGBHex).finally(() => { this.picking = false; }); };
         return () => new Promise<string>((ok, no) => {
             const doc = R.doc, cover = R.createDiv({ cls: "vl-dropcover" }), tip = R.createDiv({ cls: "vl-droptip" });
             const sw = tip.createSpan({ cls: "vl-dropsw" }), tx = tip.createSpan({ cls: "vl-droptx" });
