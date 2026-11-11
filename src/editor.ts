@@ -1187,10 +1187,21 @@ class Editor {
         let timer = 0, active = false, x0 = 0, y0 = 0, v0 = 0, id = -1, bub: HTMLElement | null = null, both = false, fine = 1;
         const notches = (dy: number) => { const u = Math.abs(dy) / 9; return Math.sign(dy) * Math.floor(u < 10 ? u : 10 + Math.pow(u - 10, 1.35)); };
         const fmt = (v: number) => String(+v.toFixed(4));
-        const paint = () => {
+        // while dragging (as ZeLedger does): the value, its box and the bubble change at once; the phone follows a moment
+        // later (one redraw for many steps, so the drag never lags); letting go saves and redraws for good
+        let preview = 0;
+        const light = (v: number) => {
+            const n = +clamp(Math.round(v / st) * st).toFixed(6);
+            if (n === get()) return false;
+            set(n); if (input) input.value = String(n); o.refresh?.();
+            if (!preview) preview = window.setTimeout(() => { preview = 0; this.drawPages(); }, 90);
+            return true;
+        };
+        const paint = (tick = false) => {
             if (!bub) return;
-            const v = get(), d = +(v - v0).toFixed(4);
-            bub.querySelector(".vl-bubble-v")?.setText(fmt(v));
+            const v = get(), d = +(v - v0).toFixed(4), ve = bub.querySelector<HTMLElement>(".vl-bubble-v");
+            ve?.setText(fmt(v));
+            if (tick && ve) { ve.removeClass("is-tick"); void ve.offsetWidth; ve.addClass("is-tick"); }
             bub.querySelector(".vl-bubble-d")?.setText(d ? `${d > 0 ? "+" : "−"}${fmt(Math.abs(d))}` : "↕");
             bub.toggleClass("is-up", d > 0); bub.toggleClass("is-down", d < 0);
         };
@@ -1205,8 +1216,8 @@ class Editor {
                 bub.createDiv({ cls: "vl-bubble-k", text: label });
                 bub.createDiv({ cls: "vl-bubble-v" }); bub.createDiv({ cls: "vl-bubble-d" });
                 const rr = R.getBoundingClientRect(), hr = host.getBoundingClientRect();
-                bub.style.left = `${Math.min(rr.width - 70, Math.max(70, hr.left - rr.left + hr.width / 2))}px`;
-                bub.style.top = `${Math.max(64, hr.top - rr.top - 8)}px`;
+                bub.style.left = `${Math.min(rr.width - 80, Math.max(80, hr.left - rr.left + hr.width / 2))}px`;
+                bub.style.top = `${Math.max(96, hr.top - rr.top - 10)}px`;
                 paint();
         };
         if (o.handle) {
@@ -1234,7 +1245,10 @@ class Editor {
             // up (or right, with a mouse); Shift: ten times the step; Alt: four times the distance for each step
             fine = e.shiftKey ? 10 : 1;
             const d = (both ? (y0 - e.clientY) + (e.clientX - x0) : y0 - e.clientY) / (e.altKey ? 4 : 1);
-            put(v0 + notches(d) * st * editCfg.arrow * fine); paint();
+            if (light(v0 + notches(d) * st * editCfg.arrow * fine)) {
+                paint(true);
+                if (e.pointerType !== "mouse") try { navigator.vibrate?.(8); } catch { /* no haptics */ }
+            }
         };
         host.addEventListener("pointermove", (e) => {
             if (e.pointerId !== id || both) return;
@@ -1245,7 +1259,8 @@ class Editor {
             window.clearTimeout(timer); timer = 0;
             if (!active) return;
             active = false; host.removeClass("is-scrub"); bub?.remove(); bub = null;
-            if (!keep) put(v0);
+            window.clearTimeout(preview); preview = 0;
+            put(keep ? get() : v0);   // saved and drawn for good (or put back)
             this.end();
             // the click that ends a drag does not also put the caret in the box
             const eat = (c: Event) => { c.preventDefault(); c.stopPropagation(); };

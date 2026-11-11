@@ -614,3 +614,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-numt { font: 500 14px/20px var(--font-monospace); font-variant-numeric: tabular-nums; color: var(--text-normal); white-space: nowrap; }
 .vl .vl-numin { flex: 1; min-width: 0; width: 100%; height: 20px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: right; font: 500 14px/20px var(--font-monospace); color: var(--text-normal); }
 .vl .vl-numin:focus { box-shadow: none; }
+/* the drag bubble, as ZeLedger's: a large value that ticks on each step */
+.vl .vl-bubble { min-width: 120px; padding: 8px 14px 7px; }
+.vl .vl-bubble-v { font-size: 30px; line-height: 1.05; font-family: var(--font-monospace); }
+.vl .vl-bubble-v.is-tick { animation: vl-tick 0.12s ease-out; }
+@keyframes vl-tick { from { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .vl .vl-bubble-v.is-tick { animation: none; } }
