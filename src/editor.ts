@@ -572,7 +572,7 @@ class Editor {
         row.addEventListener("click", (e) => { if (shown) { e.stopImmediatePropagation(); e.preventDefault(); shown = false; } }, true);
         row.addEventListener("contextmenu", (e) => e.preventDefault());
     }
-    peek(p: Page, row: HTMLElement) {
+    peek(p: Page, row: HTMLElement, beside?: HTMLElement) {   // beside: to the left of that (else right of the rail)
         const R = this.root; if (!R?.isConnected) return;
         this.unpeek();
         const W = Platform.isMobile ? Math.min(300, R.clientWidth * 0.72) : 240;
@@ -581,7 +581,7 @@ class Editor {
         box.appendChild(this.pic(p, W));
         const rr = R.getBoundingClientRect(), wr = row.getBoundingClientRect(), br = this.rail.getBoundingClientRect();
         if (Platform.isMobile) { box.style.left = `${(rr.width - W) / 2 - 8}px`; box.style.top = `${Math.max(56, (rr.height - box.offsetHeight) / 2)}px`; }
-        else { box.style.left = `${br.right - rr.left + 10}px`; box.style.top = `${Math.max(8, Math.min(rr.height - box.offsetHeight - 8, wr.top - rr.top - 40))}px`; }
+        else { box.style.left = `${beside ? Math.max(8, beside.getBoundingClientRect().left - rr.left - box.offsetWidth - 10) : br.right - rr.left + 10}px`; box.style.top = `${Math.max(8, Math.min(rr.height - box.offsetHeight - 8, wr.top - rr.top - 40))}px`; }
     }
     unpeek() { this.root?.querySelectorAll(".vl-peek").forEach((e) => e.remove()); }
     // a screen drawn small, as it looks (no frames)
@@ -988,6 +988,7 @@ class Editor {
     // ---- the panel: only what is chosen, as controls
     drawPanel() {
         this.closePicker();
+        this.parentClose?.();
         this.keepTop = this.panel?.querySelector(".vl-pbody")?.scrollTop ?? 0;
         this.panel?.remove(); this.panel = null; this.getters.clear();
         this.drawBar();
@@ -1499,15 +1500,147 @@ class Editor {
         for (const [icon, text, act] of list) { const x = g.createEl("button", { cls: "vl-act" }); setIcon(x.createSpan(), icon); x.appendText(text); x.addEventListener("click", act); }
     }
 
+    // "Opened from": the field shows where the screen sits; its list is the screens rail's tree, with a search. Screens that
+    // can't be chosen (this one, those under it: a loop) stay in the list and say why
+    parentClose: (() => void) | null = null;
+    howKept = new Map<string, string>();   // a main screen has no How: the text comes back if it gets a parent again (this session, not saved)
+    chainOf(id?: string) {
+        const out: Page[] = [], seen = new Set<string>();
+        for (let c = this.doc.pages.find((q) => q.id === id); c && !seen.has(c.id); c = this.doc.pages.find((q) => q.id === c?.parent)) { seen.add(c.id); out.unshift(c); }
+        return out;
+    }
+    parentField(parent: HTMLElement, p: Page) {
+        const chain = this.chainOf(p.parent), names = chain.map((c) => c.name);
+        const f = parent.createEl("button", { cls: "vl-ppf", attr: { "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": `Opened from: ${names.join(" › ") || "Main screen"}` } });
+        f.createSpan({ cls: "vl-ppft", text: names.length ? (names.length > 2 ? "… › " : "") + names.slice(-2).join(" › ") : "Main screen" });
+        setIcon(f.createSpan({ cls: "vl-chev" }), "chevron-down");
+        f.addEventListener("click", () => { if (this.parentClose) this.parentClose(); else this.parentOpen(f, p); });
+    }
+    parentPick(p: Page, v: string) {
+        let reset = false;
+        this.edit(() => {
+            if (v) {
+                const kept = !p.parent ? this.howKept.get(p.id) : undefined;
+                if (kept && !p.link) p.link = kept;
+                this.howKept.delete(p.id);
+                // the frame was the old parent's: a new parent's would change the screen without saying so
+                if (p.inherit) { delete p.inherit; reset = true; }
+                p.parent = v;
+            } else {
+                if (p.link) this.howKept.set(p.id, p.link);
+                delete p.parent; delete p.link; delete p.inherit;
+            }
+        });
+        const f = this.panel?.querySelector<HTMLElement>(".vl-ppf");
+        f?.focus();
+        if (reset) this.hint("Layout set back to Its own", f ?? undefined, false);
+    }
+    parentOpen(field: HTMLElement, p: Page) {
+        const R = this.root; if (!R?.isConnected) return;
+        const pages = this.doc.pages, under = subtreeOf(pages, p.id), now = this.chainOf(p.parent).pop()?.id ?? "";
+        // the rail's order: main screens, each followed by the screens under it (anything left, a loop, as a main screen)
+        const tree: { q: Page; depth: number }[] = [], seen = new Set<string>();
+        const walk = (q: Page, depth: number) => { if (seen.has(q.id)) return; seen.add(q.id); tree.push({ q, depth }); for (const c of childrenOf(pages, q.id)) walk(c, depth + 1); };
+        for (const q of childrenOf(pages)) walk(q, 0);
+        for (const q of pages) walk(q, 0);
+
+        const pop = R.createDiv({ cls: "vl-pp" + (Platform.isMobile ? " is-phone" : "") });
+        const find = pop.createDiv({ cls: "vl-ppfind" });
+        setIcon(find.createSpan({ cls: "vl-ppfi" }), "search");
+        const input = find.createEl("input", { attr: { type: "text", placeholder: "Find a screen", "aria-label": "Find a screen", autocomplete: "off", spellcheck: "false" } });
+        const opts = pop.createDiv({ attr: { role: "listbox", "aria-label": "Opened from" } });
+        const top = opts.createDiv(), sep = opts.createDiv({ cls: "vl-ppsep" }), list = opts.createDiv({ cls: "vl-pplist" });
+
+        // the place: under the field, or over it if there's more room there; the right edges line up
+        const rr = R.getBoundingClientRect(), fr = field.getBoundingClientRect(), W = Math.min(290, rr.width - 16);
+        pop.style.width = `${W}px`;
+        pop.style.left = `${Math.max(8, Math.min(rr.width - W - 8, fr.right - rr.left - W))}px`;
+        const below = rr.bottom - fr.bottom - 12, above = fr.top - rr.top - 12, down = below >= 300 || below >= above;
+        if (down) pop.style.top = `${fr.bottom - rr.top + 4}px`; else pop.style.bottom = `${rr.bottom - fr.top + 4}px`;
+        list.style.maxHeight = `${Math.max(120, Math.min(340, (down ? below : above) - 90))}px`;
+
+        type Opt = { id: string; el: HTMLElement; page?: Page };
+        let live: Opt[] = [], at = -1, shown: Page | undefined;
+        const look = (q: Page | undefined, el: HTMLElement) => { if (Platform.isMobile || q === shown) return; shown = q; if (q) this.peek(q, el, pop); else this.unpeek(); };
+        const unlook = () => { shown = undefined; this.unpeek(); };
+        const show = (i: number, scroll: boolean, peek: boolean) => {
+            live[at]?.el.removeClass("is-active");
+            at = i;
+            const o = live[i]; if (!o) return;
+            o.el.addClass("is-active");
+            if (scroll && list.contains(o.el)) {
+                const y = o.el.offsetTop, h = o.el.offsetHeight;
+                if (y < list.scrollTop || y + h > list.scrollTop + list.clientHeight) list.scrollTop = y - (list.clientHeight - h) / 2;
+            }
+            if (peek) look(o.page, o.el);
+        };
+        const addRow = (to: HTMLElement, id: string, name: string, o: { depth?: number; page?: Page; why?: string; text?: string } = {}) => {
+            const el = to.createDiv({ cls: "vl-ppr" + (id === now ? " is-on" : "") + (o.page?.mock ? " is-mock" : "") + (o.why ? " is-off" : ""), attr: { role: "option", "aria-selected": String(id === now) } });
+            if (o.why) el.setAttr("aria-disabled", "true");
+            if (o.depth) { const ind = el.createDiv({ cls: "vl-pind" }); for (let i = 0; i < o.depth; i++) ind.createSpan({ cls: "vl-pguide" }); }
+            const n = el.createSpan({ cls: "vl-ppn" }), m = o.text ? name.toLowerCase().indexOf(o.text) : -1;
+            if (m >= 0) { n.appendText(name.slice(0, m)); n.createSpan({ cls: "vl-ppm", text: name.slice(m, m + o.text!.length) }); n.appendText(name.slice(m + o.text!.length)); }
+            else n.setText(name);
+            if (o.page?.mock) n.appendText(" · mock");
+            if (o.text && m < 0) el.addClass("is-ctx");
+            if (o.why) el.createSpan({ cls: "vl-pptag", text: o.why });
+            else if (id === now) setIcon(el.createSpan({ cls: "vl-ppc" }), "check");
+            const opt: Opt = { id, el, page: o.page };
+            if (!o.why) { live.push(opt); el.addEventListener("click", () => { close(); if (id !== now) this.parentPick(p, id); else field.focus(); }); }
+            if (o.page && Platform.isMobile) this.peekOn(el, o.page);
+            // on the move, not on enter: a list scrolled by the arrow keys must not take the row from under them
+            if (!Platform.isMobile) el.addEventListener("mousemove", () => {
+                const i = live.indexOf(opt);
+                if (i >= 0 && i !== at) show(i, false, false);
+                look(o.page, el);
+            });
+        };
+        const fill = () => {
+            const text = input.value.trim().toLowerCase();
+            top.empty(); list.empty(); live = []; at = -1;
+            unlook();
+            sep.toggle(!text);
+            if (!text) addRow(top, "", "Main screen");
+            const keep = new Set<string>();
+            if (text) for (const { q } of tree) if (q.name.toLowerCase().includes(text)) for (const c of this.chainOf(q.id)) keep.add(c.id);
+            for (const { q, depth } of tree) {
+                if (text && !keep.has(q.id)) continue;
+                addRow(list, q.id, q.name, { depth, page: q, text, why: q.id === p.id ? "this screen" : under.has(q.id) ? "under this screen" : "" });
+            }
+            if (text && !keep.size) list.createDiv({ cls: "vl-ppnone", text: `No screen has "${input.value.trim()}" in its name` });
+            show(text ? Math.max(0, live.findIndex((o) => o.page?.name.toLowerCase().includes(text))) : live.findIndex((o) => o.id === now), true, false);
+        };
+        input.addEventListener("input", fill);
+        input.addEventListener("keydown", (k) => {
+            if (k.isComposing) return;   // the Enter that ends typing in Chinese or Japanese isn't a choice
+            k.stopPropagation();
+            if (k.key === "ArrowDown" || k.key === "ArrowUp") { k.preventDefault(); if (live.length) show((at + (k.key === "ArrowDown" ? 1 : -1) + live.length) % live.length, true, true); }
+            else if (k.key === "Enter") { k.preventDefault(); live[at]?.el.click(); }
+            else if (k.key === "Escape") { k.preventDefault(); close(); field.focus(); }
+        });
+        pop.addEventListener("mouseleave", unlook);
+
+        const scroller = field.closest(".vl-pbody"), off = (e: Event) => { if (!pop.isConnected) close(); else if (!pop.contains(e.target as Node) && !field.contains(e.target as Node)) close(); };
+        const close = () => {
+            if (this.parentClose === close) this.parentClose = null;
+            pop.remove(); this.unpeek(); field.setAttr("aria-expanded", "false");
+            R.doc.removeEventListener("pointerdown", off, true); R.win.removeEventListener("resize", close); scroller?.removeEventListener("scroll", close);
+        };
+        this.parentClose = close;
+        field.setAttr("aria-expanded", "true");
+        R.doc.addEventListener("pointerdown", off, true); R.win.addEventListener("resize", close); scroller?.addEventListener("scroll", close, { passive: true });
+        fill();
+        if (!Platform.isMobile) input.focus();   // (a phone: the keyboard only if asked for, the list needs the room)
+    }
+
     pagePanel(body: HTMLElement, p: Page) {
         const s = this.section(body, "Screen");
         this.text(this.frow(s, "Name"), () => p.name, (v) => { p.name = v; }, { title: "Screen name" });
         this.seg(this.frow(s, "Status"), [["real", "Real", "badge-check"], ["mock", "Mock", "lightbulb"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
-        const under = subtreeOf(this.doc.pages, p.id);
-        this.menu(this.frow(s, "Opened from"), [["", "Nothing (a main screen)"], ...this.doc.pages.filter((q) => !under.has(q.id)).map((q) => [q.id, q.name] as [string, string])], p.parent ?? "", (v) => { if (v) p.parent = v; else { delete p.parent; delete p.link; delete p.inherit; } }, "Opened from");
+        this.parentField(this.frow(s, "Opened from"), p);
         if (p.parent) this.text(this.frow(s, "How"), () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "tap a row, + button…", title: "How you get there" });
         // a frame: the parent's blocks drawn under this screen's own (a layout template)
-        const par = this.page(p.parent);
+        const par = p.parent ? this.page(p.parent) : undefined;   // (no parent: page() would answer with the chosen page)
         if (par) this.seg(this.frow(s, "Layout"), [["own", "Its own"], ["frame", `On ${par.name}'s frame`]], p.inherit ? "frame" : "own", (v) => { if (v === "frame") p.inherit = true; else delete p.inherit; });
         // with a frame: its colour unless the screen sets its own
         const fr = frameOf(this.doc.pages, p), was = (fr && bgOf(this.doc.pages, fr)) || "paper";

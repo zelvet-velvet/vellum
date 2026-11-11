@@ -610,3 +610,28 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-bubble-v.is-tick { animation: vl-tick 0.12s ease-out; }
 @keyframes vl-tick { from { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { .vl .vl-bubble-v.is-tick { animation: none; } }
+
+/* Opened from: the field and its list (the rail's tree, with a search) */
+.vl .vl-ppf { flex: 1; min-width: 0; height: 32px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--background-modifier-form-field); border: 1px solid var(--background-modifier-border); box-shadow: none; border-radius: var(--input-radius, 5px); font-size: var(--font-ui-small); color: var(--text-normal); }
+.vl .vl-ppf:hover { border-color: var(--background-modifier-border-hover); background: var(--background-modifier-form-field); }
+.vl-ppft { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-ppf .vl-chev { display: flex; flex: none; color: var(--text-faint); --icon-size: 14px; }
+.vl-pp { position: absolute; z-index: 26; padding: 4px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; box-shadow: var(--shadow-l); }
+.vl-ppfind { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; }
+.vl-ppfi { display: flex; flex: none; color: var(--text-faint); --icon-size: 14px; }
+.vl .vl-ppfind input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--font-ui-small); }
+.vl .vl-ppfind input:focus { border: 0; box-shadow: none; }
+.vl-ppsep { height: 1px; margin: 3px 4px; background: var(--background-modifier-border); }
+.vl-pplist { position: relative; overflow-y: auto; }
+.vl-ppr { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border-radius: 5px; font-size: var(--font-ui-small); color: var(--text-normal); cursor: pointer; }
+.vl-pp.is-phone .vl-ppr { min-height: 44px; }
+.vl-ppr.is-active { background: var(--background-modifier-hover); }
+.vl-ppn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-ppm { color: var(--interactive-accent); font-weight: 600; }
+.vl-pptag { flex: none; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.vl-ppc { display: flex; flex: none; color: var(--interactive-accent); --icon-size: 14px; }
+.vl-ppr.is-on .vl-ppn { color: var(--interactive-accent); font-weight: 600; }
+.vl-ppr.is-mock .vl-ppn { color: var(--text-muted); font-style: italic; }
+.vl-ppr.is-ctx .vl-ppn, .vl-ppr.is-off .vl-ppn { color: var(--text-faint); }
+.vl-ppr.is-off { cursor: default; }
+.vl-ppnone { padding: 12px 8px; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
