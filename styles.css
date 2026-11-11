@@ -607,3 +607,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-dropk { font-size: 10.5px; color: var(--text-faint); }
 /* an item lit on the phone while the pointer rests on its row in the panel */
 .vl-screen:not(.is-show) .vl-it.is-hl { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }   /* an outline: items with their own outline (an inset shadow) keep it */
+/* the number box as a tile: the value is text (hold and drag it, a click types); the field while typing */
+.vl .vl-num { cursor: ns-resize; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.vl .vl-num:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vl .vl-num.is-typing { cursor: text; border-color: var(--interactive-accent); box-shadow: 0 0 0 1px var(--interactive-accent); }
+.vl-numt { font: 500 14px/20px var(--font-monospace); font-variant-numeric: tabular-nums; color: var(--text-normal); white-space: nowrap; }
+.vl .vl-numin { flex: 1; min-width: 0; width: 100%; height: 20px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: right; font: 500 14px/20px var(--font-monospace); color: var(--text-normal); }
+.vl .vl-numin:focus { box-shadow: none; }

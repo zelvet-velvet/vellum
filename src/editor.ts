@@ -1115,29 +1115,54 @@ class Editor {
         return m;
     }
     // a number: type it, or drag its label sideways to scrub; live while it changes, one undo step for the whole change
+    // a number box, as ZeLedger's amount tiles: the value is text. Hold the box (a mouse or a finger), then drag up or down
+    // to change it, a bubble showing the value; a quick click or tap turns it into a field to type in (Enter keeps it, Esc
+    // puts it back); the arrows step it; with the box focused, ↑ ↓ step and Enter types
     num(parent: HTMLElement, name: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; unit?: string } = {}) {
-        const w = parent.createDiv({ cls: "vl-num" });
-        const l = w.createSpan({ cls: "vl-numl", text: name });
+        const w = parent.createDiv({ cls: "vl-num", attr: { tabindex: "0", role: "spinbutton", "aria-label": name } });
+        w.createSpan({ cls: "vl-numl", text: name });
         const vr = w.createDiv({ cls: "vl-numv" });
-        const i = vr.createEl("input", { attr: { type: "number", step: String(o.step ?? 1), "data-live": "1", "aria-label": name } });
+        const vt = vr.createSpan({ cls: "vl-numt" });
         if (o.unit) vr.createSpan({ cls: "vl-numu", text: o.unit });
-        i.value = String(get());
-        this.getters.set(i, get);
+        const st = o.step ?? 1, fmt = (v: number) => String(+v.toFixed(4));
         const clamp = (v: number) => Math.min(o.max ?? Infinity, Math.max(o.min ?? -Infinity, v));
-        const apply = (v: number) => { set(clamp(Math.round(v / (o.step ?? 1)) * (o.step ?? 1))); this.draftPut(); this.drawPages(); this.drawBar(); };
-        i.addEventListener("focus", () => this.begin());
-        i.addEventListener("input", () => { if (i.value !== "" && !Number.isNaN(Number(i.value))) apply(Number(i.value)); });
-        i.addEventListener("blur", () => { this.end(); i.value = String(get()); });
-        i.addEventListener("keydown", (k) => { if (k.key === "Enter") i.blur(); });
-        this.numberExtras(w, i, name, get, set, { ...o, handle: l });
+        const show = () => { vt.setText(fmt(get())); w.setAttr("aria-valuenow", String(get())); };
+        show();
+        this.liveText.set(vt, () => fmt(get()));   // a drag elsewhere (the phone, the diagram) updates it
+        const apply = (v: number) => { set(+clamp(Math.round(v / st) * st).toFixed(6)); this.draftPut(); this.drawPages(); this.drawBar(); show(); this.livePanel(); };
+        // typing: the value becomes a field
+        const type = () => {
+            if (w.querySelector("input")) return;
+            const i = createEl("input", { cls: "vl-numin", attr: { type: "text", inputmode: "decimal", "aria-label": name } });
+            i.value = fmt(get()); vt.replaceWith(i); w.addClass("is-typing");
+            const v0 = get(); this.begin();
+            i.focus(); i.select();
+            let done = false;
+            const fin = (keep: boolean) => {
+                if (done) return; done = true;
+                if (!keep) apply(v0);
+                i.replaceWith(vt); w.removeClass("is-typing"); show(); this.end();
+                this.liveText.set(vt, () => fmt(get()));
+            };
+            i.addEventListener("input", () => { const n = Number(i.value.replace(",", ".")); if (i.value.trim() !== "" && !Number.isNaN(n)) apply(n); });
+            i.addEventListener("keydown", (k) => { k.stopPropagation(); if (k.key === "Enter") { k.preventDefault(); fin(true); w.focus(); } if (k.key === "Escape") { k.preventDefault(); fin(false); w.focus(); } });
+            i.addEventListener("blur", () => fin(true));
+        };
+        w.addEventListener("click", (e) => { if (!(e.target as HTMLElement).closest(".vl-arrows")) type(); });
+        w.addEventListener("keydown", (k) => {
+            if (k.target !== w) return;
+            if (k.key === "Enter") { k.preventDefault(); type(); }
+            else if (k.key === "ArrowUp" || k.key === "ArrowDown") { k.preventDefault(); k.stopPropagation(); this.begin(); apply(get() + (k.key === "ArrowUp" ? 1 : -1) * st * editCfg.arrow * (k.shiftKey ? 10 : 1)); this.end(); }
+        });
+        this.numberExtras(w, null, name, get, set, { ...o, refresh: show, anyPointer: true });
         return w;
     }
     // a number box's extras: ▲▼ arrows (a press moves one arrow step, Shift ten of them, holding repeats) and hold-and-drag:
     // hold the box still, then drag up or down; a bubble shows the value and the change; letting go keeps it, a cancel
     // puts it back. host: the box; arrows: where the arrows go (false: none); set is live (one undo step per change)
-    numberExtras(host: HTMLElement, input: HTMLInputElement, label: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; arrows?: HTMLElement | false; handle?: HTMLElement } = {}) {
+    numberExtras(host: HTMLElement, input: HTMLInputElement | null, label: string, get: () => number, set: (v: number) => void, o: { step?: number; min?: number; max?: number; arrows?: HTMLElement | false; handle?: HTMLElement; refresh?: () => void; anyPointer?: boolean } = {}) {
         const st = o.step ?? 1, clamp = (v: number) => Math.min(o.max ?? Infinity, Math.max(o.min ?? -Infinity, v));
-        const put = (v: number) => { set(+clamp(Math.round(v / st) * st).toFixed(6)); input.value = String(get()); this.draftPut(); this.drawPages(); this.drawBar(); this.livePanel(); };
+        const put = (v: number) => { set(+clamp(Math.round(v / st) * st).toFixed(6)); if (input) input.value = String(get()); o.refresh?.(); this.draftPut(); this.drawPages(); this.drawBar(); this.livePanel(); };
         if (o.arrows !== false) {
             const box = (o.arrows ?? host).createDiv({ cls: "vl-arrows" });
             for (const [dir, icon, name] of [[1, "chevron-up", "More"], [-1, "chevron-down", "Less"]] as const) {
@@ -1172,7 +1197,7 @@ class Editor {
         host.addEventListener("touchmove", (e) => { if (active) e.preventDefault(); }, { passive: false });
         host.addEventListener("contextmenu", (e) => { if (active || timer) e.preventDefault(); });
         const start = () => {
-                timer = 0; active = true; input.blur(); v0 = get(); this.begin();
+                timer = 0; active = true; input?.blur(); v0 = get(); this.begin();
                 try { host.setPointerCapture(id); } catch { /* */ }
                 host.addClass("is-scrub");
                 const R = this.root; if (!R) return;
@@ -1199,7 +1224,7 @@ class Editor {
             hd.addEventListener("pointercancel", (e) => { if (e.pointerId === id) finish(false); });
         }
         host.addEventListener("pointerdown", (e) => {
-            if (e.button !== 0 || active || !editCfg.hold || e.pointerType === "mouse" || (e.target as HTMLElement).closest(".vl-arrows, .vl-drag")) return;
+            if (e.button !== 0 || active || !editCfg.hold || (e.pointerType === "mouse" && !o.anyPointer) || (e.target as HTMLElement).closest(".vl-arrows, .vl-drag, input")) return;
             x0 = e.clientX; y0 = e.clientY; id = e.pointerId; both = false;
             window.clearTimeout(timer);
             timer = window.setTimeout(start, 280);
