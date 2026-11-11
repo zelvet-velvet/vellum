@@ -183,8 +183,6 @@ src: Design/Screens
 <summary><b>Does Vellum use the network?</b></summary>
 
 Only to show a picture whose `src` is an `https://` address, as an image in a note would. Vellum makes no requests of its own.
-
-The eyedropper, on a computer, takes one snapshot of your screens while you pick a colour (to show its magnifier and read the pixel under the pointer, anywhere). The snapshot stays in memory, is never saved or sent, and is dropped when you pick or cancel.
 </details>
 
 <details>

@@ -950,7 +950,6 @@ class Editor {
         if (this.handle(e)) { e.preventDefault(); e.stopPropagation(); }
     }
     handle(e: KeyboardEvent): boolean {
-        if (this.picking) return false;   // the eyedropper takes Esc
         const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable]");
         const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
         if (mod && k === "s") { this.save(); return true; }
@@ -1322,25 +1321,24 @@ class Editor {
         box.setSelectionRange(box.value.length, box.value.length);
     }
     // a colour: a bar showing it (its swatch, its name or value; a tap opens the picker) and a palette row under it (the
-    // theme's colours, the recent ones, the eyedropper): one tap picks
+    // theme's colours, then the recent ones): one tap picks
     colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false) {
         const names = Object.keys(this.theme.colors);
         const bar = parent.createEl("button", { cls: "vl-cbar", attr: { "aria-label": "Colour: open the picker" } });
         const sw = bar.createSpan({ cls: "vl-cbar-sw" }), tx = bar.createSpan({ cls: "vl-cbar-tx" });
         setIcon(bar.createSpan({ cls: "vl-cbar-ch" }), "chevron-down");
-        let palette: HTMLElement | null = null;
         const show = (v?: string) => {
             const empty = !v || v === "none";
-            palette?.querySelectorAll(".vl-ctile, .vl-rsw").forEach((x) => x.toggleClass("is-on", x.getAttr("data-v") === (empty ? "none" : v)));
+            parent.querySelectorAll(".vl-ctile").forEach((x) => x.toggleClass("is-on", x.getAttr("data-v") === (empty ? "none" : v)));
             sw.style.setProperty("--c", empty ? "transparent" : colorOf(this.theme, v));
             sw.toggleClass("is-none", empty); tx.setText(empty ? "None" : v!);
             tx.toggleClass("is-name", !empty && names.includes(v!));
         };
         show(on);
         bar.addEventListener("click", () => { if (this.picker?.anchor === bar) this.closePicker(); else this.openPicker(bar, on, pick, show, none); });
-        // the palette: the theme's colours as named tiles, then recent colours and the eyedropper
+        // the palette: the theme's colours as named tiles, then the last few custom ones as tiles named by their hex
         const opts: string[] = [...(none ? ["none"] : []), ...names];
-        const g = parent.createDiv({ cls: "vl-tiles2" }); palette = g;
+        const g = parent.createDiv({ cls: "vl-tiles2" });
         const cur = on ?? (none ? "none" : undefined);
         for (const v of opts) {
             const t = g.createEl("button", { cls: "vl-ctile" + (v === cur ? " is-on" : ""), attr: { "aria-label": v === "none" ? "No colour" : `${v}: ${this.theme.colors[v]}`, "data-v": v } });
@@ -1349,113 +1347,24 @@ class Editor {
             t.createSpan({ cls: "vl-ctn", text: v });
             t.addEventListener("click", () => this.edit(() => pick(v)));
         }
-        const recent = this.recentColors().filter((c) => !names.includes(c)), drop = this.eyedropper();
-        if (recent.length || drop) {
-            const rr = parent.createDiv({ cls: "vl-recent2" });
-            if (recent.length) rr.createSpan({ cls: "vl-recentl", text: "Recent" });
+        const recent = this.recentColors().filter((c) => !names.includes(c)).slice(0, 4);
+        if (recent.length) {
+            parent.createDiv({ cls: "vl-recentl", text: "Recent" });
+            const rr = parent.createDiv({ cls: "vl-tiles2 is-recent" });
             for (const c of recent) {
-                const b = rr.createEl("button", { cls: "vl-rsw" + (c === on ? " is-on" : ""), attr: { "aria-label": c, "data-v": c } });
-                b.style.setProperty("--c", c);
-                b.addEventListener("click", () => { this.edit(() => pick(c)); this.keepColor(c); });
-            }
-            if (drop) {
-                const d = rr.createEl("button", { cls: "vl-rpick", attr: { "aria-label": "Pick a colour from the screen" } });
-                setIcon(d, "pipette");
-                d.addEventListener("click", () => { drop().then((c) => { this.edit(() => pick(c)); this.keepColor(c); }, () => { /* Esc */ }); });
+                const t = rr.createEl("button", { cls: "vl-ctile" + (c === on ? " is-on" : ""), attr: { "aria-label": c, "data-v": c } });
+                t.createSpan({ cls: "vl-ctsw is-check" }).style.setProperty("--c", c);
+                t.createSpan({ cls: "vl-ctn is-hex", text: /^#[0-9a-f]{6,8}$/i.test(c) ? c.slice(1).toUpperCase() : c });
+                t.addEventListener("click", () => { this.edit(() => pick(c)); this.keepColor(c); });
             }
         }
-    }
-    // Vellum's own eyedropper (no system magnifier): a crosshair over the editor and a tag showing the colour under the
-    // pointer; a click picks it, Esc cancels. Over a text: its colour (Alt: what is behind it); else the first background
-    picking = false;
-    eyedropper(): (() => Promise<string>) | null {
-        const R = this.root; if (!R) return null;
-        // a computer: the system's eyedropper (any pixel on the screen, other windows too, with its magnifier; its ring
-        // takes the colour under the pointer); a phone has none: Vellum's own, inside its window
-        const anywhere = screenPicker();
-        if (anywhere) return () => this.pickAnywhere(anywhere);
-        const Sys = (R.win as Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
-        if (Sys) return () => { this.picking = true; return new Sys().open().then((r) => r.sRGBHex).finally(() => { this.picking = false; }); };
-        return () => new Promise<string>((ok, no) => {
-            const doc = R.doc, cover = R.createDiv({ cls: "vl-dropcover" }), tip = R.createDiv({ cls: "vl-droptip" });
-            const sw = tip.createSpan({ cls: "vl-dropsw" }), tx = tip.createSpan({ cls: "vl-droptx" });
-            tip.createSpan({ cls: "vl-dropk", text: "Click · Esc" });
-            this.picking = true;
-            let cur = "";
-            const sample = (x: number, y: number, behind: boolean) => {
-                for (const el of doc.elementsFromPoint(x, y)) {
-                    if (el === cover || el === tip || tip.contains(el)) continue;
-                    const cs = getComputedStyle(el);
-                    if (!behind && el.closest(".vl-i-text") === el && el.textContent) return cs.color;
-                    if (cs.backgroundColor && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(cs.backgroundColor)) return cs.backgroundColor;
-                }
-                return "";
-            };
-            const hex = (c: string) => { const m = (c.match(/[\d.]+/g) ?? []).map(Number); return m.length >= 3 ? hexOf({ r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }) : ""; };
-            const move = (e: PointerEvent) => {
-                cur = hex(sample(e.clientX, e.clientY, e.altKey));
-                const rr = R.getBoundingClientRect();
-                tip.style.left = `${e.clientX - rr.left + 16}px`; tip.style.top = `${e.clientY - rr.top + 16}px`;
-                sw.style.background = cur || "transparent"; tx.setText(cur || "—");
-            };
-            const stop = () => { this.picking = false; cover.remove(); tip.remove(); R.win.removeEventListener("keydown", key, true); };
-            const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); no(new Error("cancelled")); } };
-            cover.addEventListener("pointermove", move);
-            cover.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); move(e); stop(); if (cur) ok(cur); else no(new Error("no colour")); });
-            R.win.addEventListener("keydown", key, true);
-        });
-    }
-    // a colour from anywhere on any screen (a computer): a snapshot of every screen as picking starts; Vellum's magnifier
-    // shows the pixels around the pointer wherever it is (other windows, other monitors), the hex under it; a click in
-    // Vellum's window, or Space / Enter anywhere, picks; Esc cancels
-    pickAnywhere(sp: ScreenPicker): Promise<string> {
-        const R = this.root; if (!R) return Promise.reject(new Error("no editor"));
-        this.picking = true;
-        const box = R.createDiv({ cls: "vl-loupe" });
-        const cv = box.createEl("canvas", { attr: { width: 110, height: 110 } }), ctx = cv.getContext("2d")!;
-        const foot = box.createDiv({ cls: "vl-loupef" }), sw = foot.createSpan({ cls: "vl-dropsw" }), tx = foot.createSpan({ cls: "vl-droptx", text: "…" });
-        box.createDiv({ cls: "vl-loupek", text: "Space or click: pick · Esc" });
-        const cover = R.createDiv({ cls: "vl-dropcover is-clear" });
-        return new Promise<string>((ok, no) => {
-            let shots: Shot[] = [], raf = 0, cur = "", done = false;
-            const stop = () => { done = true; this.picking = false; cancelAnimationFrame(raf); box.remove(); cover.remove(); R.win.removeEventListener("keydown", key, true); };
-            const pick = () => { if (!cur) return; stop(); ok(cur); };
-            const key = (e: KeyboardEvent) => {
-                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); no(new Error("cancelled")); }
-                else if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); pick(); }
-            };
-            R.win.addEventListener("keydown", key, true);
-            cover.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); pick(); });
-            const frame = () => {
-                if (done) return;
-                const p = sp.cursor(), sh = shots.find((x) => p.x >= x.b.x && p.x < x.b.x + x.b.width && p.y >= x.b.y && p.y < x.b.y + x.b.height);
-                if (sh) {
-                    const px = Math.floor((p.x - sh.b.x) * sh.k), py = Math.floor((p.y - sh.b.y) * sh.k);
-                    // 11 × 11 pixels around the pointer, 10 times as large; the middle one framed
-                    const img = ctx.createImageData(11, 11);
-                    for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) {
-                        const sx = Math.min(sh.w - 1, Math.max(0, px + x - 5)), sy = Math.min(sh.h - 1, Math.max(0, py + y - 5)), i = (sy * sh.w + sx) * 4, o = (y * 11 + x) * 4;
-                        img.data[o] = sh.px[i + 2]; img.data[o + 1] = sh.px[i + 1]; img.data[o + 2] = sh.px[i]; img.data[o + 3] = 255;
-                    }
-                    const tmp = activeDocument.createElement("canvas"); tmp.width = 11; tmp.height = 11; tmp.getContext("2d")!.putImageData(img, 0, 0);
-                    ctx.imageSmoothingEnabled = false; ctx.drawImage(tmp, 0, 0, 110, 110);
-                    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 2; ctx.strokeRect(50, 50, 10, 10);
-                    ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = 1; ctx.strokeRect(48.5, 48.5, 13, 13);
-                    const c = (py * sh.w + px) * 4;
-                    cur = hexOf({ r: sh.px[c + 2], g: sh.px[c + 1], b: sh.px[c], a: 1 });
-                    sw.style.background = cur; tx.setText(cur);
-                }
-                raf = requestAnimationFrame(frame);
-            };
-            sp.shots().then((s) => { shots = s; frame(); }, (e: Error) => { stop(); no(e); });
-        });
     }
     // recent custom colours, newest first (kept on the device for this vault)
     recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]"); } catch { return []; } }
     keepColor(c: string) { if (!c || c === "none" || c in this.theme.colors) return; setLocal("vellum:recentColors", JSON.stringify([c, ...this.recentColors().filter((x) => x !== c)].slice(0, 8))); }
     colorMode: "hex" | "rgb" | "hsl" = (getLocal("vellum:colorMode") as "hex" | "rgb" | "hsl") || "hex";
     // the picker: a panel floating by its bar. The colour square (saturation across, brightness down), the hue and opacity
-    // bars, then the exact value (hex or any CSS colour, or RGB / HSL numbers) and the eyedropper, then recent colours.
+    // bars, then the exact value (hex or any CSS colour, or RGB / HSL numbers), then recent colours.
     // Each drag or typed change is one undo step; a tap anywhere else, or Esc, closes it
     picker: { el: HTMLElement; anchor: HTMLElement; off: () => void } | null = null;
     closePicker() { const p = this.picker; if (!p) return; this.picker = null; p.off(); p.el.remove(); }
@@ -1470,8 +1379,6 @@ class Editor {
         const al = el.createDiv({ cls: "vl-cstrip is-alpha" }), alk = al.createDiv({ cls: "vl-cknob" });
         // the exact value
         const vals = el.createDiv({ cls: "vl-cvals" });
-        const drop = this.eyedropper();
-        if (drop) { const d = vals.createEl("button", { cls: "vl-cicon", attr: { "aria-label": "Pick a colour from the screen" } }); setIcon(d, "pipette"); d.addEventListener("click", () => { drop().then((h) => { const x = this.rgbaOf(h); Object.assign(c, x); Object.assign(hsv, rgbToHsv(c.r, c.g, c.b)); this.begin(); set(); this.end(); this.keepColor(hexOf(c)); }, () => { /* Esc */ }); }); }
         const fields = vals.createDiv({ cls: "vl-cfields" });
         const modes = el.createDiv({ cls: "vl-cmodes" });
         // recent colours, and none where it is allowed
@@ -1570,7 +1477,7 @@ class Editor {
         el.style.top = `${ar.bottom - rr.top + 6 + ph > rr.height - 8 ? Math.max(8, ar.top - rr.top - 6 - ph) : ar.bottom - rr.top + 6}px`;
         // a tap anywhere else, or Esc, closes it
         const doc = R.doc;
-        const outside = (e: Event) => { const t = e.target as Node; if (!this.picking && !el.contains(t) && !anchor.contains(t)) this.closePicker(); };
+        const outside = (e: Event) => { const t = e.target as Node; if (!el.contains(t) && !anchor.contains(t)) this.closePicker(); };
         const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); this.closePicker(); } };
         window.setTimeout(() => doc.addEventListener("pointerdown", outside, true));
         doc.addEventListener("keydown", esc, true);
@@ -2143,33 +2050,6 @@ const lookOn = (o: { fill?: string; sw?: number }) => !!(o.fill && o.fill !== "n
 const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | number[] }) => {
     const f = o.fill && o.fill !== "none" ? (o.fill.includes("(") ? "custom fill" : o.fill) : "", line = o.sw ? `outline ${o.sw}${o.sides ? ` ${o.sides}` : ""}` : "";
     return [f, line].filter(Boolean).join(" · ") || "none";
-};
-// picking a colour anywhere on the screen (a computer): Electron's screen module (the pointer anywhere, every display)
-// and its screen capture, through Obsidian's own remote; none of it on a phone, or where capture is not allowed
-type Shot = { b: { x: number; y: number; width: number; height: number }; k: number; w: number; h: number; px: Uint8Array };
-type ScreenPicker = { cursor(): { x: number; y: number }; shots(): Promise<Shot[]> };
-const screenPicker = (): ScreenPicker | null => {
-    if (Platform.isMobile) return null;
-    type Disp = { id: number; bounds: Shot["b"]; scaleFactor: number };
-    type Img = { toBitmap(): Uint8Array; getSize(): { width: number; height: number } };
-    type Remote = { screen: { getCursorScreenPoint(): { x: number; y: number }; getAllDisplays(): Disp[] }; desktopCapturer: { getSources(o: unknown): Promise<{ display_id: string; thumbnail: Img }[]> } };
-    let remote: Remote | undefined;
-    try { remote = ((window as unknown as { require?: (m: string) => { remote?: Remote } }).require?.("electron"))?.remote; } catch { return null; }
-    if (!remote?.screen || !remote.desktopCapturer) return null;
-    const r = remote;
-    return {
-        cursor: () => r.screen.getCursorScreenPoint(),
-        shots: async () => {
-            const ds = r.screen.getAllDisplays();
-            const big = ds.reduce((m, d) => ({ width: Math.max(m.width, Math.round(d.bounds.width * d.scaleFactor)), height: Math.max(m.height, Math.round(d.bounds.height * d.scaleFactor)) }), { width: 0, height: 0 });
-            const srcs = await r.desktopCapturer.getSources({ types: ["screen"], thumbnailSize: big });
-            return ds.map((d, i) => {
-                const src = srcs.find((x) => x.display_id === String(d.id)) ?? srcs[i]; if (!src) return null;
-                const sz = src.thumbnail.getSize();
-                return { b: d.bounds, k: sz.width / d.bounds.width, w: sz.width, h: sz.height, px: src.thumbnail.toBitmap() };
-            }).filter((x): x is Shot => !!x && x.w > 0);
-        },
-    };
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`

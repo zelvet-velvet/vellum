@@ -455,8 +455,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
   background: var(--c, transparent); border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.35); box-sizing: border-box; }
 .vl-csq .vl-cknob { width: 18px; height: 18px; }
 .vl-cvals { display: flex; align-items: center; gap: 6px; }
-.vl .vl-cicon { width: 30px; height: 30px; flex: none; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--background-modifier-border); border-radius: 7px; background: transparent; box-shadow: none; --icon-size: 15px; }
-.vl .vl-cicon:hover { background: var(--background-modifier-hover); }
 .vl-cfields { flex: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
 .vl .vl-chex { width: 100%; height: 30px; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
 .vl .vl-chex.is-bad { border-color: var(--text-error); }
@@ -555,7 +553,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-frowc > .vl-text, .vl .vl-frowc > input.vl-text { flex: 1; min-width: 0; }
 .vl .vl-menu2 { flex: 1; min-width: 0; height: 32px; }
 .vl-kindi { display: flex; flex: none; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 6px; color: var(--k); background: color-mix(in srgb, var(--k) 16%, transparent); --icon-size: 14px; }
-/* colours: the theme's as named tiles; recent ones and the eyedropper in a labelled row */
+/* colours: the theme's as named tiles; the recent custom ones as tiles named by their hex */
 .vl-tiles2 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
 .vl .vl-ctile { height: auto; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: 4px 4px 3px; border: 1px solid transparent; border-radius: 7px; background: transparent; box-shadow: none; min-width: 0; }
 .vl .vl-ctile:hover { background: var(--background-modifier-hover); }
@@ -564,12 +562,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ctsw.is-none { background: linear-gradient(135deg, transparent 46%, var(--text-faint) 46% 54%, transparent 54%), var(--background-modifier-form-field); }
 .vl-ctn { font-size: 10.5px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl .vl-ctile.is-on .vl-ctn { color: var(--text-normal); }
-.vl-recent2 { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
-.vl-recentl { font-size: 10.5px; color: var(--text-faint); margin-right: 2px; }
-.vl .vl-rsw { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 16%, transparent);
-  background: linear-gradient(var(--c, transparent), var(--c, transparent)), repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 6px 6px; }
-.vl .vl-rsw.is-on { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3.5px var(--interactive-accent); }
-.vl .vl-rpick { margin-left: auto; width: 28px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); --icon-size: 14px; }
+.vl-recentl { margin: 8px 0 0 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.vl-tiles2.is-recent { margin-top: 3px; }
+.vl-ctsw.is-check { background: linear-gradient(var(--c), var(--c)), repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 6px 6px; }
+.vl-ctn.is-hex { font-family: var(--font-monospace); font-size: 10px; letter-spacing: 0.02em; }
 .vl-tiles2.is-pop { margin: 0; }
 /* adding: blocks by kind, items by type, as named tiles */
 .vl-addgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
@@ -598,12 +594,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-align { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; border: 1px solid var(--background-modifier-border); background: var(--background-modifier-form-field); }
 .vl .vl-align .vl-btn { flex: 1; height: 26px; border-radius: 6px; }
 
-/* Vellum's own eyedropper: a cover with a crosshair, a tag with the colour under the pointer */
-.vl-dropcover { position: absolute; inset: 0; z-index: 60; cursor: crosshair; }
-.vl-droptip { position: absolute; z-index: 61; display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 5px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32); pointer-events: none; }
-.vl-dropsw { width: 22px; height: 22px; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-normal) 18%, transparent); }
-.vl-droptx { font: 500 12px var(--font-monospace); color: var(--text-normal); }
-.vl-dropk { font-size: 10.5px; color: var(--text-faint); }
 /* an item lit on the phone while the pointer rests on its row in the panel */
 .vl-screen:not(.is-show) .vl-it.is-hl { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }   /* an outline: items with their own outline (an inset shadow) keep it */
 /* the number box as a tile: the value is text (hold and drag it, a click types); the field while typing */
@@ -620,9 +610,3 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-bubble-v.is-tick { animation: vl-tick 0.12s ease-out; }
 @keyframes vl-tick { from { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { .vl .vl-bubble-v.is-tick { animation: none; } }
-/* the eyedropper's magnifier: the pixels around the pointer (anywhere on any screen), the hex under them */
-.vl-loupe { position: absolute; z-index: 62; right: 16px; bottom: 72px; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4); pointer-events: none; }
-.vl-loupe canvas { width: 110px; height: 110px; border-radius: 8px; image-rendering: pixelated; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
-.vl-loupef { display: flex; align-items: center; gap: 7px; }
-.vl-loupek { font-size: 10.5px; color: var(--text-faint); }
-.vl-dropcover.is-clear { background: transparent; }
