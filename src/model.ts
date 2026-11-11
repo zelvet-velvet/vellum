@@ -85,7 +85,7 @@ export const findItem = (items: Item[], id: string): { item: Item; list: Item[] 
     }
     return null;
 };
-export const cloneItem = (it: Item): Item => ({ ...JSON.parse(JSON.stringify(it)), id: uid(), ...(it.items ? { items: it.items.map(cloneItem) } : {}) });
+export const cloneItem = (it: Item): Item => ({ ...(JSON.parse(JSON.stringify(it)) as Item), id: uid(), ...(it.items ? { items: it.items.map(cloneItem) } : {}) });
 
 // new items as the + buttons make them
 export const newItem = (type: ItemType): Item => {

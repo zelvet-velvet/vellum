@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
-import { axes, bgOf, Block, Insets, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, Size, uid } from "./model";
+import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
@@ -189,8 +189,8 @@ class Editor {
         window.setTimeout(() => h.addClass("is-out"), 1800);
         window.setTimeout(() => h.remove(), 2200);
     }
-    undo() { const s = this.past.pop(); if (!s) return; this.future.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
-    redo() { const s = this.future.pop(); if (!s) return; this.past.push(this.snap()); this.doc = JSON.parse(s); this.fixSel(); this.draftPut(); this.draw(); }
+    undo() { const s = this.past.pop(); if (!s) return; this.future.push(this.snap()); this.doc = JSON.parse(s) as Doc; this.fixSel(); this.draftPut(); this.draw(); }
+    redo() { const s = this.future.pop(); if (!s) return; this.past.push(this.snap()); this.doc = JSON.parse(s) as Doc; this.fixSel(); this.draftPut(); this.draw(); }
     save() {
         if (this.store) {
             const text = serialiseDoc(this.doc), st = this.store;
@@ -240,7 +240,7 @@ class Editor {
         const up = this.screen(p, false), sd = this.screen(p, true);
         const roomUp = up.W - up.safe.left - up.safe.right, roomSd = sd.W - sd.safe.left - sd.safe.right;
         p.land = p.blocks.map((b) => {
-            const c: Block = JSON.parse(JSON.stringify(b));
+            const c = JSON.parse(JSON.stringify(b)) as Block;
             const m = b.x - up.safe.left, wide = b.w >= roomUp - 2 * m - 4;
             c.x = sd.safe.left + m; c.w = wide ? Math.max(8, roomSd - 2 * m) : b.w;
             c.y = Math.max(sd.safe.top, b.y - up.safe.top);
@@ -250,7 +250,7 @@ class Editor {
     // a page's screen as drawn: the device's, with the safe areas set for this doc (upright / sideways)
     screen(p: Page, land = this.land) {
         const sc = screenOf(deviceOf(p.device ?? this.doc.device), land), o = land ? this.doc.safeLand : this.doc.safe;
-        return { ...sc, safe: { ...sc.safe, ...o } as Insets };
+        return { ...sc, safe: { ...sc.safe, ...o } };
     }
     // the room a block keeps to: inside the safe areas, or the whole screen when it may go under the bars (bleed)
     room(p: Page, b?: Block) {
@@ -262,7 +262,7 @@ class Editor {
     layer() { const p = this.page(); return p && this.sel?.block ? this.layers(p).find((l) => l.block.id === this.sel?.block) : undefined; }
     item() { const b = this.block(); return b && this.sel?.item ? findItem(b.items, this.sel.item) : null; }
     choose(s: Sel) { this.sel = s; this.drawPanel(); this.drawPages(); }
-    fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.layer()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel!.page, block: this.sel!.block }; }
+    fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.layer()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel.page, block: this.sel.block }; }
 
     // ---- the card in the note: the screens as a small map, Open
     drawCard() {
@@ -305,8 +305,8 @@ class Editor {
             let raf = 0;
             new ResizeObserver(() => {
                 if (!R.isConnected) return;
-                cancelAnimationFrame(raf);
-                raf = requestAnimationFrame(() => {
+                window.cancelAnimationFrame(raf);
+                raf = window.requestAnimationFrame(() => {
                     if (this.v.fit && this.pending === null) this.drawPages();
                 });
             }).observe(R);
@@ -625,7 +625,7 @@ class Editor {
     // the tree's pictures are as big as its width allows: 22 px at the narrowest, up to 180 px
     picW(railW: number) { return Math.round(Math.min(180, Math.max(22, (railW - 190) * 0.9))); }
     // folded branches of the tree, kept on the device per doc
-    folds(): Set<string> { try { return new Set(JSON.parse(getLocal(`vellum:fold:${this.draftKey()}`) ?? "[]")); } catch { return new Set(); } }
+    folds(): Set<string> { try { return new Set(JSON.parse(getLocal(`vellum:fold:${this.draftKey()}`) ?? "[]") as string[]); } catch { return new Set(); } }
     keepFolds(f: Set<string>) { try { setLocal(`vellum:fold:${this.draftKey()}`, JSON.stringify([...f])); } catch { /* */ } }
     // a screen as a small picture (the rail's rows): drawn again only when the screen changed
     thumbs = new Map<string, { sig: string; el: HTMLElement }>();
@@ -761,7 +761,7 @@ class Editor {
         if (!show) {
             const tag = el.createDiv({ cls: "vl-tag" });
             if (inh) setIcon(tag.createSpan({ cls: "vl-tagi" }), "lock");
-            tag.appendText(b.name + (inh ? ` · ${this.page(l!.from)?.name ?? "frame"}` : ""));
+            tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));
         }
         for (const it of b.items) drawItem(this.theme, el, it);
         if (l?.over && !show) setIcon(el.createDiv({ cls: "vl-overmark", attr: { "aria-label": `Overrides ${this.page(l.over)?.name ?? "the frame"}'s ${b.name}` } }), "layers-2");
@@ -940,7 +940,7 @@ class Editor {
             if (moved) { this.end(); return; }
             const again = target?.item && before?.item === target.item;
             this.choose(target);
-            if (again && Platform.isMobile) this.writeItem(b, target!.item!);
+            if (again && Platform.isMobile) this.writeItem(b, target.item!);
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
@@ -1000,8 +1000,8 @@ class Editor {
         const f = this.item(), b = this.block(), p = this.page();
         if (this.sel?.block && !b) return;   // a frame's block: locked here
         if (f) this.edit(() => { const c = cloneItem(f.item); f.list.splice(f.list.indexOf(f.item) + 1, 0, c); this.sel = { ...this.sel!, item: c.id }; });
-        else if (b && p) this.edit(() => { const c: Block = { ...JSON.parse(JSON.stringify(b)), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); this.blocks(p).push(c); this.sel = { page: p.id, block: c.id }; });
-        else if (p) this.edit(() => { const c: Page = { ...JSON.parse(JSON.stringify(p)), id: uid(), name: p.name + " copy" }; this.doc.pages.splice(this.doc.pages.indexOf(p) + 1, 0, c); this.sel = { page: c.id }; });
+        else if (b && p) this.edit(() => { const c: Block = { ...(JSON.parse(JSON.stringify(b)) as Block), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); this.blocks(p).push(c); this.sel = { page: p.id, block: c.id }; });
+        else if (p) this.edit(() => { const c: Page = { ...(JSON.parse(JSON.stringify(p)) as Page), id: uid(), name: p.name + " copy" }; this.doc.pages.splice(this.doc.pages.indexOf(p) + 1, 0, c); this.sel = { page: c.id }; });
     }
     remove() {
         const f = this.item(), b = this.block(), p = this.page();
@@ -1110,7 +1110,7 @@ class Editor {
         if (!fold) return body;
         const KEY = "vellum:secstate";
         let st: Record<string, boolean> = {};
-        try { st = JSON.parse(getLocal(KEY) ?? "{}"); } catch { /* */ }
+        try { st = JSON.parse(getLocal(KEY) ?? "{}") as Record<string, boolean>; } catch { /* */ }
         if (!(title in st)) { try { if ((JSON.parse(getLocal("vellum:secfold") ?? "[]") as string[]).includes(title)) st[title] = true; } catch { /* */ } }
         h.addClass("is-fold"); setIcon(h.createSpan({ cls: "vl-secchev" }), "chevron-down");
         sc.toggleClass("is-folded", st[title] ?? !!o.shut);
@@ -1357,8 +1357,8 @@ class Editor {
             const empty = !v || v === "none";
             tiles.forEach((x) => x.toggleClass("is-on", x.getAttr("data-v") === (empty ? "none" : v)));
             sw.style.setProperty("--c", empty ? "transparent" : colorOf(this.theme, v));
-            sw.toggleClass("is-none", empty); tx.setText(empty ? "None" : v!);
-            tx.toggleClass("is-name", !empty && names.includes(v!));
+            sw.toggleClass("is-none", empty); tx.setText(empty ? "None" : v);
+            tx.toggleClass("is-name", !empty && names.includes(v));
         };
         show(on);
         bar.addEventListener("click", () => { if (this.picker?.anchor === bar) this.closePicker(); else this.openPicker(bar, on, pick, show, none); });
@@ -1388,7 +1388,7 @@ class Editor {
         }
     }
     // recent custom colours, newest first (kept on the device for this vault)
-    recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]"); } catch { return []; } }
+    recentColors(): string[] { try { return JSON.parse(getLocal("vellum:recentColors") ?? "[]") as string[]; } catch { return []; } }
     keepColor(c: string) { if (!c || c === "none" || c in this.theme.colors) return; setLocal("vellum:recentColors", JSON.stringify([c, ...this.recentColors().filter((x) => x !== c)].slice(0, 8))); }
     colorMode: "hex" | "rgb" | "hsl" = (getLocal("vellum:colorMode") as "hex" | "rgb" | "hsl") || "hex";
     // the picker: a panel floating by its bar. The colour square (saturation across, brightness down), the hue and opacity
@@ -2138,8 +2138,8 @@ class Editor {
             const cur = it[axis];
             const rule = cur === "fill" ? "fill" : typeof cur === "number" ? "fixed" : "hug";
             this.chips(ctl, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
-                if (v === "fixed") { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40) as Size; }
-                else it[axis] = v as Size;
+                if (v === "fixed") { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40); }
+                else it[axis] = v;
             });
             if (rule === "fixed") this.num(ctl, "pt", () => it[axis] as number, (v) => { it[axis] = v; }, { min: 1 });
             if (rule === "fill" && top) this.num(ctl, "Margin", () => Math.abs((axis === "w" ? it.dx : it.dy) ?? 0), (v) => { if (axis === "w") it.dx = v; else it.dy = v; }, { min: 0 });
