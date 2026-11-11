@@ -3,8 +3,8 @@ import { EDIT_DEFAULT, EditCfg, openVellum, registerVellum, setEdit, setSnap, Sn
 import { getLocal, setLocal, useApp } from "./local";
 import { BASE_THEME, Theme } from "./render";
 
-// the mark (ribbon, the editor's tab): a phone, and a sheet of tracing paper over it with a gravity point; 100 × 100, line icons
-const ICON = `<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="34" y="8" width="44" height="84" rx="10"/><path d="M14 32 h38 l10 10 v48 h-48 z"/></g><circle cx="38" cy="61" r="7" fill="currentColor"/>`;
+// the mark (ribbon, the editor's tab): a sheet behind a phone with two blocks on its screen; 100 × 100, line icons
+const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-linecap="round" stroke-linejoin="round"><rect x="38" y="8" width="48" height="84" rx="11"/><path d="M38 28H20a6 6 0 0 0-6 6v46a6 6 0 0 0 6 6h18"/></g><rect x="50" y="24" width="24" height="10" rx="3" fill="currentColor"/><rect x="50" y="42" width="24" height="33" rx="4" fill="currentColor"/>`;
 
 // Vellum: phone screens drawn and edited in a note (```vellum blocks). The look (named colours and fonts that items use)
 // comes from the settings; by default it follows the Obsidian theme.
