@@ -260,10 +260,12 @@ class Editor {
         const key = this.draftKey();
         const w = windows.get(key) ?? this.plugin.app.workspace.getLeavesOfType(VIEW).map((l) => l.view).find((v): v is VellumWindow => v instanceof VellumWindow && v.key === key);
         if (w) { if (page) this.draw(); void this.plugin.app.workspace.revealLeaf(w.leaf); raise(w.contentEl.win); return; }
-        let size: { width: number; height: number } | undefined;
-        try { size = JSON.parse(getLocal("vellum:winsize") ?? "") ?? undefined; } catch { /* */ }
-        const leaf = this.plugin.app.workspace.openPopoutLeaf({ size: size ?? { width: 1280, height: 880 } });
-        void leaf.setViewState({ type: VIEW, active: true, state: { key } });
+        // a new window opens maximized: the editor wants the room (its size is not remembered)
+        const leaf = this.plugin.app.workspace.openPopoutLeaf({ size: { width: 1280, height: 880 } });
+        void leaf.setViewState({ type: VIEW, active: true, state: { key } }).then(() => {
+            const ew = (leaf.view.containerEl.win as Window & { electronWindow?: { maximize?(): void } }).electronWindow;
+            try { ew?.maximize?.(); } catch { /* not Electron */ }
+        });
     }
     mount(container: HTMLElement) {
         this.root?.remove();
@@ -281,7 +283,6 @@ class Editor {
                 if (!R.isConnected) return;
                 cancelAnimationFrame(raf);
                 raf = requestAnimationFrame(() => {
-                    try { setLocal("vellum:winsize", JSON.stringify({ width: R.win.outerWidth, height: R.win.outerHeight })); } catch { /* */ }
                     if (this.v.fit && this.pending === null) this.drawPages();
                 });
             }).observe(R);
