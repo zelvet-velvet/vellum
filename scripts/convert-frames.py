@@ -5,9 +5,12 @@ Agents often draw a card's background, a separator or a tile under a text as a `
 a block's own fill / stroke / sw / r / sides, and a text's own box (fill / stroke / sw / r / pad, its text centred when
 it has a height). For every block (portrait and landscape), top-level items only, this:
 
-  1. a rect covering the whole block, at the back        -> the block's look
-  2. a thin rect (<= 2 pt) along the block's top / bottom -> the block's outline on that side
-  3. a rect (or two stacked halves, a flip tile) under exactly one text and nothing else -> that text's box
+  0. the same text twice in the same place (a flip tile captured as two halves) -> kept once
+  1. a rect under exactly one icon and one text side by side, centred on it (a button) -> a centred row with the rect's look
+     (a rect covering the block gives its look to the block, and the row fills the block)
+  2. a rect covering the whole block, at the back        -> the block's look
+  3. a thin rect (<= 2 pt) along the block's top / bottom -> the block's outline on that side
+  4. a rect (or two stacked halves, a flip tile) under exactly one text and nothing else (an icon counts) -> that text's box
 
 Only rects with a known place (anchored top left, sizes in points) are touched; anything unsure is left as it is.
 
@@ -60,9 +63,58 @@ def look_of(r):
     return out
 
 
+def thing_box(it, bw, bh):
+    """what an item covers in its block: a text by its estimated size, an icon by its size, a shape by its box"""
+    if it.get("type") == "text":
+        return text_box(it)
+    if it.get("type") == "icon" and (it.get("g") or "tl") == "tl":
+        s = it.get("size", 20)
+        return it.get("dx", 0), it.get("dy", 0), s, s
+    return box(it, bw, bh)
+
+
 def convert_block(b, log, where):
     bw, bh, items = b["w"], b["h"], b["items"]
     gone = set()
+    # 0 · the same text twice in the same place (a flip tile captured as two halves) -> once
+    seen = {}
+    for it in items:
+        if it.get("type") != "text":
+            continue
+        key = json.dumps({k: v for k, v in it.items() if k not in ("id", "note")}, sort_keys=True)
+        if key in seen:
+            gone.add(id(it))
+            log.append(f"{where}: duplicate text \"{str(it.get('v', ''))[:16]}\" dropped")
+        else:
+            seen[key] = it
+    # 1a · a rect under exactly one icon and one text side by side, centred on it (a button) -> a row centred in the rect's
+    # place, with its look (on a rect covering the block: the block's look, the row filling the block)
+    for i, r in enumerate(items):
+        if r.get("type") != "rect" or id(r) in gone or r.get("op") not in (None, 100) or not (r.get("fill") or r.get("sw")):
+            continue
+        rb = box(r, bw, bh)
+        if not rb:
+            continue
+        on = [it for it in items if it is not r and id(it) not in gone and (tb := thing_box(it, bw, bh)) and inside(tb[0] + tb[2] / 2, tb[1] + tb[3] / 2, rb)]
+        if len(on) != 2 or sorted(x.get("type") for x in on) != ["icon", "text"] or any(k in x for k in ("fill", "sw", "w", "h") for x in on if x.get("type") == "text"):
+            continue
+        ic, tx = (on[0], on[1]) if on[0]["type"] == "icon" else (on[1], on[0])
+        ib, tb = thing_box(ic, bw, bh), thing_box(tx, bw, bh)
+        if ib[0] + ib[2] > tb[0] + 0.5 or abs((ib[1] + ib[3] / 2) - (tb[1] + tb[3] / 2)) > max(ib[3], tb[3]) / 2:
+            continue   # not icon-then-text on one line
+        if abs((ib[0] + tb[0] + tb[2]) / 2 - (rb[0] + rb[2] / 2)) > max(4, rb[2] * 0.06):
+            continue   # the pair is off to one side
+        whole = abs(rb[0]) < 0.5 and abs(rb[1]) < 0.5 and abs(rb[2] - bw) < 0.5 and abs(rb[3] - bh) < 0.5 and not any(k in b for k in ("fill", "stroke", "sw")) and all(items[j].get("type") == "rect" for j in range(i))
+        row = {"id": r.get("id", "row"), "type": "row", "g": "tl", "dx": round(rb[0], 2), "dy": round(rb[1], 2), "w": round(rb[2], 2), "h": round(rb[3], 2), "gap": max(0, round(tb[0] - ib[0] - ib[2], 2)), "main": "center", "cross": "center"}
+        if whole:
+            b.update(look_of(r))
+            row.update({"dx": 0, "dy": 0, "w": "fill", "h": "fill"})
+        else:
+            row.update(look_of(r))
+        row["items"] = [{k: v for k, v in x.items() if k not in ("g", "dx", "dy")} for x in (ic, tx)]
+        items[i] = row
+        gone.update((id(ic), id(tx)))
+        log.append(f"{where}: {'block look and ' if whole else ''}row ← rect {r.get('id', '?')} under an icon and \"{str(tx.get('v', ''))[:16]}\"")
     # 1 · a rect covering the block, behind everything else -> the block's look
     for i, it in enumerate(items):
         if it.get("type") != "rect" or id(it) in gone or it.get("op") not in (None, 100):
@@ -112,7 +164,7 @@ def convert_block(b, log, where):
         for it in items:
             if id(it) in gone or any(it is p for p in parts):
                 continue
-            tb = text_box(it) if it.get("type") == "text" else box(it, bw, bh)
+            tb = thing_box(it, bw, bh)
             if tb and inside(tb[0] + tb[2] / 2, tb[1] + tb[3] / 2, rb):
                 on.append(it)
         if len(on) != 1 or on[0].get("type") != "text" or any(k in on[0] for k in ("fill", "sw")):
