@@ -1971,7 +1971,7 @@ class Editor {
             Object.assign(crop.style, { left: `${(PW - pw) / 2 + (nw - vw) * fx * k}px`, top: `${(nh - vh) * fy * k}px`, width: `${vw * k}px`, height: `${vh * k}px` });
         };
         const draw = () => {
-            prev.empty(); prev.removeClass("is-empty", "is-broken"); prev.style.height = ""; im = crop = null;
+            prev.empty(); prev.removeClass("is-empty", "is-broken"); prev.setCssStyles({ height: "" }); im = crop = null;
             const url = pictureUrl(it.src);
             if (!url) { prev.addClass("is-empty"); setIcon(prev.createDiv(), "image"); info.setText("No picture yet: an https address or a vault path."); return; }
             info.setText("Loading…");

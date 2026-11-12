@@ -226,7 +226,7 @@ class VellumSettings extends PluginSettingTab {
             const v = hex.value.trim();
             if (!v || !CSS.supports("color", v)) { hex.addClass("is-bad"); return; }
             hex.removeClass("is-bad");
-            el.style.color = v; Object.assign(c, rgba(getComputedStyle(el).color)); el.style.color = "";
+            el.setCssStyles({ color: v }); Object.assign(c, rgba(getComputedStyle(el).color)); el.setCssStyles({ color: "" });
             Object.assign(hsv, rgbToHsv(c.r, c.g, c.b));
             set(v); show();
         });
