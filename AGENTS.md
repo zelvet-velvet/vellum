@@ -15,6 +15,7 @@ npm run lint                           # the checks Obsidian's automated review 
 npm run build                          # main.js (not in git)
 npm run install-vault -- <vault path>  # copy into a vault and enable it
 ```
+GitHub runs check, lint and build on every PR (`.github/workflows/check.yml`). Release files are built and attested only by `.github/workflows/release.yml`, on a pushed version tag.
 
 ## Code
 | File | What it holds |
