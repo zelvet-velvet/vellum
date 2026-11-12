@@ -67,7 +67,6 @@
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> 安裝
 
-- **社群外掛**：上架準備中
 - **[BRAT](https://github.com/TfTHacker/obsidian42-brat)**：新增 beta 外掛 `zelvet-velvet/vellum`
 - **手動安裝**：由[最新版本](https://github.com/zelvet-velvet/vellum/releases/latest)下載 `main.js`、`manifest.json` 與 `styles.css`，放入 `<儲存庫>/.obsidian/plugins/vellum/` 後啟用 **Vellum**
 

@@ -67,7 +67,6 @@ Sketch your plugin's screens on a real phone frame, inside your vault. Vellum ke
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
 
-- **Community plugins**: coming soon.
 - **[BRAT](https://github.com/TfTHacker/obsidian42-brat)**: add the beta plugin `zelvet-velvet/vellum`.
 - **Manual**: copy `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/zelvet-velvet/vellum/releases/latest) into `<vault>/.obsidian/plugins/vellum/`, then enable **Vellum**.
 
