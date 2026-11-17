@@ -753,6 +753,7 @@ class Editor {
         // a redraw keeps where the stage was scrolled (choosing a block or an item does not jump to the top)
         const sx = this.wall.scrollLeft, sy = this.wall.scrollTop, keep = () => { this.wall.scrollLeft = sx; this.wall.scrollTop = sy; };
         this.wall.empty();
+        this.wall.toggleClass("is-show", !!this.v.show && !this.v.map);
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
         this.drawRail();   // first: its width is part of the room the phone fits in
         if (this.v.map && this.doc.pages.length) {
@@ -777,7 +778,8 @@ class Editor {
             // fit: the whole phone in the stage, the pill and a margin kept clear
             if (this.v.fit) {
                 const dev = deviceOf(cur.device ?? this.doc.device), { W, H } = screenOf(dev, this.land);
-                const ph = Platform.isMobile; const sw = this.wall.clientWidth - (ph ? 44 : 64), sh = this.wall.clientHeight - (ph ? 100 : 120);
+                const ph = Platform.isMobile, show = this.v.show;   // Show: room for the name above, the arrows beside, what it opens below
+                const sw = this.wall.clientWidth - (ph ? 44 : 64) - (show ? (ph ? 72 : 112) : 0), sh = this.wall.clientHeight - (ph ? 100 : 120) - (show ? (ph ? 100 : 130) : 0);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
             this.drawPage(cur);
@@ -1014,7 +1016,12 @@ class Editor {
         const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
         fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
-        const phone = fig.createDiv({ cls: "vl-phone" });
+        // Show: the screen as a preview: its name and the way to it above, the next / previous screen beside it, the
+        // screens it opens under it
+        if (show) { fig.addClass("is-showing"); this.showHead(fig, p); }
+        const row = show ? fig.createDiv({ cls: "vl-showrow" }) : fig;
+        const phone = row.createDiv({ cls: "vl-phone" });
+        if (show) this.showAround(fig, row, phone, p);
         phone.style.width = `${W * z}px`; phone.style.height = `${H * z}px`; phone.style.borderRadius = `${dev.radius * z}px`;
         const scr = phone.createDiv({ cls: "vl-screen" + (show ? " is-show" : "") });
         const bg = bgOf(this.doc.pages, p);
@@ -1119,6 +1126,55 @@ class Editor {
         };
         const up = () => { scr.removeEventListener("pointermove", mv); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); if (moved) { this.keepOv(); this.drawPages(); } };
         scr.addEventListener("pointermove", mv); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+    // the screens in the rail's order (each main screen, then the screens opened from it)
+    order(): Page[] {
+        const out: Page[] = [], seen = new Set<string>(), pages = this.doc.pages;
+        const walk = (p: Page) => { if (seen.has(p.id)) return; seen.add(p.id); out.push(p); for (const c of childrenOf(pages, p.id)) walk(c); };
+        for (const p of childrenOf(pages)) walk(p);
+        for (const p of pages) walk(p);
+        return out;
+    }
+    showGo(step: number) { const o = this.order(), i = o.findIndex((x) => x.id === this.current()?.id), n = o[i + step]; if (n) this.openPage(n); }
+    showHead(fig: HTMLElement, p: Page) {
+        const h = fig.createDiv({ cls: "vl-showhead" });
+        const par = p.parent ? this.page(p.parent) : undefined;
+        if (par) {
+            const c = h.createDiv({ cls: "vl-showfrom" });
+            const back = c.createEl("button", { cls: "vl-showlink", attr: { "aria-label": `Back to ${par.name}` } });
+            setIcon(back.createSpan(), "corner-left-up"); back.appendText(par.name);
+            back.addEventListener("click", () => this.openPage(par));
+            if (p.link) c.createSpan({ cls: "vl-showhow", text: p.link });
+        }
+        const t = h.createDiv({ cls: "vl-showtitle" });
+        t.createSpan({ text: p.name });
+        if (p.mock) t.createSpan({ cls: "vl-mocktag", text: "mock" });
+        if (p.note) h.createDiv({ cls: "vl-shownote", text: p.note.split("\n")[0] });
+    }
+    showAround(fig: HTMLElement, row: HTMLElement, phone: HTMLElement, p: Page) {
+        const o = this.order(), i = o.findIndex((x) => x.id === p.id);
+        const arrow = (step: number, icon: string) => {
+            const n = o[i + step], b = createEl("button", { cls: "vl-shownav" + (n ? "" : " is-off"), attr: { "aria-label": n ? `${step < 0 ? "Previous" : "Next"}: ${n.name} (${step < 0 ? "←" : "→"})` : "" } });
+            setIcon(b, icon);
+            if (n) b.addEventListener("click", () => this.openPage(n)); else b.disabled = true;
+            return b;
+        };
+        row.insertBefore(arrow(-1, "chevron-left"), phone);
+        row.appendChild(arrow(1, "chevron-right"));
+        const f = fig.createDiv({ cls: "vl-showfoot" });
+        const kids = childrenOf(this.doc.pages, p.id);
+        if (kids.length) {
+            const g = f.createDiv({ cls: "vl-showkids" });
+            g.createSpan({ cls: "vl-showlabel", text: "Opens" });
+            for (const k of kids) {
+                const c = g.createEl("button", { cls: "vl-showkid" });
+                c.createSpan({ cls: "vl-showkn", text: k.name });
+                if (k.link) c.createSpan({ cls: "vl-showhow", text: k.link });
+                setIcon(c.createSpan({ cls: "vl-showki" }), "arrow-right");
+                c.addEventListener("click", () => this.openPage(k));
+            }
+        }
+        f.createDiv({ cls: "vl-showcount", text: `${i + 1} / ${o.length}` });
     }
     // one block again, in its place (a drag keeps its screen element, which holds the pointer)
     redrawBlock(scr: HTMLElement, p: Page, b: Block) {
@@ -1621,6 +1677,7 @@ class Editor {
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
+        if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
         if (mod && e.key === "'") { this.ov.show = !this.ov.show; this.keepOv(); this.drawPages(); return true; }
         if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).map((b) => b.id)); return true; }
         if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place

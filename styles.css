@@ -196,6 +196,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-prow.is-on { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 .vl-prow.is-on .vl-pn { color: var(--interactive-accent); font-weight: 600; }
 .vl-prow.is-mock .vl-pn { color: var(--text-muted); font-style: italic; }
+.vl-mocktag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--background-modifier-border); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--text-faint); vertical-align: 1px; }
 .vl-ptext { flex: 1; min-width: 0; padding: 5px 0; }
 .vl-pn { font-size: var(--font-ui-small); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl-pl { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -810,6 +811,33 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-zpill .vl-seg > button:not(.is-on):hover { opacity: 1; }
 .vl .vl-zoom { font-weight: 600; }
 
+/* Show: the screen as a preview. A quiet stage; the way here and the name above; the previous / next screen beside;
+   what it opens and where it is in the list below */
+.vl-stage.is-show { background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary)), var(--background-primary) 70%); }
+.vl-stage > .vl-page.is-showing { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 20px 24px 84px; }
+.vl-showhead { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; max-width: 520px; }
+.vl-showfrom { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.vl .vl-showlink { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; box-shadow: none; background: var(--background-modifier-hover); border-radius: 11px; font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
+.vl .vl-showlink:hover { color: var(--text-normal); }
+.vl-showlink svg { width: 12px; height: 12px; }
+.vl-showhow { color: var(--text-faint); font-style: italic; }
+.vl-showtitle { display: flex; align-items: center; gap: 8px; font-size: 1.35em; font-weight: 700; letter-spacing: -0.01em; color: var(--text-normal); }
+.vl-shownote { font-size: var(--font-ui-small); color: var(--text-muted); }
+.vl-showrow { display: flex; align-items: center; gap: 24px; }
+.vl .vl-shownav { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--background-modifier-border); background: var(--background-primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); color: var(--text-muted); flex: none; }
+.vl .vl-shownav:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
+.vl .vl-shownav.is-off { opacity: 0.25; box-shadow: none; pointer-events: none; }
+.vl-shownav svg { width: 20px; height: 20px; }
+.vl-showfoot { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 560px; }
+.vl-showkids { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.vl-showlabel { font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-right: 4px; }
+.vl .vl-showkid { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 12px; border: 1px solid var(--background-modifier-border); box-shadow: none; background: var(--background-primary); border-radius: 15px; font-size: var(--font-ui-small); color: var(--text-normal); }
+.vl .vl-showkid:hover { border-color: var(--interactive-accent); }
+.vl-showkn { font-weight: 600; }
+.vl-showki { display: inline-flex; color: var(--text-faint); } .vl-showki svg { width: 14px; height: 14px; }
+.vl-showcount { font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.vl-ws.is-phone .vl-showrow { gap: 8px; }
+.vl-ws.is-phone .vl-shownav { width: 32px; height: 32px; }
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
 .vl-ratio.is-under { left: 0; top: 100%; }
 .tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
