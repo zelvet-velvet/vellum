@@ -8,7 +8,7 @@ description: Vellum's screen format. Use when reading or writing Vellum screen J
 
 ## Shape
 - Doc: `{id, device, safe?, safeLand?, pages}`. As a folder: one JSON per screen, plus `_doc.json` (`id`, `device`, `safe`, `safeLand`, `order`).
-- Page: `{id, name, parent?, link?, inherit?, mock?, bg?, note?, blocks, land?}`. `land` is the landscape layout.
+- Page: `{id, name, parent?, link?, inherit?, mock?, bg?, note?, blocks, land?, marks?}`. `land` is the landscape layout. `marks`: notes on the screen for the people and the agent (`note`, `area`, `line`), never drawn in the design.
 - Block: `{id, name, kind, x, y, w, h, bleed?, fill?, stroke?, sw?, r?, sides?, note?, items}`.
 - Item types: `text`, `rect`, `ellipse`, `line`, `img`, `icon`, `row`, `col`, `group` (its `items` each placed in its `w h` box by their own gravity; moved as one).
 

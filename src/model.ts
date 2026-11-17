@@ -29,10 +29,15 @@ export interface Item {
 // fill / stroke / sw / r / sides: the block's own look (a card's background, an outline, a separator on chosen sides:
 // "t", "b", "tb"…); drawn by the block itself, so no rectangle under its items is needed
 export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string; note?: string; items: Item[] }
+// a mark: a note on a screen for the people (and the agent) designing it, never part of the design. note: a pin at x, y
+// with its text; area: a box x, y, w, h with a label, and a composition guide drawn in it if wanted; line: a guide line
+// across (axis y, at y) or down (axis x, at x) with a label. Drags snap to lines and areas. by: who wrote it ("agent")
+export type Guide = "thirds" | "phi" | "spiral" | "diag" | "center";
+export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks
-export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; inherit?: boolean; device?: string; side?: boolean; land?: Block[]; mock?: boolean; bg?: string; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
+export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; inherit?: boolean; device?: string; side?: boolean; land?: Block[]; mock?: boolean; bg?: string; marks?: Mark[]; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
 // safe / safeLand: the safe areas set for this doc (each side optional), upright and sideways; else the device's own
 export type Insets = { top: number; bottom: number; left: number; right: number };
 export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; pages: Page[] }
@@ -53,6 +58,8 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
             // older docs: a screen drawn sideways only (side: true) is a landscape layout with no portrait one
             if (q.side) { if (!q.land) { q.land = q.blocks; q.blocks = []; } delete q.side; }
             if (q.inherit !== true) delete q.inherit;
+            // marks: only those that can be drawn (a kind and a place)
+            if (Array.isArray(p.marks)) { q.marks = p.marks.filter((m) => m && typeof m.id === "string" && ["note", "area", "line"].includes(m.kind) && typeof m.x === "number" && typeof m.y === "number"); if (!q.marks.length) delete q.marks; } else delete q.marks;
             return q;
         });
         const doc: Doc = { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages };
