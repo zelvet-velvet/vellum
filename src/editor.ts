@@ -25,6 +25,21 @@ export interface EditCfg { arrow: number; hold: boolean }
 export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
+// the selection's colour: the accent, unless it is too close to the colour of what is chosen (an orange handle on a
+// red shape); then whichever of a few clear colours stands out most from it. Set on the block as --vl-sel (and --vl-sel-ink,
+// the text on it), for the outline, the gravity ring, the corner handles and the size tag
+const rgbOf = (c: string): number[] | null => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [v[0], v[1], v[2], v[3] ?? 1]; };
+const far = (a: number[], b: number[]) => { const r = (a[0] + b[0]) / 2, dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2]; return Math.sqrt((2 + r / 256) * dr * dr + 4 * dg * dg + (2 + (255 - r) / 256) * db * db); };
+function selInk(blockEl: HTMLElement, itemEl: HTMLElement) {
+    const win = blockEl.win, cs = win.getComputedStyle(itemEl);
+    let c = rgbOf(cs.backgroundColor);
+    if (!c || c[3] < 0.3) c = rgbOf(cs.color);   // a text or an icon: its ink
+    if (itemEl.hasClass("vl-i-img")) c = null;      // a picture: any colour; the halo keeps the handles seen
+    const probe = blockEl.createDiv({ cls: "vl-accentprobe" }); const acc = rgbOf(win.getComputedStyle(probe).color); probe.remove();
+    if (!c || !acc) return;
+    const base = c, pick = far(acc, base) > 220 ? acc : [acc, [34, 211, 238], [163, 230, 53], [255, 255, 255], [139, 92, 246], [20, 20, 24]].sort((a, b) => far(b, base) - far(a, base))[0];
+    blockEl.setCssProps({ "--vl-sel": `rgb(${pick[0]}, ${pick[1]}, ${pick[2]})`, "--vl-sel-ink": 0.299 * pick[0] + 0.587 * pick[1] + 0.114 * pick[2] > 150 ? "#111" : "#fff" });
+}
 type Lines = { x: number[]; y: number[] };
 // the nearest line within reach of any of the points: how far to shift, and the line
 const near = (pts: number[], lines: number[], reach: number) => {
@@ -318,6 +333,9 @@ class Editor {
     closeWs() { const w = windows.get(this.draftKey()); if (w && !Platform.isMobile) w.leaf.detach(); else this.unmount(); }
     draw() {
         const R = this.root; if (!R) return;
+        // the camera: a rebuild (undo, redo, a change from outside, a side folded) keeps the stage scrolled where it was,
+        // as long as it still shows the same thing (the same screen and layout, or the map)
+        const was = this.wall?.isConnected ? { key: this.camKey(), l: this.wall.scrollLeft, t: this.wall.scrollTop } : null;
         R.empty(); this.panel = null;
         this.bar = R.createDiv({ cls: "vl-top" });
         this.drawStale();
@@ -327,11 +345,17 @@ class Editor {
         const mid = body.createDiv({ cls: "vl-mid" });
         this.wall = mid.createDiv({ cls: "vl-stage" });
         this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, { x: e.clientX, y: e.clientY }); }, { passive: false });
+        // the middle button drags the view around (Edit, Show and Map); no browser autoscroll
+        this.wall.addEventListener("pointerdown", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); this.pan(e); } }, true);
+        this.wall.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
+        this.wall.addEventListener("auxclick", (e) => { if (e.button === 1) e.preventDefault(); });
         this.wall.addEventListener("click", (e) => { if (e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
+        if (was && was.key === this.camKey()) { this.wall.scrollLeft = was.l; this.wall.scrollTop = was.t; }
     }
+    camKey() { const v = this.v; return v.map ? "map" : `${this.current()?.id}|${v.land ? 1 : 0}|${v.show ? 1 : 0}`; }
     zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement; railTop = 0;
     // unsaved work from before the note changed: offered back, never applied by itself
     drawStale() {
@@ -413,20 +437,30 @@ class Editor {
         const fitOn = this.v.map ? this.v.mapFit !== false : this.v.fit;
         const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
         fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
+        // the pill is at the foot: its tooltips open above it, never over its own buttons
+        z.querySelectorAll<HTMLElement>("[aria-label]").forEach((e) => e.setAttr("data-tooltip-position", "top"));
     }
     // at: the pointer (Ctrl+wheel): the spot under it stays under it. Its place in the map or the phone, as a fraction,
     // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
     zoomBy(f: number, at?: { x: number; y: number }) {
         const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
         const r0 = at ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
-        if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(3, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
-        else this.setView({ fit: false, zoom: Math.min(4, Math.max(0.2, Math.round(this.v.zoom * f * 100) / 100)) });
+        if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
+        else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
         this.drawPages();
         const r1 = r0 ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
         const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
         this.wall.scrollLeft += r1.left + u * r1.width - at.x;
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
+    }
+    // the middle button held: the stage scrolls with the pointer
+    pan(e: PointerEvent) {
+        const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
+        w.setPointerCapture(e.pointerId); w.addClass("is-panning");
+        const move = (m: PointerEvent) => { w.scrollLeft = l0 - (m.clientX - x0); w.scrollTop = t0 - (m.clientY - y0); };
+        const up = () => { w.removeEventListener("pointermove", move); w.removeEventListener("pointerup", up); w.removeEventListener("pointercancel", up); w.removeClass("is-panning"); };
+        w.addEventListener("pointermove", move); w.addEventListener("pointerup", up); w.addEventListener("pointercancel", up);
     }
     // a new main page, or one opened from a page
     addPage(parent?: Page) { this.edit(() => {
@@ -504,7 +538,12 @@ class Editor {
         const pics = getLocal("vellum:pics") === "1";
         const hd = box.createDiv({ cls: "vl-railhead" });
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
-        this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { setLocal("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); }).toggleClass("is-on", pics);
+        // the preview that opens when the pointer rests on a screen's name: on unless turned off here (kept on the device)
+        const peeks = getLocal("vellum:peek") !== "0";
+        const hb = this.btn(hd, "picture-in-picture-2", peeks ? "Preview on hover: on (turn off)" : "Preview on hover: off (turn on)", () => { try { setLocal("vellum:peek", peeks ? "0" : "1"); } catch { /* */ } this.unpeek(); this.drawRail(); });
+        hb.toggleClass("is-on", peeks); hb.setAttr("data-tooltip-position", "bottom");
+        const pb = this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { setLocal("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); });
+        pb.toggleClass("is-on", pics); pb.setAttr("data-tooltip-position", "bottom");
         // the tree: main screens at the left, each screen's sub screens under it on guide lines; a chevron folds a branch;
         // each row has a small picture of its screen
         const list = box.createDiv({ cls: "vl-plist" });
@@ -529,7 +568,7 @@ class Editor {
                 ch.addEventListener("click", (e) => { e.stopPropagation(); if (fold.has(p.id)) fold.delete(p.id); else fold.add(p.id); this.keepFolds(fold); this.drawRail(); });
             } else w.createSpan({ cls: "vl-pchev is-leaf" });
             if (pics) w.appendChild(this.thumb(p));
-            this.peekOn(w, p);
+            if (peeks) this.peekOn(w, p);
             const t = w.createDiv({ cls: "vl-ptext" });
             t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
             if (p.link && !depth) t.createDiv({ cls: "vl-pl", text: p.link });
@@ -708,6 +747,7 @@ class Editor {
         const bg = bgOf(this.doc.pages, p);
         if (bg) { scr.style.background = colorOf(this.theme, bg); phone.style.background = scr.style.background; }
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
+        scr.style.setProperty("--vl-iz", String(1 / z));   // handles, outlines and labels keep their size on the monitor at any zoom
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
         if (!this.land) {
             const sb = scr.createDiv({ cls: "vl-status" }); sb.style.height = `${dev.top}px`;
@@ -769,7 +809,9 @@ class Editor {
         else if (sel) {
             const id = this.sel?.item;
             if (id) {
-                el.querySelector(`[data-id="${id}"]`)?.addClass("is-sel");
+                const selEl = el.querySelector<HTMLElement>(`[data-id="${id}"]`);
+                selEl?.addClass("is-sel");
+                if (selEl) selInk(el, selEl);
                 const it = findItem(b.items, id)?.item;
                 // the gravity point the item keeps, on the block
                 if (it && b.items.includes(it)) { const [ax, ay] = axes(it.g); const d = el.createDiv({ cls: "vl-anchor" }); d.style.left = `${(ax + 1) * 50}%`; d.style.top = `${(ay + 1) * 50}%`; }
@@ -958,7 +1000,7 @@ class Editor {
         if (!el) return;
         el.contentEditable = "true";
         el.addClass("is-typing");
-        el.focus();
+        el.focus({ preventScroll: true });   // typing in place does not move the view
         el.doc.getSelection()?.selectAllChildren(el);
         el.addEventListener("keydown", (k) => { if (k.key === "Escape" || (k.key === "Enter" && !k.shiftKey)) { k.preventDefault(); el.blur(); } });
         el.addEventListener("blur", () => this.edit(() => { f.item.v = el.innerText.replace(/\n$/, ""); }), { once: true });
@@ -2212,6 +2254,7 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
     return [f, line].filter(Boolean).join(" · ") || "none";
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
+const ZOOMMAX = 16, MAPMAX = 6;   // 1600 % for a screen, 600 % for the map
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
