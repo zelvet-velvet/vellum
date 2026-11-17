@@ -616,11 +616,11 @@ class Editor {
             this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
         }
         if (!this.v.map && !this.v.show) {
-            const mt = this.btn(pill, "message-square-plus", "Mark (N): click for a note, drag for an area; for you and the agent", () => { this.marking = !this.marking; this.drawPages(); });
-            mt.toggleClass("is-on", this.marking);
+            const mt = this.btn(pill, "message-square-plus", "", () => { this.marking = !this.marking; this.drawPages(); });
+            this.tip(mt, "Mark (N)\nclick: a note · drag: an area").toggleClass("is-on", this.marking);
         }
         if (!this.v.map) {
-            const ob = this.btn(pill, "layout-grid", "Overlays: grids, thirds, golden ratio, perspective (Ctrl+' shows / hides)", () => this.ovMenu(ob));
+            const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob)), "Overlays\nCtrl+' shows / hides");
             if (!ob.querySelector("svg")) ob.setText("#");   // an icon set without it: still a button you can see
             ob.addClass("vl-ovbtn"); ob.toggleClass("is-on", this.ov.show && anyOn(this.ov));
         }
