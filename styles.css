@@ -748,3 +748,4 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-zoom { font-weight: 600; }
 
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
+.tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
