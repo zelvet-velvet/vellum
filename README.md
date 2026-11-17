@@ -185,6 +185,7 @@ src: Design/Screens
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
 | <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the overlays |
+| <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ
