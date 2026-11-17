@@ -732,6 +732,12 @@ body.is-mobile .vl-chead { align-items: flex-start; }
     .vlsd-body { grid-template-columns: minmax(0, 1fr); }
     .vlsd-side { display: none; }
 }
+/* area selection: the box being dragged, the blocks it touches, a group (no grip: they move together) */
+.vl-marq { position: absolute; z-index: 9; pointer-events: none; border: calc(1px * var(--vl-iz, 1)) solid var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
+.vl-screen:not(.is-show) .vl-block.is-hit { outline: calc(2px * var(--vl-iz, 1)) solid color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
+.vl-screen:not(.is-show) .vl-block.is-many { overflow: hidden; }
+.vl-marq.is-deep { border-style: dashed; }
+.vl-screen:not(.is-show) .vl-it.is-hit { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
 /* the middle button drags the view */
 .vl-stage.is-panning, .vl-stage.is-panning * { cursor: grabbing !important; }
 

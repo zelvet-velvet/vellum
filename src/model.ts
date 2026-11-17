@@ -5,7 +5,7 @@
 
 export type Gravity = "tl" | "t" | "tr" | "l" | "c" | "r" | "bl" | "b" | "br";
 export type Size = number | "hug" | "fill";
-export type ItemType = "text" | "rect" | "ellipse" | "line" | "row" | "col" | "img" | "icon";
+export type ItemType = "text" | "rect" | "ellipse" | "line" | "row" | "col" | "group" | "img" | "icon";
 
 export interface Item {
     id: string; type: ItemType; note?: string;
@@ -22,7 +22,7 @@ export interface Item {
     src?: string; fit?: "cover" | "contain" | "fill"; pos?: string;
     // icon: a Lucide icon by name (Obsidian's set), drawn size × size in color (sw: its stroke width, else the theme's)
     name?: string;
-    // row / col
+    // row / col (items stacked, in flow); group (items each placed in the group's box by its own gravity / offset, moved as one)
     gap?: number; pad?: number; items?: Item[]; cross?: "start" | "center" | "end"; main?: "start" | "center" | "end" | "between";
 }
 // bleed: it may go into the safe areas (under the status bar, the home strip); else drags keep it inside them
@@ -85,6 +85,14 @@ export const findItem = (items: Item[], id: string): { item: Item; list: Item[] 
     }
     return null;
 };
+// the item an item sits in (a row, a column, a group), none at the top of its block
+export const parentOf = (items: Item[], id: string, up: Item | null = null): Item | null | undefined => {
+    for (const it of items) {
+        if (it.id === id) return up;
+        if (it.items) { const f = parentOf(it.items, id, it); if (f !== undefined) return f; }
+    }
+    return undefined;
+};
 export const cloneItem = (it: Item): Item => ({ ...(JSON.parse(JSON.stringify(it)) as Item), id: uid(), ...(it.items ? { items: it.items.map(cloneItem) } : {}) });
 
 // new items as the + buttons make them
@@ -99,6 +107,7 @@ export const newItem = (type: ItemType): Item => {
         case "col": return { id, type, g: "tl", dx: 16, dy: 16, gap: 4, items: [{ id: uid(), type: "text", v: "Line one", size: 15 }, { id: uid(), type: "text", v: "Line two", size: 13, color: "dim" }] };
         case "img": return { id, type, g: "tl", dx: 16, dy: 16, w: 120, h: 80, src: "", fit: "cover", r: 8 };
         case "icon": return { id, type, g: "tl", dx: 16, dy: 16, name: "sparkles", size: 20 };
+        case "group": return { id, type, g: "tl", dx: 16, dy: 16, w: 80, h: 48, items: [] };
     }
 };
 
