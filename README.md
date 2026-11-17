@@ -162,6 +162,7 @@ src: Design/Screens
 | `img` | `src` (`https://…` or a vault path), `fit` (`cover` · `contain` · `fill`), `pos` (CSS object-position), `r` |
 | `icon` | `name` (Lucide), `color size sw` |
 | `row` `col` | `items gap pad main cross`, `fill stroke sw r` |
+| `group` | `items`, each placed in the group's `w h` box by its own `g dx dy`; moved as one |
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 
@@ -179,6 +180,9 @@ src: Design/Screens
 | <kbd>Ctrl</kbd> <kbd>S</kbd> | Save |
 | <kbd>Alt</kbd> / <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
 | Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
+| Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
+| <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
+| <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ

@@ -92,8 +92,9 @@ const flow = (el: HTMLElement, it: Item, dir: "row" | "col") => {
     s.flexShrink = main === "fill" ? "1" : "0";
 };
 
-// draw an item into its parent (a block, or a row / column); every element gets data-id, the top-level one data-top
-export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row" | "col", lineUp: "left" | "center" | "right" = "left"): HTMLElement => {
+// draw an item into its parent (a block, a row / column, a group); every element gets data-id, the top-level one data-top
+// (an item in a group is placed as in a block, in the group's box, but is not top-level: data-in-group)
+export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row" | "col", lineUp: "left" | "center" | "right" = "left", inGroup = false): HTMLElement => {
     const el = parent.createDiv({ cls: `vl-it vl-i-${it.type}`, attr: { "data-id": it.id } });
     if (inFlow) flow(el, it, inFlow); else { el.addClass("is-abs"); place(el, it); }
     const s = el.style;
@@ -180,7 +181,15 @@ export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row"
             for (const c of it.items ?? []) drawItem(t, el, c, it.type, up);
             break;
         }
+        case "group": {
+            // its box is the room its items are placed in (by gravity, as in a block); nothing of its own is drawn
+            if (typeof it.w !== "number" && it.w !== "fill") s.width = "40px";
+            if (typeof it.h !== "number" && it.h !== "fill") s.height = "40px";
+            for (const c of it.items ?? []) drawItem(t, el, c, undefined, "left", true);
+            break;
+        }
     }
-    if (!inFlow) el.setAttr("data-top", "1");
+    if (inGroup) el.setAttr("data-in-group", "1");
+    else if (!inFlow) el.setAttr("data-top", "1");
     return el;
 };

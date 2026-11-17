@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
-import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
+import { axes, bgOf, Block, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
@@ -277,6 +277,35 @@ class Editor {
     layer() { const p = this.page(); return p && this.sel?.block ? this.layers(p).find((l) => l.block.id === this.sel?.block) : undefined; }
     item() { const b = this.block(); return b && this.sel?.item ? findItem(b.items, this.sel.item) : null; }
     choose(s: Sel) { this.sel = s; this.drawPanel(); this.drawPages(); }
+    // several blocks chosen at once (an area dragged out, Shift+click, Ctrl+A): kept for the page selection it was made
+    // with, so any other choice lets it go by itself
+    group: { sel: Sel; ids: string[]; items?: { block: string; item: string }[] } | null = null;
+    get many(): Block[] {
+        const g = this.group, p = this.page();
+        if (!g || g.sel !== this.sel || !p || g.items) return [];
+        const own = this.blocks(p);
+        return g.ids.map((id) => own.find((b) => b.id === id)).filter((b): b is Block => !!b);
+    }
+    // several items (each placed in its block, not in a row), in one block or more
+    get manyItems(): { b: Block; it: Item }[] {
+        const g = this.group, p = this.page();
+        if (!g?.items || g.sel !== this.sel || !p) return [];
+        const own = this.blocks(p), out: { b: Block; it: Item }[] = [];
+        for (const x of g.items) { const b = own.find((o) => o.id === x.block), it = b?.items.find((i) => i.id === x.item); if (b && it) out.push({ b, it }); }
+        return out;
+    }
+    chooseItems(p: Page, list: { block: string; item: string }[]) {
+        if (list.length === 1) { this.choose({ page: p.id, block: list[0].block, item: list[0].item }); return; }
+        const s: Sel = { page: p.id };
+        this.group = list.length ? { sel: s, ids: [], items: list } : null;
+        this.choose(s);
+    }
+    chooseMany(p: Page, ids: string[]) {
+        if (ids.length === 1) { this.choose({ page: p.id, block: ids[0] }); return; }
+        const s: Sel = { page: p.id };
+        this.group = ids.length ? { sel: s, ids } : null;
+        this.choose(s);
+    }
     fixSel() { if (!this.page()) this.sel = null; else if (this.sel?.block && !this.layer()) this.sel = { page: this.sel.page }; else if (this.sel?.item && !this.item()) this.sel = { page: this.sel.page, block: this.sel.block }; }
 
     // ---- the card in the note: the screens as a small map, Open
@@ -349,7 +378,13 @@ class Editor {
         this.wall.addEventListener("pointerdown", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); this.pan(e); } }, true);
         this.wall.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
         this.wall.addEventListener("auxclick", (e) => { if (e.button === 1) e.preventDefault(); });
-        this.wall.addEventListener("click", (e) => { if (e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
+        // Edit: a drag beside the phone chooses the blocks it covers (a tap lets go)
+        this.wall.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0 || this.v.show || this.v.map || (e.target as HTMLElement).closest(".vl-screen, button, .vl-empty")) return;
+            const p = this.current(), scr = this.wall.querySelector<HTMLElement>(".vl-screen");
+            if (p && scr) this.marquee(e, p, scr, true);
+        });
+        this.wall.addEventListener("click", (e) => { if ((this.v.show || this.v.map) && e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
@@ -796,7 +831,8 @@ class Editor {
         const kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
         const sel = this.sel?.page === p.id && this.sel.block === b.id;
         const inh = !!l?.from && !l.over;
-        const el = scr.createDiv({ cls: "vl-block" + (sel ? " is-sel" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : ""), attr: { "data-block": b.id } });
+        const inGroup = !show && this.sel?.page === p.id && this.many.includes(b);
+        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
@@ -806,6 +842,7 @@ class Editor {
             tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));
         }
         for (const it of b.items) drawItem(this.theme, el, it);
+        if (!show && this.sel?.page === p.id) for (const x of this.manyItems) if (x.b === b) el.querySelector(`[data-id="${x.it.id}"]`)?.addClass("is-sel");
         if (l?.over && !show) setIcon(el.createDiv({ cls: "vl-overmark", attr: { "aria-label": `Overrides ${this.page(l.over)?.name ?? "the frame"}'s ${b.name}` } }), "layers-2");
         if (sel && inh) { /* locked: no grip, no items to choose */ }
         else if (sel) {
@@ -852,7 +889,7 @@ class Editor {
         }
         return { x, y };
     }
-    blockLines(p: Page, b: Block): Lines {
+    blockLines(p: Page, b: Block, skip?: Set<string>): Lines {
         const { W, H, safe } = this.screen(p), x: number[] = [], y: number[] = [];
         if (snap.frame) {
             const l = safe.left, r = W - safe.right, t = safe.top, bo = H - safe.bottom;
@@ -860,7 +897,7 @@ class Editor {
             for (const m of snap.margins) { x.push(l + m, r - m); y.push(t + m, bo - m); }
         }
         if (snap.others) for (const { block: o } of this.layers(p)) {
-            if (o.id === b.id) continue;
+            if (o.id === b.id || skip?.has(o.id)) continue;
             x.push(o.x, o.x + o.w / 2, o.x + o.w); y.push(o.y, o.y + o.h / 2, o.y + o.h);
         }
         return { x, y };
@@ -917,14 +954,40 @@ class Editor {
         const itEl = t.closest<HTMLElement>(".vl-it");
         // an item inside a row moves with its row: the drag takes the top-level item, the tap chooses the inner one
         const topEl = t.closest<HTMLElement>("[data-top]");
-        const pickId = itEl?.dataset.id, dragId = topEl?.dataset.id;
+        let pickId = itEl?.dataset.id, dragId = topEl?.dataset.id;
+        // groups: a tap chooses the group until it (or something in it) is chosen, then what is in it; a drag moves the
+        // item at the level that is open (in an open group: its item, alone)
+        if (b && itEl) { const r = this.pickLevel(b, itEl); pickId = r.pick; dragId = r.drag ?? dragId; }
         const before = this.sel;
+        // empty space on the screen: a drag chooses the blocks in its area, a tap the page; Ctrl (Cmd): the items, anywhere
+        if (!bEl || ((e.ctrlKey || e.metaKey) && !t.closest("[data-grip], [data-igrip]"))) { this.marquee(e, p, scr, false); return; }
+        // an item of the item group: they move together; Shift+click on an item, with items chosen: in or out
+        const mi = this.manyItems;
+        if (b && dragId && mi.some((x) => x.it.id === dragId) && !e.shiftKey) { this.dragItems(e, p, scr, b, dragId); return; }
+        if (b && dragId && e.shiftKey && b.items.some((i) => i.id === dragId) && (mi.length || (this.sel?.item && this.sel.page === p.id))) {
+            const list = mi.map((x) => ({ block: x.b.id, item: x.it.id }));
+            if (!list.length) { const cb = this.block(), top = cb?.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (cb && top) list.push({ block: cb.id, item: top.id }); }
+            const i = list.findIndex((x) => x.item === dragId);
+            if (i >= 0) list.splice(i, 1); else list.push({ block: b.id, item: dragId });
+            this.chooseItems(p, list);
+            return;
+        }
         if (!b) {
             // a frame's block (locked here): chosen, to override it or go and edit it in its page
-            const l = bEl ? this.layers(p).find((x) => x.block.id === bEl.dataset.block) : undefined;
+            const l = this.layers(p).find((x) => x.block.id === bEl.dataset.block);
             this.choose(l ? { page: p.id, block: l.block.id } : { page: p.id });
             return;
         }
+        // Shift+click: a block in or out of the group (the block chosen alone starts it)
+        if (e.shiftKey && !this.sel?.item) {
+            const ids = this.many.map((x) => x.id);
+            if (!ids.length && this.sel?.page === p.id && this.sel.block && this.sel.block !== b.id && this.blocks(p).some((x) => x.id === this.sel!.block)) ids.push(this.sel.block);
+            const i = ids.indexOf(b.id);
+            if (i >= 0) ids.splice(i, 1); else ids.push(b.id);
+            this.chooseMany(p, ids);
+            return;
+        }
+        if (this.many.includes(b)) { this.dragMany(e, p, scr, b); return; }
         const ig = t.closest<HTMLElement>("[data-igrip]");
         if (ig && this.sel?.item && this.sel.block === b.id) { this.resizeItem(e, p, b, scr, ig.dataset.igrip as "bl" | "br"); return; }
         // first tap on a block chooses the block; an item is chosen once its block is (or straight away with a double tap)
@@ -933,6 +996,7 @@ class Editor {
         const wholeBlock = e.ctrlKey || e.metaKey || !!t.closest(".vl-tag");
         const target: Sel = pickId && blockChosen && !wholeBlock ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
         const dragItem = target?.item ? findItem(b.items, dragId!)?.item : undefined;
+        const holder = dragItem ? parentOf(b.items, dragItem.id) : null, inGroup = holder?.type === "group";   // in a group: grid steps, then the group fits its items again
         const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, start = { ...b }, istart = dragItem ? { dx: dragItem.dx ?? 0, dy: dragItem.dy ?? 0 } : null;
         let moved = false;
         // what the drag snaps to, measured once as it starts (the rest stays put): the item's box and its block's lines,
@@ -946,7 +1010,7 @@ class Editor {
             if (!moved) {
                 moved = true; this.begin();
                 const be = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
-                if (dragItem && be) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); } else lines = this.blockLines(p, b);
+                if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); } else if (!dragItem) lines = this.blockLines(p, b);
                 if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); }
             }
             const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
@@ -981,12 +1045,232 @@ class Editor {
         const up = () => {
             scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
             this.guides(scr);
-            if (moved) { this.end(); return; }
+            if (moved) { if (inGroup && holder && b.items.includes(holder)) this.refit(scr, b, holder); this.end(); return; }
             const again = target?.item && before?.item === target.item;
             this.choose(target);
             if (again && Platform.isMobile) this.writeItem(b, target.item!);
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+
+    // a drag over empty space draws an area, as in Figma / Sketch: the blocks wholly inside it are chosen together; when
+    // none is, the items it touches in the blocks it crosses (a block it touches with no item under the area: the block).
+    // Shift: added to what is chosen. A tap: the page (on the screen) or nothing (beside it)
+    marquee(e: PointerEvent, p: Page, scr: HTMLElement, outside: boolean) {
+        const z = this.v.zoom, r = scr.getBoundingClientRect();
+        const at = (x: number, y: number) => [(x - r.left) / z, (y - r.top) / z];
+        const deep = e.ctrlKey || e.metaKey;
+        if (deep) { this.marqueeItems(e, p, scr, outside); return; }
+        const [x0, y0] = at(e.clientX, e.clientY), add = e.shiftKey ? this.many.map((b) => b.id) : [];
+        if (add.length === 0 && e.shiftKey && this.sel?.page === p.id && this.sel.block && !this.sel.item) add.push(this.sel.block);
+        const addItems = e.shiftKey ? this.manyItems.map((x) => ({ block: x.b.id, item: x.it.id })) : [];
+        let box: HTMLElement | null = null, hits: string[] = [], itemHits: { block: string; item: string }[] = [];
+        scr.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            const [x1, y1] = at(m.clientX, m.clientY);
+            if (!box && Math.abs(x1 - x0) * z + Math.abs(y1 - y0) * z < 4) return;
+            box ??= scr.createDiv({ cls: "vl-marq" });
+            const L = Math.min(x0, x1), T = Math.min(y0, y1), W = Math.abs(x1 - x0), H = Math.abs(y1 - y0);
+            Object.assign(box.style, { left: `${L}px`, top: `${T}px`, width: `${W}px`, height: `${H}px` });
+            const own = this.blocks(p);
+            const whole = own.filter((b) => b.x >= L && b.x + b.w <= L + W && b.y >= T && b.y + b.h <= T + H);
+            const touched = own.filter((b) => b.x < L + W && b.x + b.w > L && b.y < T + H && b.y + b.h > T);
+            hits = []; itemHits = [];
+            scr.querySelectorAll<HTMLElement>(".vl-it.is-hit").forEach((el) => el.removeClass("is-hit"));
+            if (whole.length) hits = whole.map((b) => b.id);
+            else {
+                // the items under the area, in the blocks it crosses (measured as drawn, in client pixels)
+                const cL = r.left + L * z, cT = r.top + T * z, cR = cL + W * z, cB = cT + H * z;
+                for (const b of touched) {
+                    const bEl = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`); if (!bEl) continue;
+                    let any = false;
+                    bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]").forEach((iEl) => {
+                        const q = iEl.getBoundingClientRect();
+                        if (q.left < cR && q.right > cL && q.top < cB && q.bottom > cT) { iEl.addClass("is-hit"); itemHits.push({ block: b.id, item: iEl.dataset.id! }); any = true; }
+                    });
+                    if (!any) hits.push(b.id);
+                }
+                if (itemHits.length) hits = [];
+            }
+            scr.querySelectorAll<HTMLElement>("[data-block]").forEach((el) => el.toggleClass("is-hit", hits.includes(el.dataset.block!)));
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (!box) { if (!outside) this.choose({ page: p.id }); else if (this.sel) this.choose(null); return; }
+            box.remove();
+            if (itemHits.length) { const all = [...addItems]; for (const h of itemHits) if (!all.some((x) => x.item === h.item)) all.push(h); this.chooseItems(p, all); }
+            else this.chooseMany(p, [...new Set([...add, ...hits])]);
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+    // Ctrl (Cmd) + drag: the area chooses the items it touches (each placed in its block; a row is one item), in the
+    // page's own blocks (not a frame's). Shift: added to the items chosen. A tap: as a plain tap
+    marqueeItems(e: PointerEvent, p: Page, scr: HTMLElement, outside: boolean) {
+        const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, r = scr.getBoundingClientRect();
+        const add = e.shiftKey ? this.manyItems.map((x) => ({ block: x.b.id, item: x.it.id })) : [];
+        const own = new Set(this.blocks(p).map((b) => b.id));
+        let box: HTMLElement | null = null, hits: { block: string; item: string }[] = [];
+        scr.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            if (!box && Math.abs(m.clientX - x0) + Math.abs(m.clientY - y0) < 4) return;
+            box ??= scr.createDiv({ cls: "vl-marq is-deep" });
+            const L = Math.min(x0, m.clientX), T = Math.min(y0, m.clientY), R = Math.max(x0, m.clientX), B = Math.max(y0, m.clientY);
+            Object.assign(box.style, { left: `${(L - r.left) / z}px`, top: `${(T - r.top) / z}px`, width: `${(R - L) / z}px`, height: `${(B - T) / z}px` });
+            hits = [];
+            scr.querySelectorAll<HTMLElement>("[data-block]").forEach((bEl) => {
+                if (!own.has(bEl.dataset.block!)) return;
+                bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]").forEach((iEl) => {
+                    const q = iEl.getBoundingClientRect(), hit = q.left < R && q.right > L && q.top < B && q.bottom > T;
+                    iEl.toggleClass("is-hit", hit);
+                    if (hit) hits.push({ block: bEl.dataset.block!, item: iEl.dataset.id! });
+                });
+            });
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (!box) {
+                // a Ctrl+click: the item under the pointer straight away (its block need not be chosen first)
+                const t = e.target as HTMLElement, bEl = t.closest<HTMLElement>("[data-block]"), id = t.closest<HTMLElement>(".vl-it")?.dataset.id;
+                if (bEl && id && own.has(bEl.dataset.block!)) this.choose({ page: p.id, block: bEl.dataset.block!, item: id });
+                else if (!outside) this.choose({ page: p.id }); else if (this.sel) this.choose(null);
+                return;
+            }
+            box.remove();
+            const all = [...add]; for (const h of hits) if (!all.some((x) => x.item === h.item)) all.push(h);
+            this.chooseItems(p, all);
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+    // the chosen items move together, each from its own gravity point (snapped to the grid; Alt 1 px); a tap chooses
+    // the one under the pointer alone
+    dragItems(e: PointerEvent, p: Page, scr: HTMLElement, hitB: Block, hitId: string) {
+        const list = this.manyItems, z = this.v.zoom, x0 = e.clientX, y0 = e.clientY;
+        const start = list.map((x) => ({ ...x, dx: x.it.dx ?? 0, dy: x.it.dy ?? 0 }));
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
+            if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+            if (!moved) { moved = true; this.begin(); }
+            const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+            const mx = sn(dx), my = sn(dy), blocks = new Set<Block>();
+            for (const s of start) {
+                const [ax, ay] = axes(s.it.g);
+                if (s.it.w !== "fill") s.it.dx = s.dx + (ax > 0 ? -mx : mx);
+                if (s.it.h !== "fill") s.it.dy = s.dy + (ay > 0 ? -my : my);
+                blocks.add(s.b);
+            }
+            for (const b of blocks) this.redrawBlock(scr, p, b);
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (moved) this.end(); else this.choose({ page: p.id, block: hitB.id, item: hitId });
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+    // the chosen blocks move together: their outline snaps (to the frame and the blocks not moving), those inside their
+    // room stay in it; a tap (no drag) chooses the one under the pointer alone
+    dragMany(e: PointerEvent, p: Page, scr: HTMLElement, hit: Block) {
+        const group = this.many, z = this.v.zoom, x0 = e.clientX, y0 = e.clientY;
+        const start = group.map((b) => ({ b, x: b.x, y: b.y, R: this.room(p, b), keep: !b.bleed && inRoom(b, this.room(p, b)) }));
+        const L0 = Math.min(...group.map((b) => b.x)), T0 = Math.min(...group.map((b) => b.y));
+        const W = Math.max(...group.map((b) => b.x + b.w)) - L0, H = Math.max(...group.map((b) => b.y + b.h)) - T0;
+        // how far the group may go before a block that is inside its room would leave it
+        let minX = -Infinity, maxX = Infinity, minY = -Infinity, maxY = Infinity;
+        for (const s of start) if (s.keep) { minX = Math.max(minX, s.R.l - s.x); maxX = Math.min(maxX, s.R.r - s.x - s.b.w); minY = Math.max(minY, s.R.t - s.y); maxY = Math.min(maxY, s.R.b - s.y - s.b.h); }
+        const lines = this.blockLines(p, hit, new Set(group.map((b) => b.id)));
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
+            if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+            if (!moved) { moved = true; this.begin(); }
+            const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+            const on = snap.on && !m.altKey, reach = snap.dist / z, gx: number[] = [], gy: number[] = [];
+            const L = L0 + dx, T = T0 + dy;
+            const g1 = on ? near([L, L + W / 2, L + W], lines.x, reach) : null, g2 = on ? near([T, T + H / 2, T + H], lines.y, reach) : null;
+            if (g1) gx.push(g1.at); if (g2) gy.push(g2.at);
+            const mx = Math.min(maxX, Math.max(minX, (g1 ? Math.round(L + g1.d) : sn(L)) - L0));
+            const my = Math.min(maxY, Math.max(minY, (g2 ? Math.round(T + g2.d) : sn(T)) - T0));
+            for (const s of start) { s.b.x = s.x + mx; s.b.y = s.y + my; this.redrawBlock(scr, p, s.b); }
+            this.guides(scr, gx, gy);
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            this.guides(scr);
+            if (moved) this.end(); else this.choose({ page: p.id, block: hit.id });
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
+
+    // what a tap picks and a drag takes, in the chain of items under the pointer (top first): a group not open stops it
+    // (open: it, or something in it, is chosen); a drag takes the item right inside the deepest open group, else the top one
+    pickLevel(b: Block, itEl: HTMLElement): { pick?: string; drag?: string } {
+        const chain: HTMLElement[] = [];
+        for (let e: HTMLElement | null = itEl; e && !e.dataset.block; e = e.parentElement) if (e.hasClass("vl-it")) chain.unshift(e);
+        const selId = this.sel?.block === b.id ? this.sel.item : undefined;
+        let pick = chain[chain.length - 1], drag: HTMLElement | undefined, open = -1;
+        for (let i = 0; i < chain.length; i++) {
+            const it = findItem(b.items, chain[i].dataset.id!)?.item;
+            if (it?.type !== "group") continue;
+            if (selId && (selId === it.id || findItem(it.items ?? [], selId))) { open = i; continue; }
+            pick = chain[i]; break;
+        }
+        if (open >= 0 && chain[open + 1]) drag = chain[open + 1];
+        return { pick: pick?.dataset.id, drag: drag?.dataset.id };
+    }
+    // a group's box fitted to its items again (after one moved in it): the items keep their place on the screen, each
+    // placed from the group's top left; the group keeps its gravity
+    refit(scr: HTMLElement, b: Block, g: Item) {
+        const bEl = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`), gEl = bEl?.querySelector<HTMLElement>(`.vl-it[data-id="${g.id}"]`);
+        const box = bEl ? this.itemBox(bEl, b, g) : null;
+        if (!bEl || !gEl || !box || !g.items?.length) return;
+        const k = bEl.getBoundingClientRect().width / b.w, gr = gEl.getBoundingClientRect();
+        const kids = g.items.map((c) => { const q = gEl.querySelector<HTMLElement>(`:scope > [data-id="${c.id}"]`)?.getBoundingClientRect(); return q ? { c, L: (q.left - gr.left) / k, T: (q.top - gr.top) / k, W: q.width / k, H: q.height / k } : null; }).filter((x): x is NonNullable<typeof x> => !!x);
+        if (!kids.length) return;
+        const L = Math.min(...kids.map((x) => x.L)), T = Math.min(...kids.map((x) => x.T));
+        const W = Math.max(...kids.map((x) => x.L + x.W)) - L, H = Math.max(...kids.map((x) => x.T + x.H)) - T;
+        for (const x of kids) { x.c.g = "tl"; x.c.dx = Math.round(x.L - L); x.c.dy = Math.round(x.T - T); if (x.c.w === "fill") x.c.w = Math.round(x.W); if (x.c.h === "fill") x.c.h = Math.round(x.H); }
+        const [ax, ay] = axes(g.g), nW = Math.max(1, Math.round(W)), nH = Math.max(1, Math.round(H));
+        g.w = nW; g.h = nH; g.dx = toD(ax, box.L + L, nW, b.w); g.dy = toD(ay, box.T + T, nH, b.h);
+    }
+    // Ctrl+G: the chosen items (of one block) become one group, where they are; Ctrl+Shift+G: a group's items back in the block
+    groupSel() {
+        const p = this.page(); if (!p) return;
+        let list = this.manyItems;
+        if (!list.length) { const f = this.item(), b = this.block(); if (f && b && b.items.includes(f.item)) list = [{ b, it: f.item }]; }
+        if (!list.length) return;
+        const b = list[0].b;
+        if (list.some((x) => x.b !== b)) { new Notice("Vellum: a group holds items of one block; choose items in one block"); return; }
+        const bEl = this.wall.querySelector<HTMLElement>(`.vl-screen [data-block="${b.id}"]`); if (!bEl) return;
+        const boxes = list.map((x) => ({ it: x.it, r: this.itemBox(bEl, b, x.it) })).filter((x): x is { it: Item; r: NonNullable<typeof x.r> } => !!x.r).sort((a, c) => b.items.indexOf(a.it) - b.items.indexOf(c.it));
+        if (!boxes.length) return;
+        const L = Math.min(...boxes.map((x) => x.r.L)), T = Math.min(...boxes.map((x) => x.r.T));
+        const W = Math.max(...boxes.map((x) => x.r.L + x.r.W)) - L, H = Math.max(...boxes.map((x) => x.r.T + x.r.H)) - T;
+        const g: Item = { id: uid(), type: "group", g: "tl", dx: Math.round(L), dy: Math.round(T), w: Math.max(1, Math.round(W)), h: Math.max(1, Math.round(H)), items: [] };
+        this.edit(() => {
+            b.items.splice(b.items.indexOf(boxes[boxes.length - 1].it) + 1, 0, g);   // where the topmost of them was
+            for (const x of boxes) {
+                const c = x.it; c.g = "tl"; c.dx = Math.round(x.r.L - L); c.dy = Math.round(x.r.T - T);
+                if (c.w === "fill") c.w = Math.round(x.r.W); if (c.h === "fill") c.h = Math.round(x.r.H);
+                b.items.splice(b.items.indexOf(c), 1); g.items!.push(c);
+            }
+            this.sel = { page: p.id, block: b.id, item: g.id };
+        });
+    }
+    ungroup() {
+        const f = this.item(), b = this.block(), p = this.page(), g = f?.item;
+        if (!g || !b || !p || g.type !== "group" || !b.items.includes(g)) return;
+        const bEl = this.wall.querySelector<HTMLElement>(`.vl-screen [data-block="${b.id}"]`); if (!bEl) return;
+        const kids = (g.items ?? []).map((c) => ({ c, r: this.itemBox(bEl, b, c) }));
+        this.edit(() => {
+            for (const { c, r } of kids) {
+                if (r) { c.g = "tl"; c.dx = Math.round(r.L); c.dy = Math.round(r.T); if (c.w === "fill") c.w = Math.round(r.W); if (c.h === "fill") c.h = Math.round(r.H); }
+                if (g.op !== undefined) c.op = Math.round(((c.op ?? 100) * g.op) / 100);
+            }
+            b.items.splice(b.items.indexOf(g), 1, ...kids.map((x) => x.c));
+        }, false);
+        this.chooseItems(p, kids.map((x) => ({ block: b.id, item: x.c.id })));
     }
 
     typeInPlace(e: MouseEvent, p: Page) {
@@ -1026,29 +1310,53 @@ class Editor {
         if (mod && k === "z") { if (e.shiftKey) this.redo(); else this.undo(); return true; }
         if (mod && k === "y") { this.redo(); return true; }
         if (mod && k === "d") { this.duplicate(); return true; }
+        if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
+        if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).map((b) => b.id)); return true; }
         if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place
-        if (e.key === "Escape") { const s = this.sel; this.choose(s?.item ? { page: s.page, block: s.block } : s?.block ? { page: s.page } : null); return true; }
+        if (e.key === "Escape" && (this.many.length || this.manyItems.length)) { this.choose({ page: this.sel!.page }); return true; }
+        if (e.key === "Escape") {
+            // one level up: an item in a group / row → that; an item → its block; a block → the page
+            const s = this.sel, b = this.block(), up = s?.item && b ? parentOf(b.items, s.item) : null;
+            this.choose(up ? { page: s!.page, block: s!.block, item: up.id } : s?.item ? { page: s.page, block: s.block } : s?.block ? { page: s.page } : null); return true;
+        }
         if (e.key === "Delete" || e.key === "Backspace") { this.remove(); return true; }
         const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
+        if (d && (this.many.length || this.manyItems.length)) { this.nudge(d[0] * (e.shiftKey ? grid() : 1), d[1] * (e.shiftKey ? grid() : 1)); return true; }
         if (d && this.sel?.block) { this.nudge(d[0] * (e.shiftKey ? grid() : 1), d[1] * (e.shiftKey ? grid() : 1)); return true; }
         return false;
     }
     nudge(dx: number, dy: number) {
-        const f = this.item(), b = this.block();
+        const f = this.item(), b = this.block(), many = this.many, mi = this.manyItems;
+        if (mi.length) { this.edit(() => { for (const { it } of mi) { const [ax, ay] = axes(it.g); if (it.w !== "fill") it.dx = (it.dx ?? 0) + (ax > 0 ? -dx : dx); if (it.h !== "fill") it.dy = (it.dy ?? 0) + (ay > 0 ? -dy : dy); } }, false); return; }
+        if (many.length) { const p = this.page()!; this.edit(() => { for (const g of many) { const R = this.room(p, g), keep = !g.bleed && inRoom(g, R); g.x += dx; g.y += dy; if (keep) clampTo(g, R, false); } }, false); return; }
         this.edit(() => {
             if (f) { const [ax, ay] = axes(f.item.g); if (f.item.w !== "fill") f.item.dx = (f.item.dx ?? 0) + (ax > 0 ? -dx : dx); if (f.item.h !== "fill") f.item.dy = (f.item.dy ?? 0) + (ay > 0 ? -dy : dy); }
             else if (b) { const p = this.page()!, R = this.room(p, b), keep = !b.bleed && inRoom(b, R); b.x += dx; b.y += dy; if (keep) clampTo(b, R, false); }
         });
     }
     duplicate() {
-        const f = this.item(), b = this.block(), p = this.page();
+        const f = this.item(), b = this.block(), p = this.page(), many = this.many, mi = this.manyItems;
+        if (mi.length && p) {
+            // each item again, next to itself in its block; the copies are chosen
+            const out: { block: string; item: string }[] = [];
+            this.edit(() => { for (const { b: ib, it } of mi) { const c = cloneItem(it); ib.items.splice(ib.items.indexOf(it) + 1, 0, c); out.push({ block: ib.id, item: c.id }); } }, false);
+            this.chooseItems(p, out); return;
+        }
+        if (many.length && p) {
+            // the group again, just under itself; the copies are chosen
+            const down = Math.max(...many.map((g) => g.y + g.h)) - Math.min(...many.map((g) => g.y)) + 8, ids: string[] = [];
+            this.edit(() => { for (const g of many) { const c: Block = { ...(JSON.parse(JSON.stringify(g)) as Block), id: uid(), y: g.y + down }; c.items = g.items.map(cloneItem); this.blocks(p).push(c); ids.push(c.id); } }, false);
+            this.chooseMany(p, ids); return;
+        }
         if (this.sel?.block && !b) return;   // a frame's block: locked here
         if (f) this.edit(() => { const c = cloneItem(f.item); f.list.splice(f.list.indexOf(f.item) + 1, 0, c); this.sel = { ...this.sel!, item: c.id }; });
         else if (b && p) this.edit(() => { const c: Block = { ...(JSON.parse(JSON.stringify(b)) as Block), id: uid(), y: b.y + b.h + 8 }; c.items = b.items.map(cloneItem); this.blocks(p).push(c); this.sel = { page: p.id, block: c.id }; });
         else if (p) this.edit(() => { const c: Page = { ...(JSON.parse(JSON.stringify(p)) as Page), id: uid(), name: p.name + " copy" }; this.doc.pages.splice(this.doc.pages.indexOf(p) + 1, 0, c); this.sel = { page: c.id }; });
     }
     remove() {
-        const f = this.item(), b = this.block(), p = this.page();
+        const f = this.item(), b = this.block(), p = this.page(), many = this.many, mi = this.manyItems;
+        if (mi.length && p) { this.edit(() => { for (const { b: ib, it } of mi) ib.items.splice(ib.items.indexOf(it), 1); this.sel = { page: p.id }; }); return; }
+        if (many.length && p) { this.edit(() => { const l = this.blocks(p); for (const g of many) l.splice(l.indexOf(g), 1); this.sel = { page: p.id }; }); return; }
         if (f) this.edit(() => { f.list.splice(f.list.indexOf(f.item), 1); this.sel = { page: p!.id, block: b!.id }; });
         else if (b && p) this.edit(() => { const l = this.blocks(p); l.splice(l.indexOf(b), 1); this.sel = { page: p.id }; });
     }
@@ -1083,7 +1391,10 @@ class Editor {
         // breadcrumb: page › block › item, each a way back up
         const head = P.createDiv({ cls: "vl-crumb" });
         const crumb = (text: string, s: Sel, on: boolean) => { const c = head.createEl("button", { text, cls: on ? "is-on" : "" }); c.addEventListener("click", () => this.choose(s)); };
-        crumb(p.name, { page: p.id }, !b);
+        const many = this.many, mi = this.manyItems;
+        crumb(p.name, { page: p.id }, !b && !many.length && !mi.length);
+        if (many.length) { head.createSpan({ text: "›" }); crumb(`${many.length} blocks`, this.sel, true); }
+        if (mi.length) { head.createSpan({ text: "›" }); crumb(`${mi.length} items`, this.sel, true); }
         if (b) { head.createSpan({ text: "›" }); crumb(b.name, { page: p.id, block: b.id }, !f); }
         else if (inh) { head.createSpan({ text: "›" }); crumb(inh.block.name, { page: p.id, block: inh.block.id }, true); }
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
@@ -1091,7 +1402,7 @@ class Editor {
         const acts = head.createDiv({ cls: "vl-hacts" });
         const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference(refB));
         const agB: HTMLElement = this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent(agB));
-        if (f || b) {
+        if (f || b || many.length || mi.length) {   // what is chosen (several too), never the screen by mistake
             this.btn(acts, "copy", "Duplicate (Ctrl+D)", () => this.duplicate());
             this.btn(acts, "trash-2", "Delete (Delete)", () => this.remove());
         } else if (!inh) {
@@ -1100,7 +1411,9 @@ class Editor {
         }
         if (this.sel) this.btn(acts, "x", "Let go (Esc)", () => this.choose(null)).addClass("vl-close");
         const body = P.createDiv({ cls: "vl-pbody" });
-        if (f && b) this.itemPanel(body, b, f.item, b.items.includes(f.item));
+        if (many.length) this.groupPanel(body, many);
+        else if (mi.length) this.itemsPanel(body, mi);
+        else if (f && b) this.itemPanel(body, b, f.item, b.items.includes(f.item));
         else if (b) this.blockPanel(body, p, b);
         else if (inh) this.framePanel(body, p, inh);
         else this.pagePanel(body, p);
@@ -1773,6 +2086,75 @@ class Editor {
         const n = this.section(body, "Note", true, { shut: true, hint: b.note ? b.note.split("\n")[0].slice(0, 26) : "empty" });
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
     }
+    // several blocks: lined up with each other (to the outline around them all), spaced out evenly, copied, deleted
+    groupPanel(body: HTMLElement, many: Block[]) {
+        const s = this.section(body, "Blocks");
+        s.createDiv({ cls: "vl-frameinfo", text: `${many.length} blocks chosen. Drag one to move them all; Shift+click adds or takes one out.` });
+        const L = () => Math.min(...many.map((b) => b.x)), T = () => Math.min(...many.map((b) => b.y));
+        const Rr = () => Math.max(...many.map((b) => b.x + b.w)), B = () => Math.max(...many.map((b) => b.y + b.h));
+        const spread = (axis: "x" | "y") => {
+            const len = axis === "x" ? "w" : "h", list = [...many].sort((a, b) => a[axis] - b[axis]);
+            const a = list[0][axis], z = Math.max(...list.map((b) => b[axis] + b[len])), used = list.reduce((n, b) => n + b[len], 0);
+            const gap = (z - a - used) / Math.max(1, list.length - 1);
+            let at = a; for (const b of list) { b[axis] = Math.round(at); at += b[len] + gap; }
+        };
+        const al = s.createDiv({ cls: "vl-align" });
+        const A: [string, string, () => void][] = [
+            ["align-start-vertical", "Line up the left edges", () => { const v = L(); for (const b of many) b.x = v; }],
+            ["align-center-vertical", "Line up the middles across", () => { const v = (L() + Rr()) / 2; for (const b of many) b.x = Math.round(v - b.w / 2); }],
+            ["align-end-vertical", "Line up the right edges", () => { const v = Rr(); for (const b of many) b.x = v - b.w; }],
+            ["|", "", () => {}],
+            ["align-start-horizontal", "Line up the tops", () => { const v = T(); for (const b of many) b.y = v; }],
+            ["align-center-horizontal", "Line up the middles down", () => { const v = (T() + B()) / 2; for (const b of many) b.y = Math.round(v - b.h / 2); }],
+            ["align-end-horizontal", "Line up the bottoms", () => { const v = B(); for (const b of many) b.y = v - b.h; }],
+            ["|", "", () => {}],
+            ["align-horizontal-distribute-center", "Space out evenly across", () => spread("x")],
+            ["align-vertical-distribute-center", "Space out evenly down", () => spread("y")],
+        ];
+        for (const [icon, label, act] of A) {
+            if (icon === "|") { al.createSpan({ cls: "vl-alsep" }); continue; }
+            this.icon(this.btn(al, icon, label, () => this.edit(act)), icon, label);
+        }
+        this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
+    }
+    // several items: lined up (to the outline around them all, as drawn), spaced out, copied, deleted
+    itemsPanel(body: HTMLElement, mi: { b: Block; it: Item }[]) {
+        const s = this.section(body, "Items");
+        const nb = new Set(mi.map((x) => x.b)).size;
+        s.createDiv({ cls: "vl-frameinfo", text: `${mi.length} items chosen${nb > 1 ? ` in ${nb} blocks` : ""}. Drag one to move them all; Shift+click adds or takes one out.` });
+        // each item's box on the screen (its block's place added), and a move by (mx, my) screen points
+        const scr = () => this.wall.querySelector<HTMLElement>(".vl-screen");
+        const boxes = () => mi.map((x) => { const bEl = scr()?.querySelector<HTMLElement>(`[data-block="${x.b.id}"]`), r = bEl ? this.itemBox(bEl, x.b, x.it) : null; return r ? { ...x, L: r.L + x.b.x, T: r.T + x.b.y, W: r.W, H: r.H } : null; }).filter((x): x is NonNullable<typeof x> => !!x);
+        const shift = (it: Item, mx: number, my: number) => { const [ax, ay] = axes(it.g); if (it.w !== "fill") it.dx = Math.round((it.dx ?? 0) + (ax > 0 ? -mx : mx)); if (it.h !== "fill") it.dy = Math.round((it.dy ?? 0) + (ay > 0 ? -my : my)); };
+        type Bx = ReturnType<typeof boxes>[number];
+        const line = (f: (all: Bx[]) => (x: Bx) => [number, number]) => () => { const all = boxes(); if (!all.length) return; const g = f(all); for (const x of all) { const [mx, my] = g(x); shift(x.it, mx, my); } };
+        const spread = (axis: "x" | "y") => () => {
+            const all = boxes().sort((a, b) => (axis === "x" ? a.L - b.L : a.T - b.T)); if (all.length < 3) return;
+            const p0 = (x: Bx) => (axis === "x" ? x.L : x.T), len = (x: Bx) => (axis === "x" ? x.W : x.H);
+            const a = p0(all[0]), z = Math.max(...all.map((x) => p0(x) + len(x))), gap = (z - a - all.reduce((n, x) => n + len(x), 0)) / (all.length - 1);
+            let at = a; for (const x of all) { const d = at - p0(x); shift(x.it, axis === "x" ? d : 0, axis === "y" ? d : 0); at += len(x) + gap; }
+        };
+        const L = (a: Bx[]) => Math.min(...a.map((x) => x.L)), T = (a: Bx[]) => Math.min(...a.map((x) => x.T));
+        const Rr = (a: Bx[]) => Math.max(...a.map((x) => x.L + x.W)), B = (a: Bx[]) => Math.max(...a.map((x) => x.T + x.H));
+        const al = s.createDiv({ cls: "vl-align" });
+        const A: [string, string, () => void][] = [
+            ["align-start-vertical", "Line up the left edges", line((a) => { const v = L(a); return (x) => [v - x.L, 0]; })],
+            ["align-center-vertical", "Line up the middles across", line((a) => { const v = (L(a) + Rr(a)) / 2; return (x) => [v - x.L - x.W / 2, 0]; })],
+            ["align-end-vertical", "Line up the right edges", line((a) => { const v = Rr(a); return (x) => [v - x.L - x.W, 0]; })],
+            ["|", "", () => {}],
+            ["align-start-horizontal", "Line up the tops", line((a) => { const v = T(a); return (x) => [0, v - x.T]; })],
+            ["align-center-horizontal", "Line up the middles down", line((a) => { const v = (T(a) + B(a)) / 2; return (x) => [0, v - x.T - x.H / 2]; })],
+            ["align-end-horizontal", "Line up the bottoms", line((a) => { const v = B(a); return (x) => [0, v - x.T - x.H]; })],
+            ["|", "", () => {}],
+            ["align-horizontal-distribute-center", "Space out evenly across", spread("x")],
+            ["align-vertical-distribute-center", "Space out evenly down", spread("y")],
+        ];
+        for (const [icon, label, act] of A) {
+            if (icon === "|") { al.createSpan({ cls: "vl-alsep" }); continue; }
+            this.icon(this.btn(al, icon, label, () => this.edit(act)), icon, label);
+        }
+        this.actions(body, [["group", "Group (Ctrl+G)", () => this.groupSel()], ["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
+    }
     // a frame's block on a page that inherits it: locked here; copy it in to change it here, or edit it where it belongs
     framePanel(body: HTMLElement, p: Page, l: Layer) {
         const owner = this.page(l.from), s = this.section(body, "From the frame");
@@ -1921,12 +2303,12 @@ class Editor {
         });
     }
     addButtons(parent: HTMLElement, b: Block, list: Item[], types: ItemType[]) {
-        const names: Record<ItemType, string> = { text: "Text", rect: "Shape", ellipse: "Circle", line: "Line", img: "Picture", icon: "Icon", row: "Row", col: "Column" };
+        const names: Record<ItemType, string> = { text: "Text", rect: "Shape", ellipse: "Circle", line: "Line", img: "Picture", icon: "Icon", group: "Group", row: "Row", col: "Column" };
         const g = parent.createDiv({ cls: "vl-addgrid is-items" });
         for (const t of types) {
             const c = g.createEl("button", { cls: "vl-addt", attr: { "aria-label": `Add a ${names[t].toLowerCase()}` } });
             setIcon(c.createSpan({ cls: "vl-addi" }), t === "icon" ? "smile-plus" : TYPE_ICON[t]); c.createSpan({ text: names[t] });
-            c.addEventListener("click", () => this.edit(() => { const it = newItem(t); if (list !== b.items) { delete it.g; delete it.dx; delete it.dy; } list.push(it); this.sel = { page: this.sel!.page, block: b.id, item: it.id }; }));
+            c.addEventListener("click", () => this.edit(() => { const it = newItem(t); const holder = list === b.items ? null : (function find(xs: Item[]): Item | undefined { for (const x of xs) { if (x.items === list) return x; const f = x.items && find(x.items); if (f) return f; } })(b.items); if (holder && holder.type !== "group") { delete it.g; delete it.dx; delete it.dy; } list.push(it); this.sel = { page: this.sel!.page, block: b.id, item: it.id }; }));
         }
     }
     itemPanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
@@ -1979,6 +2361,16 @@ class Editor {
             this.num(r, "Stroke", () => it.sw ?? 0, (v) => { it.sw = v || undefined; }, { step: 0.25, min: 0, max: 4 });
             this.num(r, "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100, unit: "%" });
             this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
+        } else if (it.type === "group") {
+            const s = this.section(body, "Group");
+            s.createDiv({ cls: "vl-frameinfo", text: `${it.items?.length ?? 0} items, moved as one. Click in it again (or double-click) to choose one of them; Esc goes back up.` });
+            const acts: [string, string, () => void][] = [["scan", "Fit to its items", () => { const scr = this.wall.querySelector<HTMLElement>(".vl-screen"); if (scr) this.edit(() => this.refit(scr, b, it)); }]];
+            if (b.items.includes(it)) acts.unshift(["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]);
+            this.actions(s, acts);
+            this.num(s.createDiv({ cls: "vl-nums" }), "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
+            const c = this.section(body, "Items in it");
+            this.itemList(c, b, it.items ?? (it.items = []));
+            this.addButtons(c, b, it.items, ["text", "rect", "ellipse", "img", "icon", "row", "col"]);
         } else if (it.type === "row" || it.type === "col") {
             const s = this.section(body, "Layout"), across = it.type === "row";
             this.seg(this.frow(s, "Direction"), [["row", "Across", "arrow-right"], ["col", "Down", "arrow-down"]], it.type, (v) => { it.type = v as ItemType; });
@@ -2245,7 +2637,7 @@ export const hsvToRgb = (h: number, s: number, v: number) => {
     return { r: Math.round(f(5) * 255), g: Math.round(f(3) * 255), b: Math.round(f(1) * 255) };
 };
 // an item's type as an icon (the item list, the add buttons)
-const TYPE_ICON: Record<ItemType, string> = { text: "type", rect: "square", ellipse: "circle", line: "minus", img: "image", icon: "smile", row: "columns-3", col: "rows-3" };
+const TYPE_ICON: Record<ItemType, string> = { text: "type", rect: "square", ellipse: "circle", line: "minus", img: "image", icon: "smile", group: "group", row: "columns-3", col: "rows-3" };
 // a short detail beside an item's name in the list
 const detail = (it: Item): string => it.type === "text" ? `${it.font ?? "ui"} ${it.size ?? 15}` : it.type === "icon" ? `${it.size ?? 20}` : it.type === "img" ? it.fit ?? "cover"
     : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} in it` : it.fill && typeof it.fill === "string" && !it.fill.includes("(") ? it.fill : "";
@@ -2257,7 +2649,7 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const ZOOMMAX = 16, MAPMAX = 6;   // 1600 % for a screen, 600 % for the map
-const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" ? `${it.items?.length ?? 0} items`
+const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
 let icons: string[] | null = null;
