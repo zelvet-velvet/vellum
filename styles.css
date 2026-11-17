@@ -812,3 +812,4 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
 .vl-ratio.is-under { left: 0; top: 100%; }
+.tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
