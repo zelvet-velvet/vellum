@@ -58,8 +58,13 @@
   </tr>
   <tr>
     <td valign="top"><img src="assets/icons/map.svg" width="32" height="32" alt=""><br><b>畫面地圖</b><br><sub>所有畫面以樹狀顯示，並標示各畫面的進入方式。</sub></td>
-    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>獨立視窗</b><br><sub>電腦上為完整編輯器，手機上設定收於底部面板。</sub></td>
+    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>獨立視窗</b><br><sub>電腦上為完整編輯器，手機上設定收於底部面板。Show 模式可逐一預覽畫面。</sub></td>
     <td valign="top"><img src="assets/icons/text.svg" width="32" height="32" alt=""><br><b>純 JSON</b><br><sub>一個畫面一個檔案，一個區塊一行，diff 簡潔。</sub></td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>標註</b><br><sub>在畫面上加註記、命名區域與參考線，給你與 agent 溝通。</sub></td>
+    <td valign="top"><img src="assets/icons/overlays.svg" width="32" height="32" alt=""><br><b>輔助線</b><br><sub>格線、欄位、三分法、黃金比例與螺旋、消失點。</sub></td>
+    <td valign="top"><img src="assets/icons/select.svg" width="32" height="32" alt=""><br><b>框選與群組</b><br><sub>拖曳框選區塊或項目，一起移動，組成群組。</sub></td>
   </tr>
 </table>
 

@@ -58,8 +58,13 @@ Sketch your plugin's screens on a real phone frame, inside your vault. Vellum ke
   </tr>
   <tr>
     <td valign="top"><img src="assets/icons/map.svg" width="32" height="32" alt=""><br><b>Screen map</b><br><sub>Every screen as a tree, joined by how you get there.</sub></td>
-    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>Its own window</b><br><sub>A full editor on a computer, a bottom sheet on a phone.</sub></td>
+    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>Its own window</b><br><sub>A full editor on a computer, a bottom sheet on a phone. Show walks the screens as a preview.</sub></td>
     <td valign="top"><img src="assets/icons/text.svg" width="32" height="32" alt=""><br><b>Plain JSON</b><br><sub>One file per screen, one block per line. Small diffs.</sub></td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>Marks</b><br><sub>Notes, named areas and guide lines on the screen, for you and the agent.</sub></td>
+    <td valign="top"><img src="assets/icons/overlays.svg" width="32" height="32" alt=""><br><b>Overlays</b><br><sub>Grids, columns, thirds, the golden ratio and spiral, vanishing points.</sub></td>
+    <td valign="top"><img src="assets/icons/select.svg" width="32" height="32" alt=""><br><b>Choose and group</b><br><sub>Drag an area over blocks or items, move them together, group them.</sub></td>
   </tr>
 </table>
 
