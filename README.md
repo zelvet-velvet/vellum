@@ -83,7 +83,7 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plugin API, no server.
 
 1. **The agent drafts** your app's screens, or proposes new ones.
-2. **You adjust** them in the editor and leave a **Note** on what to change.
+2. **You adjust** them in the editor and leave a **Note** on what to change, or a **mark** right on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
 3. **The agent builds** from the screens you changed.
 
 <table>
@@ -154,7 +154,7 @@ src: Design/Screens
 | Level | Fields |
 | :--- | :--- |
 | **Doc** | `device`; `safe`, `safeLand` (`top bottom left right`, each optional) |
-| **Page** | `name`, `note`, `parent`, `link` (how you get there), `inherit` (`true`: the parent is its frame), `device`, `bg`, `mock`, `blocks`, `land` (the landscape layout) |
+| **Page** | `name`, `note`, `parent`, `link` (how you get there), `inherit` (`true`: the parent is its frame), `device`, `bg`, `mock`, `blocks`, `land` (the landscape layout), `marks` |
 | **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas), its own look: `fill stroke sw r` and `sides` (the outline on some sides only: `"b"`, `"tb"`…), `items` |
 | **Any item** | `g` (anchor: `tl t tr l c r bl b br`), `dx dy`, `w h` (a number, `"hug"` or `"fill"`), `op`, `note` |
 | `text` | `v size wt font color ls lh upper`, and a box of its own: `fill stroke sw r pad` (a chip, a tile, a button; with a set `h` the text sits in its middle) |
@@ -163,6 +163,7 @@ src: Design/Screens
 | `icon` | `name` (Lucide), `color size sw` |
 | `row` `col` | `items gap pad main cross`, `fill stroke sw r` |
 | `group` | `items`, each placed in the group's `w h` box by its own `g dx dy`; moved as one |
+| **Mark** | A note on the screen for you and the agent, never part of the design: `id`, `kind` (`note`: a pin · `area`: a box `w h` with a `guide` in it if wanted, `thirds phi spiral diag center` · `line`: `axis` `"x"` down or `"y"` across), `x y`, `text`, `color`, `land`, `by` (`"agent"`) |
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 
@@ -183,6 +184,7 @@ src: Design/Screens
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
+| <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the overlays |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ

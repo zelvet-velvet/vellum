@@ -83,7 +83,7 @@
 可讀寫檔案的 agent 皆可使用，例如 Claude Code、Codex 與 Cursor。不需外掛 API 或伺服器。
 
 1. **agent 產生草稿**：依 app 現有頁面繪製畫面，或提出新畫面
-2. **於編輯器調整**：修改畫面，並於 **Note** 註記需要修改的地方
+2. **於編輯器調整**：修改畫面，並於 **Note** 註記需要修改的地方，或直接在畫面上加 **mark**：圖釘註記、命名的區域、參考線。agent 也能用 mark 回覆
 3. **agent 實作**：依修改後的畫面實作
 
 <table>
@@ -156,7 +156,7 @@ src: Design/Screens
 | 層級 | 欄位 |
 | :--- | :--- |
 | **Doc** | `device`；`safe`、`safeLand`（`top bottom left right`，皆可省略） |
-| **Page** | `name`、`note`、`parent`、`link`（進入方式）、`inherit`（`true`：以上層畫面為版型）、`device`、`bg`、`mock`、`blocks`、`land`（橫向排版） |
+| **Page** | `name`、`note`、`parent`、`link`（進入方式）、`inherit`（`true`：以上層畫面為版型）、`device`、`bg`、`mock`、`blocks`、`land`（橫向排版）、`marks` |
 | **Block** | `name`、`kind`、`note`、`x y w h`（螢幕 pt）、`bleed`（`true`：可延伸至安全區域）、本身外觀：`fill stroke sw r` 與 `sides`（僅部分邊的外框：`"b"`、`"tb"`…）、`items` |
 | **所有 item** | `g`（錨點：`tl t tr l c r bl b br`）、`dx dy`、`w h`（數字、`"hug"` 或 `"fill"`）、`op`、`note` |
 | `text` | `v size wt font color ls lh upper`，以及本身外框：`fill stroke sw r pad`（標籤、磚塊、按鈕；設定 `h` 時文字垂直置中） |
@@ -165,6 +165,7 @@ src: Design/Screens
 | `icon` | `name`（Lucide）、`color size sw` |
 | `row` `col` | `items gap pad main cross`、`fill stroke sw r` |
 | `group` | `items`，各自以自己的 `g dx dy` 放在群組的 `w h` 範圍內；整組一起移動 |
+| **Mark** | 畫面上給你與 agent 的標註，不屬於設計本身：`id`、`kind`（`note`：圖釘 · `area`：`w h` 的框，可加 `guide`：`thirds phi spiral diag center` · `line`：`axis` `"x"` 直線或 `"y"` 橫線）、`x y`、`text`、`color`、`land`、`by`（`"agent"`） |
 
 **版型。** `"inherit": true` 的畫面會先顯示上層畫面的區塊，再疊加本身的區塊。本身區塊與上層區塊 `id` 相同時取代上層區塊；畫面僅儲存本身的區塊。
 
@@ -185,6 +186,7 @@ src: Design/Screens
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
 | <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 加入或移出選取 · 全部區塊 |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組 |
+| <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏輔助線 |
 | 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> 常見問題

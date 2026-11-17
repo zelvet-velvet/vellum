@@ -741,6 +741,69 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* the middle button drags the view */
 .vl-stage.is-panning, .vl-stage.is-panning * { cursor: grabbing !important; }
 
+/* overlays: grids, composition guides, perspective (over the screen, never part of it) */
+.vl-ovl { position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none; overflow: visible; }
+.vl-ovl text { font-family: var(--font-interface); font-weight: 600; stroke: var(--background-primary); stroke-linejoin: round; paint-order: stroke; }
+.vl-ovl .vl-vp { pointer-events: all; cursor: move; stroke: var(--background-primary); }
+.vl-ratio { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; margin-top: calc(4px * var(--vl-iz, 1)); padding: calc(1px * var(--vl-iz, 1)) calc(5px * var(--vl-iz, 1)); border-radius: calc(4px * var(--vl-iz, 1)); font: 600 calc(10px * var(--vl-iz, 1))/1.4 var(--font-interface); font-variant-numeric: tabular-nums; color: var(--vl-sel-ink, var(--text-on-accent)); background: var(--vl-sel, var(--interactive-accent)); }
+.vl-menu.is-ovl { width: 300px; max-height: min(640px, calc(100% - 120px)); overflow-y: auto; }
+.vl-ovhead { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
+.vl .vl-ovtog, .vl .vl-ovflag { height: 24px; padding: 0 10px; border: 1px solid var(--background-modifier-border); box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl .vl-ovtog.is-on, .vl .vl-ovflag.is-on { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); }
+.vl-ovrow { border-radius: 6px; }
+.vl-ovrow.is-on { background: var(--background-secondary); margin: 1px 0; }
+.vl .vl-ovname { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px; border: 0; box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-small); color: var(--text-normal); }
+.vl .vl-ovname:hover { background: var(--background-modifier-hover); }
+.vl-ovsw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.vl-ovcheck { margin-left: auto; display: inline-flex; color: var(--text-faint); }
+.vl-ovrow.is-on .vl-ovcheck { color: var(--interactive-accent); }
+.vl-ovcheck svg { width: 14px; height: 14px; }
+.vl-ovopts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 8px 8px 26px; }
+.vl-ovopts.is-foot { padding-left: 8px; }
+.vl-ovnum { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl-ovnum input { width: 52px; height: 24px; padding: 0 4px; font-size: var(--font-ui-smaller); }
+.vl-ovseg { display: inline-flex; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; }
+.vl .vl-ovseg > button { height: 24px; padding: 0 8px; border: 0; border-radius: 0; box-shadow: none; background: transparent; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl .vl-ovseg > button.is-on { background: var(--interactive-accent); color: var(--text-on-accent); }
+
+/* marks: notes, areas and guide lines on a screen (never part of the design). Only their pins, tags, edges and grips
+   take the pointer: what is under an area stays easy to pick. Sizes keep to the monitor at any zoom (--vl-iz) */
+.vl-marks { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.vl-screen.is-show .vl-marks { display: none; }
+.vl-screen.is-marking, .vl-screen.is-marking * { cursor: crosshair !important; }
+.vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
+.vl-mark { position: absolute; --u: var(--vl-iz, 1); }
+.vl-mark.is-note { width: 0; height: 0; }
+.vl-mpin { position: absolute; left: calc(-7px * var(--u)); top: calc(-7px * var(--u)); width: calc(14px * var(--u)); height: calc(14px * var(--u)); border-radius: 50% 50% 50% 0; background: var(--mc); box-shadow: 0 0 0 calc(1.5px * var(--u)) var(--background-primary), 0 calc(2px * var(--u)) calc(6px * var(--u)) rgba(0, 0, 0, 0.3); pointer-events: auto; cursor: move; }
+.vl-mbub { position: absolute; left: calc(12px * var(--u)); top: calc(-8px * var(--u)); width: max-content; max-width: calc(200px * var(--u)); padding: calc(4px * var(--u)) calc(7px * var(--u)); border-radius: calc(6px * var(--u)); background: color-mix(in srgb, var(--mc) 22%, var(--background-primary)); border: calc(1px * var(--u)) solid var(--mc); color: var(--text-normal); font: 500 calc(11px * var(--u))/1.35 var(--font-interface); white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: move; box-shadow: 0 calc(2px * var(--u)) calc(8px * var(--u)) rgba(0, 0, 0, 0.2); }
+.vl-mark.is-area { box-sizing: border-box; border: calc(1.5px * var(--u)) dashed var(--mc); background: color-mix(in srgb, var(--mc) 6%, transparent); }
+.vl-mark.is-area.is-on { border-style: solid; }
+.vl-medge { position: absolute; pointer-events: auto; cursor: move; }
+.vl-medge.is-t, .vl-medge.is-b { left: 0; right: 0; height: calc(8px * var(--u)); } .vl-medge.is-t { top: calc(-4px * var(--u)); } .vl-medge.is-b { bottom: calc(-4px * var(--u)); }
+.vl-medge.is-l, .vl-medge.is-r { top: 0; bottom: 0; width: calc(8px * var(--u)); } .vl-medge.is-l { left: calc(-4px * var(--u)); } .vl-medge.is-r { right: calc(-4px * var(--u)); }
+.vl-mtag { position: absolute; left: calc(-1.5px * var(--u)); bottom: 100%; padding: calc(2px * var(--u)) calc(6px * var(--u)); border-radius: calc(4px * var(--u)) calc(4px * var(--u)) 0 0; background: var(--mc); color: #111; font: 600 calc(10px * var(--u))/1.3 var(--font-interface); white-space: nowrap; pointer-events: auto; cursor: move; }
+.vl-mgrip { position: absolute; right: calc(-6px * var(--u)); bottom: calc(-6px * var(--u)); width: calc(12px * var(--u)); height: calc(12px * var(--u)); border-radius: calc(3px * var(--u)); background: var(--mc); box-shadow: 0 0 0 calc(1.5px * var(--u)) var(--background-primary); pointer-events: auto; cursor: nwse-resize; }
+.vl-ovl.is-inmark { z-index: 0; width: 100%; height: 100%; }
+.vl-mark.is-line { pointer-events: auto; cursor: move; }
+.vl-mark.is-line.is-y { left: 0; right: 0; height: calc(8px * var(--u)); margin-top: calc(-4px * var(--u)); cursor: ns-resize; }
+.vl-mark.is-line.is-x { top: 0; bottom: 0; width: calc(8px * var(--u)); margin-left: calc(-4px * var(--u)); cursor: ew-resize; }
+.vl-mark.is-line::after { content: ""; position: absolute; background: var(--mc); }
+.vl-mark.is-line.is-y::after { left: 0; right: 0; top: 50%; height: calc(1px * var(--u)); }
+.vl-mark.is-line.is-x::after { top: 0; bottom: 0; left: 50%; width: calc(1px * var(--u)); }
+.vl-mark.is-line.is-on::after { box-shadow: 0 0 0 calc(1px * var(--u)) var(--mc); }
+.vl-mark.is-line .vl-mtag { bottom: auto; border-radius: calc(4px * var(--u)); }
+.vl-mark.is-line.is-y .vl-mtag { left: calc(4px * var(--u)); top: calc(-14px * var(--u)); }
+.vl-mark.is-line.is-x .vl-mtag { left: calc(6px * var(--u)); top: calc(4px * var(--u)); }
+.vl-mark.is-on .vl-mtag, .vl-mark.is-on .vl-mbub { box-shadow: 0 0 0 calc(2px * var(--u)) var(--interactive-accent); }
+.vl .vl-markrow { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 6px; border: 0; box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-small); color: var(--text-normal); text-align: left; overflow: hidden; white-space: nowrap; }
+.vl .vl-markrow:hover { background: var(--background-modifier-hover); }
+
+/* the composition frame: only its tag, edges and corner take the pointer */
+.vl-ovframe { z-index: 7; pointer-events: none; background: transparent !important; border-color: transparent !important; }
+.vl-ovframe.is-moved { border-color: color-mix(in srgb, var(--mc) 60%, transparent) !important; }
+.vl-ovframe .vl-mtag { opacity: 0.85; }
+.vl-ovframe:not(.is-moved) .vl-mtag { bottom: auto; top: 0; border-radius: 0 0 calc(4px * var(--u)) 0; }
+.vl-ovhint { flex-basis: 100%; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 /* the pill's words: heavy enough to read on the accent */
 .vl .vl-zpill .vl-seg > button { font-weight: 600; font-size: var(--font-ui-small); }
 .vl .vl-zpill .vl-seg > button:not(.is-on) { color: var(--text-normal); opacity: 0.75; }
@@ -748,4 +811,5 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-zoom { font-weight: 600; }
 
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
+.vl-ratio.is-under { left: 0; top: 100%; }
 .tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
