@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, childrenOf, cloneItem, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
@@ -428,7 +428,7 @@ class Editor {
             x.addEventListener("click", () => { if (this.land === land) return; this.setView({ land }); this.sel = null; this.thumbs.clear(); this.draw(); });
         }
         if (!this.v.map && !this.v.show) {
-            this.btn(pill, "magnet", snap.on ? "Snapping on: to edges, middles and other items (Alt while dragging: off; details in Settings → Vellum)" : "Snapping off: the grid only", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }).toggleClass("is-on", snap.on);
+            this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
@@ -469,6 +469,8 @@ class Editor {
         if (parent) { n.parent = parent.id; pages.splice(pages.indexOf(parent) + 1, 0, n); } else pages.push(n);
         this.sel = { page: n.id }; this.setView({ page: n.id });
     }); this.draw(); }
+    // a short tooltip, a line or two, centred; over the pill it opens above
+    tip(el: HTMLElement, text: string) { setTooltip(el, text, { placement: "top", classes: ["vl-tip"] }); return el; }
     btn(parent: HTMLElement, icon: string, label: string, act: () => void, off = false) {
         const x = parent.createEl("button", { cls: "vl-btn" + (off ? " is-off" : ""), attr: { "aria-label": label } });
         setIcon(x, icon);
@@ -540,7 +542,7 @@ class Editor {
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
         // the preview that opens when the pointer rests on a screen's name: on unless turned off here (kept on the device)
         const peeks = getLocal("vellum:peek") !== "0";
-        const hb = this.btn(hd, "picture-in-picture-2", peeks ? "Preview on hover: on (turn off)" : "Preview on hover: off (turn on)", () => { try { setLocal("vellum:peek", peeks ? "0" : "1"); } catch { /* */ } this.unpeek(); this.drawRail(); });
+        const hb = this.btn(hd, peeks ? "monitor" : "monitor-off", peeks ? "Preview on hover: on (turn off)" : "Preview on hover: off (turn on)", () => { try { setLocal("vellum:peek", peeks ? "0" : "1"); } catch { /* */ } this.unpeek(); this.drawRail(); });
         hb.toggleClass("is-on", peeks); hb.setAttr("data-tooltip-position", "bottom");
         const pb = this.btn(hd, "image", pics ? "Hide the pictures" : "Show a picture of each screen", () => { try { setLocal("vellum:pics", pics ? "0" : "1"); } catch { /* */ } this.drawRail(); });
         pb.toggleClass("is-on", pics); pb.setAttr("data-tooltip-position", "bottom");
