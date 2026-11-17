@@ -1,6 +1,7 @@
 import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, SliderComponent, TFolder, ToggleComponent } from "obsidian";
 import { EDIT_DEFAULT, EditCfg, openVellum, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
+import { NewsModal, newsSince } from "./news";
 import { BASE_THEME, Theme, UI_COLORS } from "./render";
 
 // the mark (ribbon, the editor's tab): a sheet behind a phone with two blocks on its screen; 100 × 100, line icons
@@ -12,14 +13,14 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg }
-const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT } };
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
 
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit } };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit }, news: saved?.news ?? true, seen: saved?.seen };
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui }));
@@ -32,6 +33,15 @@ export default class VellumPlugin extends Plugin {
         this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addSettingTab(new VellumSettings(this.app, this));
+        // after an update: what's new since the version last seen, once. A fresh install shows nothing; settings saved
+        // before this existed (no version kept) were made by 0.8.3 or older
+        this.app.workspace.onLayoutReady(() => {
+            const now = this.manifest.version, seen = this.settings.seen ?? (saved ? "0.8.3" : now);
+            if (seen === now && this.settings.seen === now) return;
+            const news = newsSince(seen, now);
+            this.settings.seen = now; void this.save();
+            if (news.length && this.settings.news) new NewsModal(this.app, news, () => { this.settings.news = false; void this.save(); }).open();
+        });
     }
     theme(): Theme { return { colors: { ...this.settings.colors }, fonts: { ...this.settings.fonts } }; }
     async save() { await this.saveData(this.settings); }
@@ -353,6 +363,10 @@ class VellumSettings extends PluginSettingTab {
         const eg = this.card(c, "editing", "Editing", `Drag step ×${ed.arrow}`);
         this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; eg.parentElement?.querySelector(".vls-sum")?.setText(`Drag step ×${n}`); this.save(); } }, { cls: "is-num", type: "number" });
         new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
+
+        // updates
+        const up = this.card(c, "updates", "Updates", s.news ? "What's new: on" : "What's new: off");
+        new ToggleComponent(this.row(up, "Show what's new", "After an update, a short list of what changed, once.")).setValue(s.news).onChange((v) => { s.news = v; up.parentElement?.querySelector(".vls-sum")?.setText(v ? "What's new: on" : "What's new: off"); this.save(); });
 
         const sp = this.card(c, "snapping", "Snapping", sn.on ? "On" : "Off");
         const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
