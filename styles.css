@@ -796,7 +796,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-mark.is-line.is-y .vl-mtag { left: calc(4px * var(--u)); top: calc(-14px * var(--u)); }
 .vl-mark.is-line.is-x .vl-mtag { left: calc(6px * var(--u)); top: calc(4px * var(--u)); }
 .vl-mark.is-on .vl-mtag, .vl-mark.is-on .vl-mbub { box-shadow: 0 0 0 calc(2px * var(--u)) var(--interactive-accent); }
-.vl .vl-markrow { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 6px; border: 0; box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-small); color: var(--text-normal); text-align: left; overflow: hidden; white-space: nowrap; }
+.vl .vl-markrow { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 6px; border: 0; box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-small); color: var(--text-normal); justify-content: flex-start; text-align: left; overflow: hidden; white-space: nowrap; }   /* a long note: from its dot, ending in … */
+.vl .vl-markrow > .vl-ovsw { flex: none; }
+.vl .vl-markrow > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vl .vl-markrow:hover { background: var(--background-modifier-hover); }
 
 /* the composition frame: only its tag, edges and corner take the pointer */
