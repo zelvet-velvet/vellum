@@ -9,7 +9,7 @@ export const NEWS: News[] = [
         items: [
             ["zoom-in", "Zoom and move freely", "Zoom to 1600 %, drag the view with the middle button; handles stay their size at any zoom."],
             ["square-dashed", "Choose several at once", "Drag over empty space to choose blocks or the items inside them; Ctrl+G groups items."],
-            ["message-square-plus", "Marks for you and the agent", "Press N: pin a note, name an area, lay a guide line. They are saved in the note."],
+            ["message-square-plus", "Marks for you and the agent", "Press N: pin a note, name an area, lay a guide line. They are saved with the screen, where the agent reads them."],
             ["layout-grid", "Overlays", "Grids, columns, thirds, the golden ratio and spiral, vanishing points: the grid button under the phone."],
             ["presentation", "Show as a preview", "The way to a screen and the screens it opens, with ← / → to the next one."],
         ],
