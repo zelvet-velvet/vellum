@@ -487,8 +487,8 @@ class Editor {
     }
     mount(container: HTMLElement) {
         this.root?.remove();
-        container.empty();
         const pop = container !== container.doc.body;
+        if (pop) container.empty();   // a phone: the editor lies over Obsidian on the body, which must keep the app (emptied, a close left a blank screen)
         const R = (this.root = container.createDiv({ cls: "vl vl-ws" + (Platform.isMobile ? " is-phone" : "") + (pop ? " is-pop" : ""), attr: { tabindex: "-1" } }));
         this.paint(R);
         // keys: on the editor itself (it may be in another window); capture so Obsidian's own keys do not take them first
@@ -509,7 +509,8 @@ class Editor {
         R.focus({ preventScroll: true });
     }
     unmount() { this.end(); this.root?.remove(); this.root = null; this.panel = null; this.drawCard(); }
-    closeWs() { const w = windows.get(this.draftKey()); if (w && !Platform.isMobile) w.leaf.detach(); else this.unmount(); }
+    // its own tab or window closes with it (an empty one would be left on a phone too); over the app, it only goes
+    closeWs() { const w = windows.get(this.draftKey()); if (w && this.root && w.contentEl.contains(this.root)) w.leaf.detach(); else this.unmount(); }
     draw() {
         const R = this.root; if (!R) return;
         // the camera: a rebuild (undo, redo, a change from outside, a side folded) keeps the stage scrolled where it was,
