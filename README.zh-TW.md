@@ -68,6 +68,13 @@
   </tr>
 </table>
 
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/marks.png" alt="畫面上的一則註記與一個標註區域，上面疊著黃金螺旋"><br><sub><b>標註與輔助線</b>：給代理看的註記與區域，畫面上疊著黃金螺旋</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：上方是從哪裡進來，兩側是箭頭，下方是它會開啟的畫面"><br><sub><b>Show</b>：上方是進入的路徑，兩側切換畫面，下方是它會開啟的畫面</sub></td>
+  </tr>
+</table>
+
 <p align="center"><img src="assets/map.png" alt="地圖：所有畫面以樹狀顯示，並標示各畫面的進入方式"><br><sub><b>地圖</b>：所有畫面以樹狀顯示，mock 以虛線外框標示</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> 安裝

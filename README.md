@@ -68,6 +68,13 @@ Sketch your plugin's screens on a real phone frame, inside your vault. Vellum ke
   </tr>
 </table>
 
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/marks.png" alt="A note and a named area on the screen, with the golden spiral over it"><br><sub><b>Marks and overlays</b>: a note and an area for the agent, the golden spiral over the screen</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the screen with the way here above it, arrows beside it, and what it opens below"><br><sub><b>Show</b>: the way here above, the next screen beside, what it opens below</sub></td>
+  </tr>
+</table>
+
 <p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree; mocks have a dashed outline</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
