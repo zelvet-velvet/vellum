@@ -24,8 +24,8 @@ phone frame, next to the real screens, in the same format you will build from.
 | Shapes and dividers | `rect`, `ellipse`, `line` |
 | Icons | `icon` with a [Lucide](https://lucide.dev/icons) name (`"name": "wallet"`); or an emoji in a `text` |
 | Pictures | `img` with `src`: an `https://` address or a vault path; `fit`, `r` |
-| Things in a row or column | `row` / `col` with `gap pad main cross` (spacing done for you) |
-| Several items moved as one | `group` |
+| A flow: a list of rows, chips, a label beside its value | `row` / `col` with `gap pad main cross` (spacing done for you) |
+| Several items moved as one | `group`: each item in it can still be chosen and dragged |
 | The same header on many screens | A frame: the parent screen's blocks, `"inherit": true` on the child |
 | How you get to a screen | `parent` and `link` (e.g. `"tap a row"`): the Map and Show draw it |
 | The phone | `_doc.json`: `device`, `safe` areas, `radius` (0: square), `bar` (iOS, Android, none) |
@@ -45,6 +45,9 @@ theme; fonts are `ui display mono`.
 ## 5. Rules
 - Keep `id`s stable: the user's references and marks point at them.
 - Frames are a block's own look or a text's own box, not a `rect` drawn underneath.
+- Place a card's contents as items right in the block (`g` with `dx dy`): the user drags only a block's own items, so
+  anything inside a `row` or `col` can't be moved by hand. Keep `row` / `col` for real flows, and never put one inside
+  another. Items that belong together go in a `group`.
 - Keep each file's layout: the screen's own fields on the first line, then one block per line.
 - A block wholly outside the screen is a **draft** the user parked there: leave it, don't build it.
 - The user may have the editor open. Write the files; Vellum reloads them and never overwrites unsaved edits.
