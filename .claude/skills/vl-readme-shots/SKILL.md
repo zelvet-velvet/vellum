@@ -24,12 +24,13 @@ All dark Obsidian theme, light screens. Images in `assets/`, the same file names
 | File | What it shows | How |
 | :--- | :--- | :--- |
 | `editor.png` | The whole editor: screens list with **Corner, bar, safe areas** open under Device, the phone, a chosen block's panel | Holdings, Edit, no overlays, choose the holdings list block; full-window shot |
-| `overlay.png` | An overlay **in use**: things lining up with it | Holdings; Overlays → Columns: 3, margin 16, gutter 12 (COST / NET PROFIT / REALIZED start at 16 / 152 / 288). Choose NET PROFIT (click its block, then it), Shift+click +2,548, REALIZED, 3, COST, 22,039. Clip around phone and toolbar |
+| `overlay.png` | An overlay **in use**, on the big list in the middle (what readers see first) | Holdings; Overlays → Columns: 3, margin 16, gutter 12. The list's prices don't quite sit on column 2, so for the shot: copy `Holdings.json` to the scratchpad, set the list block's price and % texts (`g` `tl`, `dx` 150–290, no `fill`) to `"g": "tr", "dx": 136`, take the shot, copy the backup back and check its `md5sum`. Choose the names, prices and values (click VOO twice, Shift+click the rest, **one click per `cdp.mjs` run**). Clip round phone and toolbar |
 | `show.png` | Show: the way here above, arrows beside | Holdings in Show; **the same clip size as `overlay.png`** |
 | `map.png` | Every screen as a tree | Map view, full window |
 | `agent.png` | A terminal conversation above the editor | Below |
 
-Shift+click: `{"drag":[x,y,x,y,8]}` (modifier 8 = Shift). Hash the screen file first (`md5sum`) and check it after: a
+Shift+click: `{"drag":[x,y,x,y,8]}` (modifier 8 = Shift). A long step list can hang mid-drag and leave the mouse held:
+send `{"release":[x,y]}` and check the file. Hash the screen file first (`md5sum`) and check it after: a
 click that lands on a chosen item can nudge it. If the editor shows **Save**, press undo until it shows **Saved**.
 
 ## The agent demo
@@ -44,6 +45,8 @@ Short and easy to read beats real-and-messy: a real session prints whole JSON fi
    Claude Code's screen; the setup scrolls off instead. Capture it with `scripts/shots/capture-window.ps1`.
 6. The screen file must already show the result the reply describes (make the change by hand if needed).
 7. Capture the stage and panel with Sort chosen, stack the two with `scripts/shots/stack.ps1`.
+8. Point from the pasted reference to the block with `scripts/shots/arrow.ps1`: a box round each, an arrow routed
+   through empty space (down the gap between phone and panel), labelled "the block you copied". Never across text.
 
 The caption says what the reader does (Copy reference, then what to change), not that the session was unscripted.
 

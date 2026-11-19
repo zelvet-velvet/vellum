@@ -76,7 +76,7 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；已選取 COST、NET PROFIT、REALIZED 與其數字，皆對齊欄位邊緣"><br><sub><b>輔助線</b>：三欄格線，選取的標籤與數字皆對齊欄位邊緣</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；列表的名稱對齊第一欄，價格對齊第二欄右緣，金額對齊右側邊距"><br><sub><b>輔助線</b>：三欄格線，列表的名稱、價格與金額皆對齊欄位</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：Holdings 畫面的預覽，上方是進入的路徑，兩側是切換畫面的箭頭"><br><sub><b>Show</b>：預覽畫面，上方是進入的路徑，兩側切換畫面</sub></td>
   </tr>
 </table>
@@ -132,12 +132,12 @@
 
 給 agent 的指示範例：
 
+以下列內容開始；[給 agent 的說明](docs/for-agents.md)列出 Vellum 支援的功能：
+
 ```text
-依據 github.com/zelvet-velvet/vellum 的 README 確認檔案格式。
-將 app 的每一頁寫為 Vellum 畫面，存於 Design/Screens，一個畫面一個 JSON 檔。
-文字使用實際內容，圖片使用 https 網址，圖示使用 Lucide 名稱，id 保持不變。
-卡片底色與外框使用區塊本身的 fill / stroke，標籤與磚塊使用文字本身的外框，
-不在下方另外疊加矩形。
+Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
+將 app 的每一頁寫為 Vellum 畫面，存於 Design/Screens，完成後告訴我資料夾位置。
+需要多個方案時，以 Vellum 的 mock 製作，不要做成網頁。
 ```
 
 > [!TIP]
@@ -149,27 +149,28 @@
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> 檔案格式
 
-```mermaid
-flowchart LR
-  D["Doc<br/>機型、安全區域"] --> P["Page<br/>一個畫面"]
-  P --> B["Block<br/>x, y, w, h, kind"]
-  B --> I["Item<br/>text · rect · ellipse · line<br/>img · icon · row · col"]
-  P -. "inherit: true" .-> F["上層畫面<br/>作為版型"]
+每個 app 一個資料夾，每個畫面一個小檔案：
+
+```text
+Design/Screens/
+├─ _doc.json       手機：機型、安全區域、圓角、狀態列；畫面順序
+├─ Home.json       一個畫面
+└─ Settings.json   另一個畫面
 ```
 
-一個資料夾內每個畫面一個 JSON 檔，另以 `_doc.json` 記錄機型與畫面順序。於筆記中顯示：
+畫面由數個 **block** 組成，即手機上的方框。每個 block 內放 **item**，依錨點定位：
 
-````markdown
-```vellum
-src: Design/Screens
-```
-````
-
-```json
+```jsonc
 {"id": "home", "name": "Home", "blocks": [
-  {"id": "b1", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 370, "h": 44, "items": [
-    {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"}]}]}
+  {"id": "title", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 396, "h": 44,    // 方框，單位為 pt
+   "items": [
+     {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"},  // 靠左、垂直置中
+     {"id": "i1", "type": "icon", "name": "settings", "g": "r"}                          // 靠右：Lucide 圖示
+   ]}
+]}
 ```
+
+於筆記中以 `vellum` 程式碼區塊加上 `src: Design/Screens` 顯示畫面。所有欄位列於下方；agent 另有[專用說明](docs/for-agents.md)。
 
 <details>
 <summary><b>欄位說明</b></summary>

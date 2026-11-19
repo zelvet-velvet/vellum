@@ -76,7 +76,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; COST, NET PROFIT, REALIZED and their numbers are chosen, each starting on a column edge"><br><sub><b>Overlays</b>: three columns; the chosen labels and numbers each start on a column edge</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; the list's names start on column 1, its prices end on column 2, its values end on the right margin"><br><sub><b>Overlays</b>: three columns; the list's names, prices and values line up with them</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
   </tr>
 </table>
@@ -130,12 +130,12 @@ One screen is one small file. The agent reads exactly where each thing is, and c
   </tr>
 </table>
 
+Start your agent with this; the [guide for agents](docs/for-agents.md) tells it what Vellum can do:
+
 ```text
-Read github.com/zelvet-velvet/vellum's README for the file format.
-Write each page of my app as a Vellum screen in Design/Screens, one JSON file per screen.
-Use real text, pictures by https address and icons by Lucide name. Keep ids stable.
-Draw a card's background or outline with the block's own fill / stroke, and a chip or tile with the text's own box,
-not with rectangles under them.
+Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
+Write each page of my app as a Vellum screen in Design/Screens, then tell me the folder.
+When I ask for options, make them as Vellum mocks, not as a web page.
 ```
 
 > [!TIP]
@@ -147,27 +147,28 @@ not with rectangles under them.
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> File format
 
-```mermaid
-flowchart LR
-  D["Doc<br/>device, safe areas"] --> P["Page<br/>one screen"]
-  P --> B["Block<br/>x, y, w, h, kind"]
-  B --> I["Item<br/>text · rect · ellipse · line<br/>img · icon · row · col"]
-  P -. "inherit: true" .-> F["Parent page<br/>used as its frame"]
+One folder per app, one small file per screen:
+
+```text
+Design/Screens/
+├─ _doc.json       the phone: device, safe areas, corner, status bar; the screen order
+├─ Home.json       a screen
+└─ Settings.json   another screen
 ```
 
-A folder holds one JSON file per screen, plus `_doc.json` for the device and the screen order. Show it in a note with:
+A screen is a few **blocks**, boxes on the phone. Each block holds **items**, placed by an anchor:
 
-````markdown
-```vellum
-src: Design/Screens
-```
-````
-
-```json
+```jsonc
 {"id": "home", "name": "Home", "blocks": [
-  {"id": "b1", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 370, "h": 44, "items": [
-    {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"}]}]}
+  {"id": "title", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 396, "h": 44,    // a box, in points
+   "items": [
+     {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"},  // left, centred down
+     {"id": "i1", "type": "icon", "name": "settings", "g": "r"}                          // right: a Lucide icon
+   ]}
+]}
 ```
+
+Show the screens in a note with a code block `vellum` holding `src: Design/Screens`. Every field is below; agents have [their own guide](docs/for-agents.md).
 
 <details>
 <summary><b>Field reference</b></summary>
