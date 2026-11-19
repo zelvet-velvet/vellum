@@ -47,7 +47,7 @@ Short and easy to read beats real-and-messy: a real session prints whole JSON fi
 7. Capture the stage and panel with Sort chosen **and the Copy reference hint showing**: `node scripts/shots/hover.mjs
    "Vellum ·" <button x> <y> <out.png> <clip x y w h>` (a hint shows only in a focused window; this emulates focus).
    Stack the two with `scripts/shots/stack.ps1`.
-8. Mark the flow with `scripts/shots/arrow.ps1`, numbered: **1** a box round the Copy reference button and its hint,
+8. Mark the flow with `scripts/shots/arrow.ps1`, numbered: **1** a box round the Copy reference button and its hint (its label on top of the box, right-aligned),
    **2** a box round the pasted reference ("paste it, say what to change"), **3** an arrow from it to the block ("the
    block you copied"), routed through empty space (the gaps between lines, the stage beside the phone). Never across text.
 
