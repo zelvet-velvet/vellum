@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, Plugin, PluginSettingTab, setIcon, SliderComponent, TFolder, ToggleComponent } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, normalizePath, Notice, Plugin, PluginSettingTab, setIcon, SliderComponent, TFile, TFolder, ToggleComponent } from "obsidian";
 import { EDIT_DEFAULT, EditCfg, openVellum, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
 import { NewsModal, newsSince } from "./news";
@@ -29,8 +29,8 @@ export default class VellumPlugin extends Plugin {
         setSnap(this.settings.snap, () => { void this.save(); });
         setEdit(this.settings.edit);
         // the editor straight on the screens folder: no note or block needed
-        this.addRibbonIcon("vellum", "Open Vellum", () => { void openVellum(this.settings.folder); });
-        this.addCommand({ id: "open", name: "Open the screens", callback: () => { void openVellum(this.settings.folder); } });
+        this.addRibbonIcon("vellum", "Open Vellum", () => this.openScreens());
+        this.addCommand({ id: "open", name: "Open the screens", callback: () => this.openScreens() });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addSettingTab(new VellumSettings(this.app, this));
         // after an update: what's new since the version last seen, once. A fresh install shows nothing; settings saved
@@ -44,6 +44,17 @@ export default class VellumPlugin extends Plugin {
         });
     }
     theme(): Theme { return { colors: { ...this.settings.colors }, fonts: { ...this.settings.fonts } }; }
+    // the screens folder; when it has none (an agent wrote them somewhere else), the folders that do (a _doc.json in
+    // them): one opens and becomes the screens folder, several are offered. None anywhere: the folder as set (made on save)
+    openScreens() {
+        const has = (dir: string) => this.app.vault.getAbstractFileByPath(normalizePath(`${dir}/_doc.json`)) instanceof TFile;
+        const use = (dir: string) => { this.settings.folder = dir; void this.save().then(() => openVellum(dir)); };
+        if (has(this.settings.folder)) { void openVellum(this.settings.folder); return; }
+        const found = this.app.vault.getFiles().filter((f) => f.name === "_doc.json").map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/");
+        if (found.length === 1) { new Notice(`Vellum: screens found in ${found[0].path}, now the screens folder`); use(found[0].path); return; }
+        if (found.length > 1) { new FolderPick(this.app, (f) => use(f.path), found).open(); return; }
+        void openVellum(this.settings.folder);
+    }
     async save() { await this.saveData(this.settings); }
 }
 
@@ -305,7 +316,7 @@ class VellumSettings extends PluginSettingTab {
 
         // screens
         const sc = this.card(c, "screens", "Screens", s.folder);
-        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Screens" });
+        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Screens" });
 
         // colours: the editor's own and the phones', each card a list with its own preview
         // the preview on top, the colours under it
@@ -408,8 +419,8 @@ const contrast = (a: number[], b: number[]) => { const x = luma(a), y = luma(b);
 
 // a folder of the vault, typed to find
 class FolderPick extends FuzzySuggestModal<TFolder> {
-    constructor(app: App, readonly pick: (f: TFolder) => void) { super(app); this.setPlaceholder("A folder of screens"); }
-    getItems() { return this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder && f.path !== "/"); }
+    constructor(app: App, readonly pick: (f: TFolder) => void, readonly only?: TFolder[]) { super(app); this.setPlaceholder(only ? "Screens found in these folders: open one" : "A folder of screens"); }
+    getItems() { return this.only ?? this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder && f.path !== "/"); }
     getItemText(f: TFolder) { return f.path; }
     onChooseItem(f: TFolder) { this.pick(f); }
 }
