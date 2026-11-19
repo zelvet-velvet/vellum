@@ -1,7 +1,7 @@
 <h1 align="center">Vellum</h1>
 
 <p align="center">
-  <b>在 Obsidian 裡編輯手機排版，再與你的 coding agent 協作。</b>
+  <b>在 Obsidian 內繪製 app 畫面草稿，與 coding agent 協作。</b>
 </p>
 
 <p align="center">
@@ -18,7 +18,13 @@
   <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
 </p>
 
-於儲存庫內，以真實手機外框編輯外掛的畫面排版。每個畫面存為一個 JSON 檔，agent 可依檔案得知每個元件的位置與尺寸並據此實作外掛，不需截圖或額外說明。顏色、字型與圖示依據 Obsidian 主題，排版結果與外掛實際外觀一致。
+輕量外掛，UI 草稿全在儲存庫內完成，不需另開設計工具、網站或註冊帳號。以真實手機外框排版，每個畫面存為一個 JSON 檔，可存取儲存庫的 agent 皆能得知每個元件的位置與尺寸，並修改同一份檔案。不需截圖或額外說明。
+
+- **不限 Obsidian 外掛**：個人專案或工作專案皆可。筆記在 Obsidian，畫面也能放在同一處
+- **指定元件請 agent 修改**：一鍵複製 block 或 item 給 agent，說明要改的地方，於手機外框上確認結果
+- **討論流程，而非只有排版**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯與 UX
+
+顏色、字型與圖示依據 Obsidian 主題，外掛的排版結果與實際外觀一致。
 
 <sub>JSON 描述的是排版意圖，不是原生版面程式碼。可直接對應 HTML 與 CSS，適用於 Obsidian 外掛；SwiftUI 與 Compose 的對應方式請參考[常見問題](#-常見問題)。</sub>
 

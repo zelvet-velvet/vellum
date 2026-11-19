@@ -1,7 +1,7 @@
 <h1 align="center">Vellum</h1>
 
 <p align="center">
-  <b>Mobile mockups for Obsidian plugins and vault apps, designed with your coding agent.</b>
+  <b>Draft app screens inside Obsidian, together with your coding agent.</b>
 </p>
 
 <p align="center">
@@ -18,7 +18,13 @@
   <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
 </p>
 
-Sketch your plugin's screens on a real phone frame, inside your vault. Vellum keeps each screen as a small JSON file: your agent reads exactly where everything is and builds the plugin to match, with no screenshots and no long descriptions. Colours, fonts and icons come from your Obsidian theme, so the mockup already looks like the plugin.
+A light plugin for UI drafts that never leaves your vault: no design app, no website, no account. Lay screens out on a real phone frame; each one is a small JSON file, so any agent that can open the vault reads exactly where everything is and edits the same files. No screenshots, no long descriptions.
+
+- **Any app, not only plugins**: a side project or a work project. If your notes live in Obsidian, its screens can too.
+- **Point at a piece, ask for a change**: copy a block or an item for the agent in one click, say what to change, see it on the phone.
+- **Talk through the flow, not just the pixels**: the Map shows how the screens connect, so you and the agent can work out the app's logic and UX together.
+
+Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup already looks like the plugin.
 
 <sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#-faq).</sub>
 
