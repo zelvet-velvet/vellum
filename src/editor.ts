@@ -313,8 +313,11 @@ class Editor {
     }
     focusMark = false;
     drawMarks(scr: HTMLElement, p: Page, z: number) {
-        scr.querySelector(":scope > .vl-marks")?.remove();
-        const layer = scr.createDiv({ cls: "vl-marks" }), iz = 1 / z;
+        // over the screen, beside it rather than in it: a note or a tag past the edge still shows
+        const phone = scr.parentElement!;
+        phone.querySelector(":scope > .vl-marks")?.remove();
+        const layer = phone.createDiv({ cls: "vl-marks" }), iz = 1 / z;
+        Object.assign(layer.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
         for (const m of this.marksOf(p)) {
             const on = this.sel?.mark === m.id;
             const el = layer.createDiv({ cls: `vl-mark is-${m.kind}` + (on ? " is-on" : ""), attr: { "data-mark": m.id } });
@@ -1054,6 +1057,7 @@ class Editor {
         ovlGrid = ovOn && ov.snap && ov.grid.on ? ov.grid.size : 0;
         for (const l of layers) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
         if (ovOn) this.drawOv(scr, p, z);
+        if (!show) this.spill(scr);
         if (!show && this.ov.notes) this.drawMarks(scr, p, z);
         scr.toggleClass("is-marking", this.marking && !show);
         // pointer: choose and drag
@@ -1182,6 +1186,21 @@ class Editor {
         const old = scr.querySelector(`[data-block="${b.id}"]`);
         const el = this.drawBlock(scr, p, b, false, this.layers(p).find((l) => l.block === b));
         if (old) old.replaceWith(el);
+        this.spill(scr);
+    }
+    // while editing, the parts of blocks past the screen's edge, faded: a copy behind the screen, which stays clipped
+    // with its round corners, so only what is outside it shows
+    spill(scr: HTMLElement) {
+        const phone = scr.parentElement;
+        if (!phone?.hasClass("vl-phone")) return;
+        phone.querySelector(":scope > .vl-spill")?.remove();
+        const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
+        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H);
+        if (!out.length) return;
+        const g = createDiv({ cls: "vl-spill" });
+        Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
+        for (const el of out) { const c = el.cloneNode(true) as HTMLElement; c.querySelectorAll(".vl-tag, .vl-grip").forEach((x) => x.remove()); g.appendChild(c); }
+        phone.prepend(g);
     }
     // l (editing): where the block comes from: a frame's (inherited: faded, locked) or an override of one (a small mark)
     drawBlock(scr: HTMLElement, p: Page, b: Block, show: boolean, l?: Layer): HTMLElement {
