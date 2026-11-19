@@ -76,8 +76,8 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/marks.png" alt="畫面上的一則註記與一個標註區域，上面疊著黃金螺旋"><br><sub><b>標註與輔助線</b>：給代理看的註記與區域，畫面上疊著黃金螺旋</sub></td>
-    <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：上方是從哪裡進來，兩側是箭頭，下方是它會開啟的畫面"><br><sub><b>Show</b>：上方是進入的路徑，兩側切換畫面，下方是它會開啟的畫面</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著四欄格線；選取的數字顯示尺寸與比例，格線顯示欄寬、欄距與邊距"><br><sub><b>輔助線</b>：以欄位格線對齊元件，選取的 item 顯示尺寸與比例</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：Holdings 畫面的預覽，上方是進入的路徑，兩側是切換畫面的箭頭"><br><sub><b>Show</b>：預覽畫面，上方是進入的路徑，兩側切換畫面</sub></td>
   </tr>
 </table>
 
@@ -104,6 +104,8 @@
 1. **agent 產生草稿**：依 app 現有頁面繪製畫面，或提出新畫面
 2. **於編輯器調整**：修改畫面，並於 **Note** 註記需要修改的地方，或直接在畫面上加 **mark**：圖釘註記、命名的區域、參考線。agent 也能用 mark 回覆
 3. **agent 實作**：依修改後的畫面實作
+
+<p align="center"><img src="assets/agent.png" alt="WSL 終端機中的 Claude Code 與 Vellum 並排：於 Holdings 畫面新增排序列、將選取項目改為強調色，並回答 UX 問題；手機畫面顯示結果"><br><sub>實際操作：對持股列表使用 <b>Copy for the agent</b>，要求「於列表上方新增排序選項」，再將選取項目改為強調色並詢問 UX 問題。檔案修改後手機畫面隨即更新。</sub></p>
 
 <table>
   <tr>

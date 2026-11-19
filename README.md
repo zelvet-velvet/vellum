@@ -76,8 +76,8 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/marks.png" alt="A note and a named area on the screen, with the golden spiral over it"><br><sub><b>Marks and overlays</b>: a note and an area for the agent, the golden spiral over the screen</sub></td>
-    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the screen with the way here above it, arrows beside it, and what it opens below"><br><sub><b>Show</b>: the way here above, the next screen beside, what it opens below</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Four columns over the Holdings screen; the chosen digit shows its size and ratio, the columns their width, gutter and margin"><br><sub><b>Overlays</b>: columns over the screen to line things up; the chosen item shows its size and ratio</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
   </tr>
 </table>
 
@@ -104,6 +104,8 @@ Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plug
 1. **The agent drafts** your app's screens, or proposes new ones.
 2. **You adjust** them in the editor and leave a **Note** on what to change, or a **mark** right on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
 3. **The agent builds** from the screens you changed.
+
+<p align="center"><img src="assets/agent.png" alt="Claude Code in a WSL terminal beside Vellum: it added a sort row to the Holdings screen, coloured the chosen word, and answers a UX question; the phone shows the result"><br><sub>A real session: <b>Copy for the agent</b> on the holdings list, "add sort chips above this list", then "make the chosen one the accent colour" and a UX question. The phone updates as the file changes.</sub></p>
 
 <table>
   <tr>
