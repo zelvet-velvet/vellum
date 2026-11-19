@@ -33,7 +33,8 @@ export interface Block { id: string; name: string; kind: string; x: number; y: n
 // with its text; area: a box x, y, w, h with a label, and a composition guide drawn in it if wanted; line: a guide line
 // across (axis y, at y) or down (axis x, at x) with a label. Drags snap to lines and areas. by: who wrote it ("agent")
 export type Guide = "thirds" | "phi" | "spiral" | "diag" | "center";
-export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
+// size: its text's size (11 if not set); a note's w: its bubble's width (else as wide as its text, up to 200)
+export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; size?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks

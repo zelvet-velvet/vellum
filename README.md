@@ -176,7 +176,7 @@ src: Design/Screens
 | `icon` | `name` (Lucide), `color size sw` |
 | `row` `col` | `items gap pad main cross`, `fill stroke sw r` |
 | `group` | `items`, each placed in the group's `w h` box by its own `g dx dy`; moved as one |
-| **Mark** | A note on the screen for you and the agent, never part of the design: `id`, `kind` (`note`: a pin · `area`: a box `w h` with a `guide` in it if wanted, `thirds phi spiral diag center` · `line`: `axis` `"x"` down or `"y"` across), `x y`, `text`, `color`, `land`, `by` (`"agent"`) |
+| **Mark** | A note on the screen for you and the agent, never part of the design: `id`, `kind` (`note`: a pin · `area`: a box `w h` with a `guide` in it if wanted, `thirds phi spiral diag center` · `line`: `axis` `"x"` down or `"y"` across), `x y`, `text`, `color`, `size` (its text's size, 11 if not set), `w` on a note (its bubble's width, else as wide as its text), `land`, `by` (`"agent"`) |
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 

@@ -319,11 +319,16 @@ class Editor {
             const on = this.sel?.mark === m.id;
             const el = layer.createDiv({ cls: `vl-mark is-${m.kind}` + (on ? " is-on" : ""), attr: { "data-mark": m.id } });
             el.style.setProperty("--mc", markColor(m.color));
+            if (m.size) el.style.setProperty("--ms", String(m.size));
             const by = m.by ? `${m.by}: ` : "";
             if (m.kind === "note") {
                 Object.assign(el.style, { left: `${m.x}px`, top: `${m.y}px` });
                 el.createDiv({ cls: "vl-mpin" });
-                if (m.text || on) el.createDiv({ cls: "vl-mbub", text: by + (m.text || "Write the note in the panel") });
+                if (m.text || on) {
+                    const bub = el.createDiv({ cls: "vl-mbub" + (m.w ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
+                    if (m.w) bub.style.setProperty("--mw", String(m.w));
+                    if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
+                }
             } else if (m.kind === "area") {
                 const w = m.w ?? 100, h = m.h ?? 100;
                 Object.assign(el.style, { left: `${m.x}px`, top: `${m.y}px`, width: `${w}px`, height: `${h}px` });
@@ -348,6 +353,8 @@ class Editor {
     markDown(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number) {
         if (e.button !== 0) return;
         e.stopPropagation(); e.preventDefault();
+        const bw = (e.target as HTMLElement).closest<HTMLElement>("[data-mbw]");
+        if (bw) { this.noteWidth(e, p, scr, m, z, bw.parentElement!); return; }
         const grip = !!(e.target as HTMLElement).closest("[data-mgrip]"), x0 = e.clientX, y0 = e.clientY, st = { ...m };
         const was = this.sel?.mark === m.id;
         if (!was) { this.sel = { page: p.id, mark: m.id }; this.drawPanel(); this.drawMarks(scr, p, z); }
@@ -398,6 +405,23 @@ class Editor {
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
+    // a note's bubble: its right edge drags it wider or narrower (in monitor pixels, as the bubble keeps its size at any zoom)
+    noteWidth(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
+        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width);
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (ev: PointerEvent) => {
+            if (!moved && Math.abs(ev.clientX - x0) < 3) return;
+            if (!moved) { moved = true; this.begin(); }
+            m.w = Math.max(60, Math.min(600, Math.round(w0 + ev.clientX - x0)));
+            this.drawMarks(scr, p, z); this.livePanel();
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (moved) this.end();
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
     markPanel(body: HTMLElement, p: Page, m: Mark) {
         const names = { note: "Note", area: "Area", line: "Guide line" } as const;
         const s = this.section(body, names[m.kind]);
@@ -411,6 +435,11 @@ class Editor {
         } else {
             this.num(r, "X", () => m.x, (v) => { m.x = v; }); this.num(r, "Y", () => m.y, (v) => { m.y = v; });
         }
+        // its text: the size, and a note's width (Auto: as wide as its text)
+        const r3 = s.createDiv({ cls: "vl-nums" });
+        this.num(r3, "Text size", () => m.size ?? 11, (v) => { if (v === 11) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
+        if (m.kind === "note") this.num(r3, "Width", () => m.w ?? 200, (v) => { m.w = v; }, { min: 60, max: 600, unit: "px" });
+        if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
         if (m.kind === "area") {
             const r2 = s.createDiv({ cls: "vl-nums" });
             this.num(r2, "W", () => m.w ?? 100, (v) => { m.w = v; }, { min: 8 }); this.num(r2, "H", () => m.h ?? 100, (v) => { m.h = v; }, { min: 8 });
