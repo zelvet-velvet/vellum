@@ -26,8 +26,9 @@ const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
 // the overlays of each note (kept on the device)
 const ovls = new Map<string, OvlCfg>();
 // number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
-export interface EditCfg { arrow: number; hold: boolean }
-export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true };
+// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text)
+export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW: number }
+export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0 };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
 // the selection's colour: the accent, unless it is too close to the colour of what is chosen (an orange handle on a
@@ -294,6 +295,9 @@ class Editor {
     keepOv() { try { setLocal(`vellum:ovl:${this.doc.id}`, JSON.stringify(this.ov)); } catch { /* */ } }
     // ---- marks: notes, areas and guide lines on a screen (in the note, for the people and the agent), in the layout on show
     marking = false;   // the mark tool: a click leaves a note, a drag an area
+    // the mark tool on or off; on, hidden marks show again (the new one would be invisible)
+    markTool() { this.marking = !this.marking; if (this.marking && !this.ov.notes) { this.ov.notes = true; this.keepOv(); } this.drawPages(); this.drawZoom(); }
+    toggleMarks() { this.ov.notes = !this.ov.notes; if (!this.ov.notes) { this.marking = false; if (this.sel?.mark) this.sel = { page: this.sel.page }; } this.keepOv(); this.drawPages(); this.drawPanel(); this.drawZoom(); }
     marksOf(p: Page) { return (p.marks ?? []).filter((m) => !!m.land === this.land); }
     mark() { const p = this.page(), id = this.sel?.mark; return p && id ? (p.marks ?? []).find((m) => m.id === id) : undefined; }
     markLines(p: Page): Lines {
@@ -307,6 +311,7 @@ class Editor {
     }
     addMark(p: Page, m: Omit<Mark, "id">) {
         const mk: Mark = { id: uid(), ...m, ...(this.land ? { land: true } : {}) };
+        if (!this.ov.notes) { this.ov.notes = true; this.keepOv(); this.drawZoom(); }
         this.focusMark = true;
         this.edit(() => { (p.marks ??= []).push(mk); this.sel = { page: p.id, mark: mk.id }; });
         this.drawPages();
@@ -319,14 +324,15 @@ class Editor {
             const on = this.sel?.mark === m.id;
             const el = layer.createDiv({ cls: `vl-mark is-${m.kind}` + (on ? " is-on" : ""), attr: { "data-mark": m.id } });
             el.style.setProperty("--mc", markColor(m.color));
-            if (m.size) el.style.setProperty("--ms", String(m.size));
+            el.style.setProperty("--ms", String(m.size ?? editCfg.markSize));
+            const mw = m.w ?? (editCfg.noteW || undefined);
             const by = m.by ? `${m.by}: ` : "";
             if (m.kind === "note") {
                 Object.assign(el.style, { left: `${m.x}px`, top: `${m.y}px` });
                 el.createDiv({ cls: "vl-mpin" });
                 if (m.text || on) {
-                    const bub = el.createDiv({ cls: "vl-mbub" + (m.w ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
-                    if (m.w) bub.style.setProperty("--mw", String(m.w));
+                    const bub = el.createDiv({ cls: "vl-mbub" + (mw ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
+                    if (mw) bub.style.setProperty("--mw", String(mw));
                     if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
                 }
             } else if (m.kind === "area") {
@@ -437,9 +443,9 @@ class Editor {
         }
         // its text: the size, and a note's width (Auto: as wide as its text)
         const r3 = s.createDiv({ cls: "vl-nums" });
-        this.num(r3, "Text size", () => m.size ?? 11, (v) => { if (v === 11) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
-        if (m.kind === "note") this.num(r3, "Width", () => m.w ?? 200, (v) => { m.w = v; }, { min: 60, max: 600, unit: "px" });
-        if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
+        this.num(r3, "Text size", () => m.size ?? editCfg.markSize, (v) => { if (v === editCfg.markSize) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
+        if (m.kind === "note") this.num(r3, "Width", () => m.w ?? (editCfg.noteW || 200), (v) => { if (v === editCfg.noteW) delete m.w; else m.w = v; }, { min: 60, max: 600, unit: "px" });
+        if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", editCfg.noteW ? "Width: the default" : "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
         if (m.kind === "area") {
             const r2 = s.createDiv({ cls: "vl-nums" });
             this.num(r2, "W", () => m.w ?? 100, (v) => { m.w = v; }, { min: 8 }); this.num(r2, "H", () => m.h ?? 100, (v) => { m.h = v; }, { min: 8 });
@@ -453,7 +459,6 @@ class Editor {
                 ["maximize", "The whole screen", () => this.edit(() => { m.x = 0; m.y = 0; m.w = W; m.h = H; })],
             ]);
         }
-        this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
         if (this.focusMark) { this.focusMark = false; window.setTimeout(() => body.querySelector<HTMLElement>("textarea.vl-text")?.focus()); }
     }
     // several blocks chosen at once (an area dragged out, Shift+click, Ctrl+A): kept for the page selection it was made
@@ -646,8 +651,11 @@ class Editor {
             this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
         }
         if (!this.v.map && !this.v.show) {
-            const mt = this.btn(pill, "message-square-plus", "", () => { this.marking = !this.marking; this.drawPages(); });
+            const mt = this.btn(pill, "message-square-plus", "", () => { this.markTool(); });
             this.tip(mt, "Mark (N)\nclick: a note · drag: an area").toggleClass("is-on", this.marking);
+            // marks shown or hidden while editing (they are never in Show)
+            const ov = this.ov, eye = this.btn(pill, ov.notes ? "eye" : "eye-off", "", () => this.toggleMarks());
+            this.tip(eye, (ov.notes ? "Marks shown" : "Marks hidden") + "\nShift+N shows / hides");
         }
         if (!this.v.map) {
             const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob)), "Overlays\nCtrl+' shows / hides");
@@ -1703,7 +1711,8 @@ class Editor {
         if (mod && k === "z") { if (e.shiftKey) this.redo(); else this.undo(); return true; }
         if (mod && k === "y") { this.redo(); return true; }
         if (mod && k === "d") { this.duplicate(); return true; }
-        if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.marking = !this.marking; this.drawPages(); return true; }
+        if (!mod && !e.altKey && e.shiftKey && k === "n" && !this.v.show && !this.v.map) { this.toggleMarks(); return true; }
+        if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.markTool(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
