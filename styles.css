@@ -35,6 +35,10 @@
 .vl-time { font: 600 17px/1 -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; letter-spacing: -0.3px; }
 .vl-net { font: 600 15px/1 -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; letter-spacing: -0.2px; }
 .vl-bars, .vl-batt { fill: currentColor; color: var(--vl-text); flex: none; }
+.vl-status.is-android { padding: 0 12px; }
+.vl-atime { font: 500 14px/1 Roboto, "Google Sans", system-ui, sans-serif; }
+.vl-aicons { display: flex; align-items: center; gap: 6px; }
+.vl-aicons svg { fill: currentColor; flex: none; }
 .vl-cut { position: absolute; background: #000; z-index: 4; pointer-events: none; }
 .vl-cut.is-island { left: 50%; top: 11px; width: 125px; height: 37px; margin-left: -62.5px; border-radius: 20px; }
 .vl-cut.is-notch { left: 50%; top: 0; width: 209px; height: 30px; margin-left: -104.5px; border-radius: 0 0 22px 22px; }
