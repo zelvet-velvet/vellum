@@ -8,6 +8,10 @@
 .vl-menuh { padding: 8px 8px 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
 .vl-menui { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; height: 30px; padding: 0 8px; border: 0; box-shadow: none; background: transparent; border-radius: 5px; font-size: var(--font-ui-small); color: var(--text-normal); text-align: left; }
 .vl-menui:hover { background: var(--background-modifier-hover); }
+.vl-markmenu { min-width: 0; }
+.vl-markmenu .vl-menui { justify-content: flex-start; gap: 8px; }
+.vl-menuic { display: inline-flex; color: var(--text-muted); }
+.vl-menuic svg { width: 16px; height: 16px; }
 .vl-menui.is-on { color: var(--interactive-accent); font-weight: 600; }
 .vl-seg { display: inline-flex; align-items: center; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; }
 .vl-seg > button { border: 0; border-radius: 0; box-shadow: none; background: transparent; height: 28px; padding: 0 10px; font-size: var(--font-ui-small); color: var(--text-muted); }

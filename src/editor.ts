@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
@@ -653,15 +653,27 @@ class Editor {
         if (!this.v.map && !this.v.show) {
             // Mark: a menu to add a mark or show / hide them (they are never in Show); with the tool on, a press puts it away
             const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ });
-            mt.addEventListener("click", (e) => {
+            mt.dataset.markbtn = "1";
+            mt.addEventListener("click", () => {
                 if (this.marking) { this.markTool(); return; }
-                // each choice closes the menu first, then redraws (the redraw replaces the button the menu belongs to)
-                const menu = new Menu();
-                menu.addItem((i) => i.setTitle("Add a mark (N)").setIcon("plus").onClick(() => { menu.hide(); window.setTimeout(() => this.markTool()); }));
-                menu.addItem((i) => i.setTitle(this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)").setIcon(this.ov.notes ? "eye-off" : "eye").onClick(() => { menu.hide(); window.setTimeout(() => this.toggleMarks()); }));
-                const r = mt.getBoundingClientRect();
-                menu.showAtPosition({ x: r.left, y: r.top }, mt.doc);
-                e.stopPropagation();
+                const R = this.root!, open = R.querySelector(".vl-markmenu");
+                if (open) { open.remove(); return; }
+                // Add closes the menu; Show / Hide keeps it open, its line updated in place
+                const m = R.createDiv({ cls: "vl-menu vl-markmenu" });
+                const rr = R.getBoundingClientRect(), br = mt.getBoundingClientRect();
+                m.style.left = `${br.left - rr.left}px`; m.style.bottom = `${rr.bottom - br.top + 6}px`;
+                const line = (icon: string, text: string, act: (b: HTMLElement) => void) => {
+                    const b = m.createEl("button", { cls: "vl-menui" });
+                    setIcon(b.createSpan({ cls: "vl-menuic" }), icon); b.createSpan({ text });
+                    b.addEventListener("click", () => act(b));
+                };
+                const close = () => { m.remove(); R.doc.removeEventListener("pointerdown", off, true); };
+                const off = (e: Event) => { if (!m.isConnected) { close(); return; } const t = e.target as HTMLElement; if (!m.contains(t) && !t.closest?.("[data-markbtn]")) close(); };
+                window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
+                line("plus", "Add a mark (N)", () => { close(); this.markTool(); });
+                const vis = (b: HTMLElement) => { b.empty(); setIcon(b.createSpan({ cls: "vl-menuic" }), this.ov.notes ? "eye-off" : "eye"); b.createSpan({ text: this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)" }); };
+                line("eye", "", (b) => { this.toggleMarks(); vis(b); });
+                vis(m.lastElementChild as HTMLElement);
             });
             this.tip(mt, this.marking ? "Mark: on\nclick: a note · drag: an area · press to stop" : `Mark\n${this.ov.notes ? "marks shown" : "marks hidden"}`).toggleClass("is-on", this.marking);
         }
