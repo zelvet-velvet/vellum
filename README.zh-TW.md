@@ -207,7 +207,7 @@ Design/Screens/
 | 按住滑鼠中鍵拖曳 · <kbd>Ctrl</kbd> + 滾輪 | 移動視野 · 以游標為中心縮放（最大 1600 %） |
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
 | <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 加入或移出選取 · 全部區塊 |
-| <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組 |
+| <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組、列或欄（項目留在原位） |
 | <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏標註 |
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選畫面、block 或 item 的參照，供 agent 使用 |

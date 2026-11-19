@@ -205,7 +205,7 @@ Show the screens in a note with a code block `vellum` holding `src: Design/Scree
 | Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
-| <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
+| <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup (a group, row or column: its items stay where they are) |
 | <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the marks |
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
