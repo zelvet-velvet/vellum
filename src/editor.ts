@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
 import { axes, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
@@ -651,11 +651,18 @@ class Editor {
             this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
         }
         if (!this.v.map && !this.v.show) {
-            const mt = this.btn(pill, "message-square-plus", "", () => { this.markTool(); });
-            this.tip(mt, "Mark (N)\nclick: a note · drag: an area").toggleClass("is-on", this.marking);
-            // marks shown or hidden while editing (they are never in Show)
-            const ov = this.ov, eye = this.btn(pill, ov.notes ? "eye" : "eye-off", "", () => this.toggleMarks());
-            this.tip(eye, (ov.notes ? "Marks shown" : "Marks hidden") + "\nShift+N shows / hides");
+            // Mark: a menu to add a mark or show / hide them (they are never in Show); with the tool on, a press puts it away
+            const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ });
+            mt.addEventListener("click", (e) => {
+                if (this.marking) { this.markTool(); return; }
+                const menu = new Menu();
+                menu.addItem((i) => i.setTitle("Add a mark (N)").setIcon("plus").onClick(() => this.markTool()));
+                menu.addItem((i) => i.setTitle(this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)").setIcon(this.ov.notes ? "eye-off" : "eye").onClick(() => this.toggleMarks()));
+                const r = mt.getBoundingClientRect();
+                menu.showAtPosition({ x: r.left, y: r.top }, mt.doc);
+                e.stopPropagation();
+            });
+            this.tip(mt, this.marking ? "Mark: on\nclick: a note · drag: an area · press to stop" : `Mark\n${this.ov.notes ? "marks shown" : "marks hidden"}`).toggleClass("is-on", this.marking);
         }
         if (!this.v.map) {
             const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob)), "Overlays\nCtrl+' shows / hides");
