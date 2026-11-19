@@ -38,10 +38,10 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="25%"><img src="assets/screens/home.png" alt="A home screen with flip-card numbers"></td>
-    <td width="25%"><img src="assets/screens/stocks.png" alt="A stocks screen"></td>
-    <td width="25%"><img src="assets/screens/spending.png" alt="A spending screen"></td>
-    <td width="25%"><img src="assets/screens/savings.png" alt="A savings screen"></td>
+    <td width="25%"><img src="assets/screens/debt.png" alt="The Debt screen: what is left to pay, flip-card numbers"></td>
+    <td width="25%"><img src="assets/screens/invest.png" alt="The Invest screen: cash waiting to invest, the market"></td>
+    <td width="25%"><img src="assets/screens/log.png" alt="The month's spending: left to spend, daily budget"></td>
+    <td width="25%"><img src="assets/screens/goals.png" alt="The Goals screen: funds and what is coming up"></td>
   </tr>
 </table>
 
@@ -109,17 +109,17 @@ Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plug
 
 <table>
   <tr>
-    <td width="36%" valign="top"><img src="assets/screens/stocks.png" alt="The stocks screen"></td>
+    <td width="36%" valign="top"><img src="assets/screens/mix.png" alt="The Mix screen"></td>
     <td valign="top">
 
 The card with the mix bars, as its file holds it:
 
 ```json
-{"name": "Card 2", "kind": "card",
- "x": 16, "y": 397, "w": 396, "h": 182, "items": [
+{"name": "Mix vs your target", "kind": "card",
+ "x": 16, "y": 323, "w": 396, "h": 183, "items": [
   {"type": "text", "v": "MIX VS YOUR TARGET", "size": 12},
-  {"type": "text", "v": "4 WARNINGS", "dx": 286, "color": "dim"},
-  {"type": "text", "v": "Stock ETF", "dy": 29, "size": 15},
+  {"type": "text", "v": "5 WARNINGS", "dx": 286, "color": "dim"},
+  {"type": "text", "v": "ETFs", "dy": 29, "size": 15},
   {"type": "rect", "dy": 54, "w": 396, "h": 16, "fill": "dim"}
 ]}
 ```

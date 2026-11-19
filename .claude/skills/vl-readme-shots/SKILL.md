@@ -23,6 +23,7 @@ All dark Obsidian theme, light screens. Images in `assets/`, the same file names
 
 | File | What it shows | How |
 | :--- | :--- | :--- |
+| `screens/debt.png` `invest.png` `log.png` `goals.png`, `mix.png` | The top row (Debt, Invest, Log, Goals) and the Mix screen beside its JSON in "With your agent" | `node scripts/shots/phones.mjs "Vellum ·" scripts/shots/light.js <outdir> Debt Invest Log Goals Mix`: each in Show, Fit, phone only, at double resolution, all the same size |
 | `editor.png` | The whole editor: screens list with **Corner, bar, safe areas** open under Device, the phone, a chosen block's panel | Holdings, Edit, no overlays, choose the holdings list block; full-window shot |
 | `overlay.png` | An overlay **in use**, on the big list in the middle (what readers see first) | Holdings; Overlays → Columns: 3, margin 16, gutter 12. The list's prices don't quite sit on column 2, so for the shot: copy `Holdings.json` to the scratchpad, set the list block's price and % texts (`g` `tl`, `dx` 150–290, no `fill`) to `"g": "tr", "dx": 136`, take the shot, copy the backup back and check its `md5sum`. Choose the names, prices and values (click VOO twice, Shift+click the rest, **one click per `cdp.mjs` run**). Clip round phone and toolbar |
 | `show.png` | Show: the way here above, arrows beside | Holdings in Show; **the same clip size as `overlay.png`** |

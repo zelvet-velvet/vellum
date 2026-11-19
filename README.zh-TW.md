@@ -38,10 +38,10 @@
 
 <table>
   <tr>
-    <td width="25%"><img src="assets/screens/home.png" alt="首頁，數字為翻牌樣式"></td>
-    <td width="25%"><img src="assets/screens/stocks.png" alt="股票畫面"></td>
-    <td width="25%"><img src="assets/screens/spending.png" alt="花費畫面"></td>
-    <td width="25%"><img src="assets/screens/savings.png" alt="存款畫面"></td>
+    <td width="25%"><img src="assets/screens/debt.png" alt="Debt 畫面：尚待償還金額與翻牌數字"></td>
+    <td width="25%"><img src="assets/screens/invest.png" alt="Invest 畫面：待投資現金與市場"></td>
+    <td width="25%"><img src="assets/screens/log.png" alt="本月支出：剩餘可用金額與每日預算"></td>
+    <td width="25%"><img src="assets/screens/goals.png" alt="Goals 畫面：各項基金與即將到期的目標"></td>
   </tr>
 </table>
 
@@ -109,17 +109,17 @@
 
 <table>
   <tr>
-    <td width="36%" valign="top"><img src="assets/screens/stocks.png" alt="股票畫面"></td>
+    <td width="36%" valign="top"><img src="assets/screens/mix.png" alt="Mix 畫面"></td>
     <td valign="top">
 
 比例條卡片於檔案中的內容：
 
 ```json
-{"name": "Card 2", "kind": "card",
- "x": 16, "y": 397, "w": 396, "h": 182, "items": [
+{"name": "Mix vs your target", "kind": "card",
+ "x": 16, "y": 323, "w": 396, "h": 183, "items": [
   {"type": "text", "v": "MIX VS YOUR TARGET", "size": 12},
-  {"type": "text", "v": "4 WARNINGS", "dx": 286, "color": "dim"},
-  {"type": "text", "v": "Stock ETF", "dy": 29, "size": 15},
+  {"type": "text", "v": "5 WARNINGS", "dx": 286, "color": "dim"},
+  {"type": "text", "v": "ETFs", "dy": 29, "size": 15},
   {"type": "rect", "dy": 54, "w": 396, "h": 16, "fill": "dim"}
 ]}
 ```
