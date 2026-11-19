@@ -29,6 +29,8 @@ export const deviceOf = (id?: string): Device => {
     if (m) return customDevice(Number(m[1]), Number(m[2]));
     return DEVICES.find((d) => d.id === id) ?? DEVICES[0];
 };
+// a device with the doc's own corner (radius set in the doc), else as it is
+export const framed = (d: Device, radius?: number): Device => radius === undefined ? d : { ...d, radius };
 // the screen as drawn (sideways swaps width and height) and its safe room
 export const screenOf = (d: Device, side?: boolean) => side
     ? { W: d.h, H: d.w, safe: { top: 0, left: d.side.left, right: d.side.left, bottom: d.side.bottom } }
