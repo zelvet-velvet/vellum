@@ -1,7 +1,7 @@
 <h1 align="center">Vellum</h1>
 
 <p align="center">
-  <b>Mobile mockups for Obsidian plugins and vault apps, designed with your coding agent.</b>
+  <b>Draft app screens inside Obsidian, together with your coding agent.</b>
 </p>
 
 <p align="center">
@@ -18,7 +18,13 @@
   <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
 </p>
 
-Sketch your plugin's screens on a real phone frame, inside your vault. Vellum keeps each screen as a small JSON file: your agent reads exactly where everything is and builds the plugin to match, with no screenshots and no long descriptions. Colours, fonts and icons come from your Obsidian theme, so the mockup already looks like the plugin.
+A light plugin for UI drafts that never leaves your vault: no design app, no website, no account. Lay screens out on a real phone frame; each one is a small JSON file, so any agent that can open the vault reads exactly where everything is and edits the same files. No screenshots, no long descriptions.
+
+- **Any app, not only plugins**: a side project or a work project. If your notes live in Obsidian, its screens can too.
+- **Point at a piece, ask for a change**: copy a block or an item for the agent in one click, say what to change, see it on the phone.
+- **Talk through the flow, not just the pixels**: the Map shows how the screens connect, so you and the agent can work out the app's logic and UX together.
+
+Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup already looks like the plugin.
 
 <sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#-faq).</sub>
 
@@ -32,22 +38,22 @@ Sketch your plugin's screens on a real phone frame, inside your vault. Vellum ke
 
 <table>
   <tr>
-    <td width="25%"><img src="assets/screens/home.png" alt="A home screen with flip-card numbers"></td>
-    <td width="25%"><img src="assets/screens/stocks.png" alt="A stocks screen"></td>
-    <td width="25%"><img src="assets/screens/spending.png" alt="A spending screen"></td>
-    <td width="25%"><img src="assets/screens/savings.png" alt="A savings screen"></td>
+    <td width="25%"><img src="assets/screens/debt.png" alt="The Debt screen: what is left to pay, flip-card numbers"></td>
+    <td width="25%"><img src="assets/screens/invest.png" alt="The Invest screen: cash waiting to invest, the market"></td>
+    <td width="25%"><img src="assets/screens/log.png" alt="The month's spending: left to spend, daily budget"></td>
+    <td width="25%"><img src="assets/screens/goals.png" alt="The Goals screen: funds and what is coming up"></td>
   </tr>
 </table>
 
-<p align="center"><sub>Screens of ZeLedger, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
+<p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens tree, the phone, and the settings of the chosen block"></p>
+<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens list with the device's corner, status bar and safe areas under it, the phone, and the chosen block's settings"></p>
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> Features
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size, with cut-outs and safe areas.</sub></td>
+    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size, with cut-outs, safe areas, your own corner and status bar.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>Portrait and landscape</b><br><sub>A layout for each, one switch for the whole editor.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>Blocks and gravity</b><br><sub>Text and shapes keep an anchor point, an offset, and hug / fixed / fill sizes.</sub></td>
   </tr>
@@ -70,12 +76,12 @@ Sketch your plugin's screens on a real phone frame, inside your vault. Vellum ke
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/marks.png" alt="A note and a named area on the screen, with the golden spiral over it"><br><sub><b>Marks and overlays</b>: a note and an area for the agent, the golden spiral over the screen</sub></td>
-    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the screen with the way here above it, arrows beside it, and what it opens below"><br><sub><b>Show</b>: the way here above, the next screen beside, what it opens below</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; the list's names start on column 1, its prices end on column 2, its values end on the right margin"><br><sub><b>Overlays</b>: three columns; the list's names, prices and values line up with them</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
   </tr>
 </table>
 
-<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree; mocks have a dashed outline</sub></p>
+<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
 
@@ -96,22 +102,24 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plugin API, no server.
 
 1. **The agent drafts** your app's screens, or proposes new ones.
-2. **You adjust** them in the editor and leave a **Note** on what to change, or a **mark** right on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
+2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
 3. **The agent builds** from the screens you changed.
+
+<p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Sort block, its hint showing. 2: the reference pasted into Claude Code with what to change, a two-line reply, the next request typed. 3: an arrow to the block on the phone, now with VALUE in the accent colour"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the phone updates as the file changes.</sub></p>
 
 <table>
   <tr>
-    <td width="36%" valign="top"><img src="assets/screens/stocks.png" alt="The stocks screen"></td>
+    <td width="36%" valign="top"><img src="assets/screens/mix.png" alt="The Mix screen"></td>
     <td valign="top">
 
 The card with the mix bars, as its file holds it:
 
 ```json
-{"name": "Card 2", "kind": "card",
- "x": 16, "y": 397, "w": 396, "h": 182, "items": [
+{"name": "Mix vs your target", "kind": "card",
+ "x": 16, "y": 323, "w": 396, "h": 183, "items": [
   {"type": "text", "v": "MIX VS YOUR TARGET", "size": 12},
-  {"type": "text", "v": "4 WARNINGS", "dx": 286, "color": "dim"},
-  {"type": "text", "v": "Stock ETF", "dy": 29, "size": 15},
+  {"type": "text", "v": "5 WARNINGS", "dx": 286, "color": "dim"},
+  {"type": "text", "v": "ETFs", "dy": 29, "size": 15},
   {"type": "rect", "dy": 54, "w": 396, "h": 16, "fill": "dim"}
 ]}
 ```
@@ -122,12 +130,12 @@ One screen is one small file. The agent reads exactly where each thing is, and c
   </tr>
 </table>
 
+Start your agent with this; the [guide for agents](docs/for-agents.md) tells it what Vellum can do:
+
 ```text
-Read github.com/zelvet-velvet/vellum's README for the file format.
-Write each page of my app as a Vellum screen in Design/Screens, one JSON file per screen.
-Use real text, pictures by https address and icons by Lucide name. Keep ids stable.
-Draw a card's background or outline with the block's own fill / stroke, and a chip or tile with the text's own box,
-not with rectangles under them.
+Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
+Write each page of my app as a Vellum screen in Design/Screens, then tell me the folder.
+When I ask for options, make them as Vellum mocks, not as a web page.
 ```
 
 > [!TIP]
@@ -135,31 +143,32 @@ not with rectangles under them.
 >
 > Ask for two or three **mocks** (`"mock": true`) as sub screens and keep the one you like. The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
 
-<sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and ZeLedger were designed this way, with Claude Code.</sub>
+<sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and Ledgerline were designed this way, with Claude Code.</sub>
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> File format
 
-```mermaid
-flowchart LR
-  D["Doc<br/>device, safe areas"] --> P["Page<br/>one screen"]
-  P --> B["Block<br/>x, y, w, h, kind"]
-  B --> I["Item<br/>text · rect · ellipse · line<br/>img · icon · row · col"]
-  P -. "inherit: true" .-> F["Parent page<br/>used as its frame"]
+One folder per app, one small file per screen:
+
+```text
+Design/Screens/
+├─ _doc.json       the phone: device, safe areas, corner, status bar; the screen order
+├─ Home.json       a screen
+└─ Settings.json   another screen
 ```
 
-A folder holds one JSON file per screen, plus `_doc.json` for the device and the screen order. Show it in a note with:
+A screen is a few **blocks**, boxes on the phone. Each block holds **items**, placed by an anchor:
 
-````markdown
-```vellum
-src: Design/Screens
-```
-````
-
-```json
+```jsonc
 {"id": "home", "name": "Home", "blocks": [
-  {"id": "b1", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 370, "h": 44, "items": [
-    {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"}]}]}
+  {"id": "title", "name": "Title", "kind": "nav", "x": 16, "y": 70, "w": 396, "h": 44,    // a box, in points
+   "items": [
+     {"id": "t1", "type": "text", "v": "HOME", "font": "display", "size": 32, "g": "l"},  // left, centred down
+     {"id": "i1", "type": "icon", "name": "settings", "g": "r"}                          // right: a Lucide icon
+   ]}
+]}
 ```
+
+Show the screens in a note with a code block `vellum` holding `src: Design/Screens`. Every field is below; agents have [their own guide](docs/for-agents.md).
 
 <details>
 <summary><b>Field reference</b></summary>
@@ -197,7 +206,9 @@ src: Design/Screens
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
-| <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the overlays |
+| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the marks |
+| <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
 | <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 

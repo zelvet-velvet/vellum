@@ -29,6 +29,7 @@ GitHub runs check, lint and build on every PR (`.github/workflows/check.yml`). R
 | `scripts/convert-frames.py` | Turns rects drawn as frames into block looks and text boxes (dry run by default) |
 | `scripts/readme-art.py` | The README's pixel icons and banner |
 | `scripts/cdp.mjs` | Drives a running Obsidian for tests and screenshots |
+| `scripts/shots/` | Helpers for the README's screenshots (see the `vl-readme-shots` skill) |
 
 ## Commands and skills
 Commands are typed as `/cmd-*`. Task rules are skills in `.claude/skills/<name>/SKILL.md`: Claude Code loads them by itself; any other agent opens the file when the task matches.
@@ -40,6 +41,7 @@ Commands are typed as `/cmd-*`. Task rules are skills in `.claude/skills/<name>/
 | (the screen format, a change to `model.ts` or `store.ts`) | `vl-model` | Format rules that files and agents depend on |
 | (panels, controls, anything in the editor's UI) | `vl-ui` | The panel system and decisions already made |
 | (seeing a change run in Obsidian) | `vl-test` | Testing and screenshots over remote debugging |
+| (a README image to add or retake) | `vl-readme-shots` | Which screen, what state, light screens, the agent demo |
 
 ## Repo rules
 - Every change is a branch from an up-to-date `main`, one topic per branch: `feat/<name>`, `fix/<name>` or `docs/<name>`. Stage only the files of the change.

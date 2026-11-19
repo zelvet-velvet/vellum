@@ -2,7 +2,7 @@
 """The README's pixel art: section icons (16 x 16) and the banner, drawn on a pixel grid and written as crisp SVG.
 Run from the repo root: python3 scripts/readme-art.py  (writes assets/icons/*.svg and assets/banner.svg)"""
 
-# the palette (ZeLedger's "Popping and Locking"): navy ground, cream, the orange accent and its shade, teal, green
+# the palette (Ledgerline's "Popping and Locking"): navy ground, cream, the orange accent and its shade, teal, green
 NAVY, DEEP, CREAM, ORANGE, SHADE, TEAL, GREEN, DIM = "#1C1D26", "#16171F", "#F2E5BC", "#E9892B", "#B8641A", "#7DB3C9", "#A3CF7E", "#30334A"
 
 
