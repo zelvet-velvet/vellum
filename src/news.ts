@@ -5,6 +5,13 @@ import { App, Modal, setIcon } from "obsidian";
 export interface News { version: string; items: [string, string, string][] }   // [icon, title, words]
 export const NEWS: News[] = [
     {
+        version: "0.11.0",
+        items: [
+            ["ungroup", "Take rows and columns apart", "Ctrl+Shift+G on a row or column: its items stay exactly where they are, and each one can be dragged."],
+            ["layers", "Ungroup all", "For a block, a whole screen, or with a command, every screen in a folder."],
+        ],
+    },
+    {
         version: "0.10.0",
         items: [
             ["smartphone", "Your own corner and status bar", "Under Device: a square or rounded screen, an iOS, Android or no status bar, and the safe areas, for every screen."],
