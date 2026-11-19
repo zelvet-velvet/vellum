@@ -47,13 +47,13 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
-<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表、手機與所選區塊的設定"></p>
+<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表與其下方的裝置圓角、狀態列、安全區域設定，手機，以及所選區塊的設定"></p>
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> 功能
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>真實機型</b><br><sub>支援 iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸，包含瀏海與安全區域。</sub></td>
+    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>真實機型</b><br><sub>支援 iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸，包含瀏海、安全區域，並可自訂圓角與狀態列。</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>直向與橫向</b><br><sub>兩種方向各自排版，整個編輯器統一切換。</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>區塊與錨點</b><br><sub>文字與圖形保留錨點與位移，尺寸可設為 hug、固定或 fill。</sub></td>
   </tr>
@@ -76,12 +76,12 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著四欄格線；選取的數字顯示尺寸與比例，格線顯示欄寬、欄距與邊距"><br><sub><b>輔助線</b>：以欄位格線對齊元件，選取的 item 顯示尺寸與比例</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；已選取 COST、NET PROFIT、REALIZED 與其數字，皆對齊欄位邊緣"><br><sub><b>輔助線</b>：三欄格線，選取的標籤與數字皆對齊欄位邊緣</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：Holdings 畫面的預覽，上方是進入的路徑，兩側是切換畫面的箭頭"><br><sub><b>Show</b>：預覽畫面，上方是進入的路徑，兩側切換畫面</sub></td>
   </tr>
 </table>
 
-<p align="center"><img src="assets/map.png" alt="地圖：所有畫面以樹狀顯示，並標示各畫面的進入方式"><br><sub><b>地圖</b>：所有畫面以樹狀顯示，mock 以虛線外框標示</sub></p>
+<p align="center"><img src="assets/map.png" alt="地圖：所有畫面以樹狀顯示，並標示各畫面的進入方式"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> 安裝
 
@@ -102,10 +102,10 @@
 可讀寫檔案的 agent 皆可使用，例如 Claude Code、Codex 與 Cursor。不需外掛 API 或伺服器。
 
 1. **agent 產生草稿**：依 app 現有頁面繪製畫面，或提出新畫面
-2. **於編輯器調整**：修改畫面，並於 **Note** 註記需要修改的地方，或直接在畫面上加 **mark**：圖釘註記、命名的區域、參考線。agent 也能用 mark 回覆
+2. **指定並提出修改**：選取 block 後按 **Copy reference**（<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>），貼給 agent 並說明要改的地方。或直接在畫面上加 **mark**：圖釘註記、命名的區域、參考線。agent 也能用 mark 回覆
 3. **agent 實作**：依修改後的畫面實作
 
-<p align="center"><img src="assets/agent.png" alt="WSL 終端機中的 Claude Code 與 Vellum 並排：於 Holdings 畫面新增排序列、將選取項目改為強調色，並回答 UX 問題；手機畫面顯示結果"><br><sub>實際操作：對持股列表使用 <b>Copy for the agent</b>，要求「於列表上方新增排序選項」，再將選取項目改為強調色並詢問 UX 問題。檔案修改後手機畫面隨即更新。</sub></p>
+<p align="center"><img src="assets/agent.png" alt="終端機中的 Claude Code 位於 Vellum 上方：貼上 Sort block 的參照與修改說明、兩行回覆，以及已輸入的下一個要求；手機畫面顯示 VALUE 改為強調色"><br><sub>對 Sort block 按 <b>Copy reference</b>，再說明要改的地方。agent 修改檔案後手機畫面隨即更新，下一個要求已輸入。</sub></p>
 
 <table>
   <tr>
@@ -207,7 +207,9 @@ src: Design/Screens
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
 | <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 加入或移出選取 · 全部區塊 |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組 |
-| <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏輔助線 |
+| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏標註 |
+| <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選畫面、block 或 item 的參照，供 agent 使用 |
 | Show 模式下 <kbd>←</kbd> <kbd>→</kbd> | 上一個 · 下一個畫面 |
 | 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
 

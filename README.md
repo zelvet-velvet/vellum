@@ -47,13 +47,13 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens tree, the phone, and the settings of the chosen block"></p>
+<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens list with the device's corner, status bar and safe areas under it, the phone, and the chosen block's settings"></p>
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> Features
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size, with cut-outs and safe areas.</sub></td>
+    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size, with cut-outs, safe areas, your own corner and status bar.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>Portrait and landscape</b><br><sub>A layout for each, one switch for the whole editor.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>Blocks and gravity</b><br><sub>Text and shapes keep an anchor point, an offset, and hug / fixed / fill sizes.</sub></td>
   </tr>
@@ -76,12 +76,12 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Four columns over the Holdings screen; the chosen digit shows its size and ratio, the columns their width, gutter and margin"><br><sub><b>Overlays</b>: columns over the screen to line things up; the chosen item shows its size and ratio</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; COST, NET PROFIT, REALIZED and their numbers are chosen, each starting on a column edge"><br><sub><b>Overlays</b>: three columns; the chosen labels and numbers each start on a column edge</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
   </tr>
 </table>
 
-<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree; mocks have a dashed outline</sub></p>
+<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
 
@@ -102,10 +102,10 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plugin API, no server.
 
 1. **The agent drafts** your app's screens, or proposes new ones.
-2. **You adjust** them in the editor and leave a **Note** on what to change, or a **mark** right on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
+2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
 3. **The agent builds** from the screens you changed.
 
-<p align="center"><img src="assets/agent.png" alt="Claude Code in a WSL terminal beside Vellum: it added a sort row to the Holdings screen, coloured the chosen word, and answers a UX question; the phone shows the result"><br><sub>A real session: <b>Copy for the agent</b> on the holdings list, "add sort chips above this list", then "make the chosen one the accent colour" and a UX question. The phone updates as the file changes.</sub></p>
+<p align="center"><img src="assets/agent.png" alt="Claude Code in a terminal above Vellum: the copied reference to the Sort block with what to change, a two-line reply, and the next request typed; the phone shows VALUE in the accent colour"><br><sub><b>Copy reference</b> on the Sort block, then what to change. The agent edits the file and the phone updates; the next request is already typed.</sub></p>
 
 <table>
   <tr>
@@ -205,7 +205,9 @@ src: Design/Screens
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup |
-| <kbd>N</kbd> · <kbd>Ctrl</kbd> <kbd>'</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the overlays |
+| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the marks |
+| <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
 | <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
