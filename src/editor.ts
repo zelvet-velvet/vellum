@@ -655,9 +655,10 @@ class Editor {
             const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ });
             mt.addEventListener("click", (e) => {
                 if (this.marking) { this.markTool(); return; }
+                // each choice closes the menu first, then redraws (the redraw replaces the button the menu belongs to)
                 const menu = new Menu();
-                menu.addItem((i) => i.setTitle("Add a mark (N)").setIcon("plus").onClick(() => this.markTool()));
-                menu.addItem((i) => i.setTitle(this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)").setIcon(this.ov.notes ? "eye-off" : "eye").onClick(() => this.toggleMarks()));
+                menu.addItem((i) => i.setTitle("Add a mark (N)").setIcon("plus").onClick(() => { menu.hide(); window.setTimeout(() => this.markTool()); }));
+                menu.addItem((i) => i.setTitle(this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)").setIcon(this.ov.notes ? "eye-off" : "eye").onClick(() => { menu.hide(); window.setTimeout(() => this.toggleMarks()); }));
                 const r = mt.getBoundingClientRect();
                 menu.showAtPosition({ x: r.left, y: r.top }, mt.doc);
                 e.stopPropagation();
