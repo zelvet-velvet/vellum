@@ -5,6 +5,16 @@ import { App, Modal, setIcon } from "obsidian";
 export interface News { version: string; items: [string, string, string][] }   // [icon, title, words]
 export const NEWS: News[] = [
     {
+        version: "0.10.0",
+        items: [
+            ["smartphone", "Your own corner and status bar", "Under Device: a square or rounded screen, an iOS, Android or no status bar, and the safe areas, for every screen."],
+            ["square-dashed-bottom", "Drafts beside the screen", "Push a block off the screen to park it there: it stays beside the phone while you edit, out of Show and previews."],
+            ["message-square-text", "Marks you can read", "Set a mark's text size and a note's width, with defaults in Settings → Editing. The Mark button shows or hides them."],
+            ["link", "Point the agent at a block", "Copy reference (Ctrl+Shift+C) copies [file › block (id)], ready to paste with what to change."],
+            ["folder-search", "Finds your screens", "If the screens folder is empty, the ribbon opens the folder your agent wrote the screens to."],
+        ],
+    },
+    {
         version: "0.9.0",
         items: [
             ["zoom-in", "Zoom and move freely", "Zoom to 1600 %, drag the view with the middle button; handles stay their size at any zoom."],
