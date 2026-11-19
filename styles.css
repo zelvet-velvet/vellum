@@ -26,7 +26,7 @@
 .vl-pname { font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 6px; }
 .vl-page.is-sel .vl-pname { color: var(--text-normal); font-weight: 600; }
 .vl-page.is-mock .vl-pname { color: var(--text-muted); font-style: italic; }
-.vl-phone { position: relative; overflow: hidden; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
+.vl-phone { position: relative; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
 .vl-page.is-mock .vl-phone { outline: 1.5px dashed var(--text-muted); outline-offset: 7px; }   /* a mock (a proposal): dashed, in the theme's muted colour */
 .vl-screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; background: var(--vl-paper); color: var(--vl-text); touch-action: none; }
 .vl-screen.is-show { touch-action: auto; }
@@ -769,9 +769,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 
 /* marks: notes, areas and guide lines on a screen (never part of the design). Only their pins, tags, edges and grips
    take the pointer: what is under an area stays easy to pick. Sizes keep to the monitor at any zoom (--vl-iz) */
-.vl-marks { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
-.vl-screen.is-show .vl-marks { display: none; }
-.vl-screen.is-marking, .vl-screen.is-marking * { cursor: crosshair !important; }
+.vl-marks { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 8; pointer-events: none; }
+.vl-screen.is-marking, .vl-screen.is-marking *, .vl-screen.is-marking ~ .vl-marks * { cursor: crosshair !important; }
+/* blocks past the screen's edge, faded, outside it (the screen clips its own copy, round corners and all) */
+.vl-spill { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0.4; pointer-events: none; }
 .vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
 .vl-mark { position: absolute; --u: var(--vl-iz, 1); }
 .vl-mark.is-note { width: 0; height: 0; }
