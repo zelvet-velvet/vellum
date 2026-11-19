@@ -936,7 +936,7 @@ class Editor {
         const bg = bgOf(this.doc.pages, p);
         if (bg) scr.style.background = colorOf(this.theme, bg);
         const keep = this.sel; this.sel = null;
-        for (const b of drawnBlocks(this.doc.pages, p, this.land)) this.drawBlock(scr, p, b, true);
+        for (const b of this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land))) this.drawBlock(scr, p, b, true);
         this.sel = keep;
         return el;
     }
@@ -1008,7 +1008,7 @@ class Editor {
             const bg = bgOf(pages, p);
             if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
-            for (const b of drawnBlocks(pages, p, this.land)) this.drawBlock(scr, p, b, true);
+            for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
@@ -1055,9 +1055,9 @@ class Editor {
         const layers = this.layers(p);
         const ov = this.ov, ovOn = ov.show && anyOn(ov) && (!show || ov.inShow);
         ovlGrid = ovOn && ov.snap && ov.grid.on ? ov.grid.size : 0;
-        for (const l of layers) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
+        for (const l of layers) if (!show || !isDraft(l.block, W, H)) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
         if (ovOn) this.drawOv(scr, p, z);
-        if (!show) this.spill(scr);
+        if (!show) this.spill(scr, p);
         if (!show && this.ov.notes) this.drawMarks(scr, p, z);
         scr.toggleClass("is-marking", this.marking && !show);
         // pointer: choose and drag
@@ -1186,11 +1186,14 @@ class Editor {
         const old = scr.querySelector(`[data-block="${b.id}"]`);
         const el = this.drawBlock(scr, p, b, false, this.layers(p).find((l) => l.block === b));
         if (old) old.replaceWith(el);
-        this.spill(scr);
+        this.spill(scr, p);
     }
+    // the blocks drawn as the screen is: drafts (wholly outside it) only beside it in the editor
+    onScreen(p: Page, list: Block[]) { const { W, H } = this.screen(p); return list.filter((b) => !isDraft(b, W, H)); }
     // while editing, the parts of blocks past the screen's edge, faded: a copy behind the screen, which stays clipped
-    // with its round corners, so only what is outside it shows
-    spill(scr: HTMLElement) {
+    // with its round corners, so only what is outside it shows. The copy takes the pointer as the block would (choose,
+    // drag back in); a block wholly outside is a draft
+    spill(scr: HTMLElement, p: Page) {
         const phone = scr.parentElement;
         if (!phone?.hasClass("vl-phone")) return;
         phone.querySelector(":scope > .vl-spill")?.remove();
@@ -1199,7 +1202,12 @@ class Editor {
         if (!out.length) return;
         const g = createDiv({ cls: "vl-spill" });
         Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
-        for (const el of out) { const c = el.cloneNode(true) as HTMLElement; c.querySelectorAll(".vl-tag, .vl-grip").forEach((x) => x.remove()); g.appendChild(c); }
+        g.style.setProperty("--vl-iz", scr.style.getPropertyValue("--vl-iz"));
+        for (const el of out) {
+            const c = g.appendChild(el.cloneNode(true) as HTMLElement), L = px(el, "left"), T = px(el, "top");
+            if (L >= W || T >= H || L + px(el, "width") <= 0 || T + px(el, "height") <= 0) c.addClass("is-draft");
+        }
+        g.addEventListener("pointerdown", (e) => this.down(e, p, scr));
         phone.prepend(g);
     }
     // l (editing): where the block comes from: a frame's (inherited: faded, locked) or an override of one (a small mark)
@@ -1420,7 +1428,8 @@ class Editor {
                 const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
                 b.x = g1 ? Math.round(L + g1.d) : sn(L); b.y = g2 ? Math.round(T + g2.d) : sn(T);
             }
-            if (!dragItem && keep) clampTo(b, R, grip);
+            // pushed wholly off the screen, a block leaves it (a draft); short of that it keeps to its room
+            if (!dragItem && keep && (grip || !isDraft(b, this.screen(p).W, this.screen(p).H))) clampTo(b, R, grip);
             this.redrawBlock(scr, p, b);
             this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy));
             this.livePanel();
@@ -2444,7 +2453,7 @@ class Editor {
             setIcon(c.createSpan({ cls: "vl-addi" }), k.icon ?? "square"); c.createSpan({ text: k.name.split(" / ")[0] });
             c.addEventListener("click", () => this.edit(() => {
                 const { W, safe } = this.screen(p);
-                const low = drawnBlocks(this.doc.pages, p, this.land).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
+                const low = this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land)).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
                 const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
                 this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
             }));
@@ -3015,6 +3024,8 @@ class ImagePick extends FuzzySuggestModal<TFile> {
 }
 // a block inside a room; kept in it: moved back in (resize: its size cut to the room instead)
 const inRoom = (b: Block, R: { l: number; t: number; r: number; b: number }) => b.x >= R.l && b.y >= R.t && b.x + b.w <= R.r && b.y + b.h <= R.b;
+// a block wholly outside the screen: a draft, kept beside it while editing, never drawn in Show, previews or notes
+const isDraft = (b: Block, W: number, H: number) => b.x >= W || b.y >= H || b.x + b.w <= 0 || b.y + b.h <= 0;
 const clampTo = (b: Block, R: { l: number; t: number; r: number; b: number }, resize: boolean) => {
     if (resize) { b.w = Math.max(8, Math.min(b.w, R.r - b.x)); b.h = Math.max(8, Math.min(b.h, R.b - b.y)); return; }
     b.x = Math.max(R.l, Math.min(b.x, R.r - b.w)); b.y = Math.max(R.t, Math.min(b.y, R.b - b.h));

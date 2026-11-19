@@ -772,7 +772,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-marks { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 8; pointer-events: none; }
 .vl-screen.is-marking, .vl-screen.is-marking *, .vl-screen.is-marking ~ .vl-marks * { cursor: crosshair !important; }
 /* blocks past the screen's edge, faded, outside it (the screen clips its own copy, round corners and all) */
-.vl-spill { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0.4; pointer-events: none; }
+.vl-spill { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+.vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); }
+.vl-spill > .vl-block.is-draft { opacity: 0.6; }   /* a draft: beside the screen, never part of it */
+.vl-spill > .vl-block.is-sel { opacity: 0.75; outline: calc(2px * var(--vl-iz, 1)) solid var(--k); }
+.vl-spill > .vl-block:hover > .vl-tag, .vl-spill > .vl-block.is-sel > .vl-tag, .vl-spill > .vl-block.is-draft > .vl-tag { opacity: 1; }
 .vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
 .vl-mark { position: absolute; --u: var(--vl-iz, 1); }
 .vl-mark.is-note { width: 0; height: 0; }

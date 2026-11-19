@@ -19,7 +19,8 @@ description: Vellum's screen format. Use when reading or writing Vellum screen J
 - A text's box has the same padding on every side, so a text off to one side keeps its rect.
 - Colours are theme names (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent`) where possible, so they follow the theme. Otherwise use `#hex`.
 - Frames: with `inherit`, the parent's blocks are drawn under the page's own. An own block with the same `id` as a frame's block overrides it, so ids must be stable. Item ids should be unique within a page.
-- `bleed` lets a block go into the safe areas. Otherwise drags keep it inside.
+- `bleed` lets a block go into the safe areas. Otherwise drags keep it inside, until it is pushed wholly off the screen.
+- A block wholly outside the screen (`x >= W`, `y >= H`, `x + w <= 0` or `y + h <= 0`) is a draft: drawn beside the screen in the editor only, never in Show, previews or notes. An agent does not build drafts.
 - `mock: true` marks an option to choose from, not a real screen.
 
 ## Writing files
