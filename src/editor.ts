@@ -4,6 +4,7 @@ import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, D
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
+import { canUngroup, ungroupBlock } from "./flatten";
 import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ratioText } from "./overlay";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
@@ -1759,19 +1760,20 @@ class Editor {
             this.sel = { page: p.id, block: b.id, item: g.id };
         });
     }
+    // Ctrl+Shift+G: a group's, a row's or a column's items become items of what holds it, where they are drawn (a row's
+    // look stays behind them as a shape); they are chosen
     ungroup() {
         const f = this.item(), b = this.block(), p = this.page(), g = f?.item;
-        if (!g || !b || !p || g.type !== "group" || !b.items.includes(g)) return;
-        const bEl = this.wall.querySelector<HTMLElement>(`.vl-screen [data-block="${b.id}"]`); if (!bEl) return;
-        const kids = (g.items ?? []).map((c) => ({ c, r: this.itemBox(bEl, b, c) }));
-        this.edit(() => {
-            for (const { c, r } of kids) {
-                if (r) { c.g = "tl"; c.dx = Math.round(r.L); c.dy = Math.round(r.T); if (c.w === "fill") c.w = Math.round(r.W); if (c.h === "fill") c.h = Math.round(r.H); }
-                if (g.op !== undefined) c.op = Math.round(((c.op ?? 100) * g.op) / 100);
-            }
-            b.items.splice(b.items.indexOf(g), 1, ...kids.map((x) => x.c));
-        }, false);
-        this.chooseItems(p, kids.map((x) => ({ block: b.id, item: x.c.id })));
+        if (!g || !b || !p || !canUngroup(g, parentOf(b.items, g.id))) return;
+        const kids = (g.items ?? []).map((c) => ({ block: b.id, item: c.id }));
+        this.edit(() => { ungroupBlock(this.theme, this.root?.doc ?? activeDocument, b, new Set([g.id])); }, false);
+        this.chooseItems(p, kids);
+    }
+    // every row and column in these blocks taken apart, rows in rows too (groups stay)
+    ungroupAll(p: Page, blocks: Block[]) {
+        let n = 0;
+        this.edit(() => { for (const b of blocks) n += ungroupBlock(this.theme, this.root?.doc ?? activeDocument, b); });
+        new Notice(n ? `Vellum: ${n} rows and columns taken apart` : "Vellum: no rows or columns to take apart");
     }
 
     typeInPlace(e: MouseEvent, p: Page) {
@@ -2572,6 +2574,8 @@ class Editor {
         }
         if (this.land && p.land) this.actions(a, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
         else if (this.land && p.blocks.length) this.actions(a, [["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]]);
+        const own = this.blocks(p);
+        if (own.some((b) => b.items.some((x) => x.type === "row" || x.type === "col" || x.type === "group"))) this.actions(a, [["ungroup", "Ungroup all rows and columns on this screen", () => this.ungroupAll(p, own)]]);
         const n = this.section(body, "Note", true, { shut: true, hint: p.note ? p.note.split("\n")[0].slice(0, 26) : "empty" });
         this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this screen is for" });
     }
@@ -2595,6 +2599,7 @@ class Editor {
         const it = this.section(body, "Items", true, { hint: String(b.items.length) });
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "img", "icon", "line", "row", "col", "ellipse"]);
+        if (b.items.some((x) => x.type === "row" || x.type === "col" || x.type === "group")) this.actions(it, [["ungroup", "Ungroup all rows and columns", () => this.ungroupAll(p, [b])]]);
         const n = this.section(body, "Note", true, { shut: true, hint: b.note ? b.note.split("\n")[0].slice(0, 26) : "empty" });
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
     }
@@ -2877,7 +2882,7 @@ class Editor {
             const s = this.section(body, "Group");
             s.createDiv({ cls: "vl-frameinfo", text: `${it.items?.length ?? 0} items, moved as one. Click in it again (or double-click) to choose one of them; Esc goes back up.` });
             const acts: [string, string, () => void][] = [["scan", "Fit to its items", () => { const scr = this.wall.querySelector<HTMLElement>(".vl-screen"); if (scr) this.edit(() => this.refit(scr, b, it)); }]];
-            if (b.items.includes(it)) acts.unshift(["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]);
+            if (canUngroup(it, parentOf(b.items, it.id))) acts.unshift(["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]);
             this.actions(s, acts);
             this.num(s.createDiv({ cls: "vl-nums" }), "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
             const c = this.section(body, "Items in it");
@@ -2891,6 +2896,7 @@ class Editor {
             const r = s.createDiv({ cls: "vl-nums" });
             this.num(r, "Gap", () => it.gap ?? 0, (v) => { it.gap = v; }, { min: 0, unit: "pt" });
             this.num(r, "Padding", () => it.pad ?? 0, (v) => { it.pad = v || undefined; }, { min: 0, unit: "pt" });
+            if (canUngroup(it, parentOf(b.items, it.id))) this.actions(s, [["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]]);
             const c = this.section(body, "Items in it", true, { hint: String(it.items?.length ?? 0) });
             this.itemList(c, b, it.items ?? (it.items = []));
             this.addButtons(c, b, it.items, ["text", "rect", "img", "icon", "row", "col", "ellipse"]);
