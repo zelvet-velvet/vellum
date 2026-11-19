@@ -1947,7 +1947,9 @@ class Editor {
         return parts.join(" › ");
     }
     copyReference(at?: HTMLElement) {
-        const t = this.reference(); if (!t) return;
+        // in square brackets: pasted into a message, it reads apart from the words around it
+        const r = this.reference(); if (!r) return;
+        const t = `[${r}]`;
         (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint("Reference copied", at), () => this.writer("Copy this reference", t, () => { /* */ }));
     }
     copyForAgent(at?: HTMLElement) {
