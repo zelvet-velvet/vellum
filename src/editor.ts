@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
-import { customDevice, deviceOf, DEVICES, screenOf } from "./devices";
-import { axes, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
+import { customDevice, deviceOf, DEVICES, framed, screenOf } from "./devices";
+import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
@@ -26,8 +26,9 @@ const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
 // the overlays of each note (kept on the device)
 const ovls = new Map<string, OvlCfg>();
 // number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
-export interface EditCfg { arrow: number; hold: boolean }
-export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true };
+// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text)
+export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW: number }
+export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0 };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
 // the selection's colour: the accent, unless it is too close to the colour of what is chosen (an orange handle on a
@@ -294,6 +295,9 @@ class Editor {
     keepOv() { try { setLocal(`vellum:ovl:${this.doc.id}`, JSON.stringify(this.ov)); } catch { /* */ } }
     // ---- marks: notes, areas and guide lines on a screen (in the note, for the people and the agent), in the layout on show
     marking = false;   // the mark tool: a click leaves a note, a drag an area
+    // the mark tool on or off; on, hidden marks show again (the new one would be invisible)
+    markTool() { this.marking = !this.marking; if (this.marking && !this.ov.notes) { this.ov.notes = true; this.keepOv(); } this.drawPages(); this.drawZoom(); }
+    toggleMarks() { this.ov.notes = !this.ov.notes; if (!this.ov.notes) { this.marking = false; if (this.sel?.mark) this.sel = { page: this.sel.page }; } this.keepOv(); this.drawPages(); this.drawPanel(); this.drawZoom(); }
     marksOf(p: Page) { return (p.marks ?? []).filter((m) => !!m.land === this.land); }
     mark() { const p = this.page(), id = this.sel?.mark; return p && id ? (p.marks ?? []).find((m) => m.id === id) : undefined; }
     markLines(p: Page): Lines {
@@ -307,23 +311,33 @@ class Editor {
     }
     addMark(p: Page, m: Omit<Mark, "id">) {
         const mk: Mark = { id: uid(), ...m, ...(this.land ? { land: true } : {}) };
+        if (!this.ov.notes) { this.ov.notes = true; this.keepOv(); this.drawZoom(); }
         this.focusMark = true;
         this.edit(() => { (p.marks ??= []).push(mk); this.sel = { page: p.id, mark: mk.id }; });
         this.drawPages();
     }
     focusMark = false;
     drawMarks(scr: HTMLElement, p: Page, z: number) {
-        scr.querySelector(":scope > .vl-marks")?.remove();
-        const layer = scr.createDiv({ cls: "vl-marks" }), iz = 1 / z;
+        // over the screen, beside it rather than in it: a note or a tag past the edge still shows
+        const phone = scr.parentElement!;
+        phone.querySelector(":scope > .vl-marks")?.remove();
+        const layer = phone.createDiv({ cls: "vl-marks" }), iz = 1 / z;
+        Object.assign(layer.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
         for (const m of this.marksOf(p)) {
             const on = this.sel?.mark === m.id;
             const el = layer.createDiv({ cls: `vl-mark is-${m.kind}` + (on ? " is-on" : ""), attr: { "data-mark": m.id } });
             el.style.setProperty("--mc", markColor(m.color));
+            el.style.setProperty("--ms", String(m.size ?? editCfg.markSize));
+            const mw = m.w ?? (editCfg.noteW || undefined);
             const by = m.by ? `${m.by}: ` : "";
             if (m.kind === "note") {
                 Object.assign(el.style, { left: `${m.x}px`, top: `${m.y}px` });
                 el.createDiv({ cls: "vl-mpin" });
-                if (m.text || on) el.createDiv({ cls: "vl-mbub", text: by + (m.text || "Write the note in the panel") });
+                if (m.text || on) {
+                    const bub = el.createDiv({ cls: "vl-mbub" + (mw ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
+                    if (mw) bub.style.setProperty("--mw", String(mw));
+                    if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
+                }
             } else if (m.kind === "area") {
                 const w = m.w ?? 100, h = m.h ?? 100;
                 Object.assign(el.style, { left: `${m.x}px`, top: `${m.y}px`, width: `${w}px`, height: `${h}px` });
@@ -348,6 +362,8 @@ class Editor {
     markDown(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number) {
         if (e.button !== 0) return;
         e.stopPropagation(); e.preventDefault();
+        const bw = (e.target as HTMLElement).closest<HTMLElement>("[data-mbw]");
+        if (bw) { this.noteWidth(e, p, scr, m, z, bw.parentElement!); return; }
         const grip = !!(e.target as HTMLElement).closest("[data-mgrip]"), x0 = e.clientX, y0 = e.clientY, st = { ...m };
         const was = this.sel?.mark === m.id;
         if (!was) { this.sel = { page: p.id, mark: m.id }; this.drawPanel(); this.drawMarks(scr, p, z); }
@@ -398,6 +414,23 @@ class Editor {
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
+    // a note's bubble: its right edge drags it wider or narrower (in monitor pixels, as the bubble keeps its size at any zoom)
+    noteWidth(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
+        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width);
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (ev: PointerEvent) => {
+            if (!moved && Math.abs(ev.clientX - x0) < 3) return;
+            if (!moved) { moved = true; this.begin(); }
+            m.w = Math.max(60, Math.min(600, Math.round(w0 + ev.clientX - x0)));
+            this.drawMarks(scr, p, z); this.livePanel();
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (moved) this.end();
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
     markPanel(body: HTMLElement, p: Page, m: Mark) {
         const names = { note: "Note", area: "Area", line: "Guide line" } as const;
         const s = this.section(body, names[m.kind]);
@@ -411,6 +444,11 @@ class Editor {
         } else {
             this.num(r, "X", () => m.x, (v) => { m.x = v; }); this.num(r, "Y", () => m.y, (v) => { m.y = v; });
         }
+        // its text: the size, and a note's width (Auto: as wide as its text)
+        const r3 = s.createDiv({ cls: "vl-nums" });
+        this.num(r3, "Text size", () => m.size ?? editCfg.markSize, (v) => { if (v === editCfg.markSize) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
+        if (m.kind === "note") this.num(r3, "Width", () => m.w ?? (editCfg.noteW || 200), (v) => { if (v === editCfg.noteW) delete m.w; else m.w = v; }, { min: 60, max: 600, unit: "px" });
+        if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", editCfg.noteW ? "Width: the default" : "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
         if (m.kind === "area") {
             const r2 = s.createDiv({ cls: "vl-nums" });
             this.num(r2, "W", () => m.w ?? 100, (v) => { m.w = v; }, { min: 8 }); this.num(r2, "H", () => m.h ?? 100, (v) => { m.h = v; }, { min: 8 });
@@ -424,7 +462,6 @@ class Editor {
                 ["maximize", "The whole screen", () => this.edit(() => { m.x = 0; m.y = 0; m.w = W; m.h = H; })],
             ]);
         }
-        this.actions(body, [["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
         if (this.focusMark) { this.focusMark = false; window.setTimeout(() => body.querySelector<HTMLElement>("textarea.vl-text")?.focus()); }
     }
     // several blocks chosen at once (an area dragged out, Shift+click, Ctrl+A): kept for the page selection it was made
@@ -617,8 +654,31 @@ class Editor {
             this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
         }
         if (!this.v.map && !this.v.show) {
-            const mt = this.btn(pill, "message-square-plus", "", () => { this.marking = !this.marking; this.drawPages(); });
-            this.tip(mt, "Mark (N)\nclick: a note · drag: an area").toggleClass("is-on", this.marking);
+            // Mark: a menu to add a mark or show / hide them (they are never in Show); with the tool on, a press puts it away
+            const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ });
+            mt.dataset.markbtn = "1";
+            mt.addEventListener("click", () => {
+                if (this.marking) { this.markTool(); return; }
+                const R = this.root!, open = R.querySelector(".vl-markmenu");
+                if (open) { open.remove(); return; }
+                // Add closes the menu; Show / Hide keeps it open, its line updated in place
+                const m = R.createDiv({ cls: "vl-menu vl-markmenu" });
+                const rr = R.getBoundingClientRect(), br = mt.getBoundingClientRect();
+                m.style.left = `${br.left - rr.left}px`; m.style.bottom = `${rr.bottom - br.top + 6}px`;
+                const line = (icon: string, text: string, act: (b: HTMLElement) => void) => {
+                    const b = m.createEl("button", { cls: "vl-menui" });
+                    setIcon(b.createSpan({ cls: "vl-menuic" }), icon); b.createSpan({ text });
+                    b.addEventListener("click", () => act(b));
+                };
+                const close = () => { m.remove(); R.doc.removeEventListener("pointerdown", off, true); };
+                const off = (e: Event) => { if (!m.isConnected) { close(); return; } const t = e.target as HTMLElement; if (!m.contains(t) && !t.closest?.("[data-markbtn]")) close(); };
+                window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
+                line("plus", "Add a mark (N)", () => { close(); this.markTool(); });
+                const vis = (b: HTMLElement) => { b.empty(); setIcon(b.createSpan({ cls: "vl-menuic" }), this.ov.notes ? "eye-off" : "eye"); b.createSpan({ text: this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)" }); };
+                line("eye", "", (b) => { this.toggleMarks(); vis(b); });
+                vis(m.lastElementChild as HTMLElement);
+            });
+            this.tip(mt, this.marking ? "Mark: on\nclick: a note · drag: an area · press to stop" : `Mark\n${this.ov.notes ? "marks shown" : "marks hidden"}`).toggleClass("is-on", this.marking);
         }
         if (!this.v.map) {
             const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob)), "Overlays\nCtrl+' shows / hides");
@@ -792,6 +852,7 @@ class Editor {
     drawRail() {
         const r = this.rail; if (!r?.isConnected) return;
         this.unpeek();   // its row is about to go: a peek left from it would never hear the pointer leave
+        const keepFoot = r.querySelector<HTMLElement>(".vl-rfoot");
         r.empty(); r.toggleClass("is-on", this.v.rail);
         if (!this.v.rail) return;
         // its width: the right border drags it (computer), kept on the device
@@ -859,6 +920,10 @@ class Editor {
         const na = box.createEl("button", { cls: "vl-act vl-newp" }); setIcon(na.createSpan(), "plus"); na.appendText("New Screen");
         na.addEventListener("click", () => this.addPage());
         // the device
+        // mid-change (a number dragged or typed, a field typed in), the foot is kept as it is: drawn again, it would drop
+        // the control in use
+        const act = r.doc.activeElement, busy = keepFoot && (this.pending !== null || (keepFoot.contains(act) && (act?.tagName === "INPUT" || act?.tagName === "TEXTAREA")));
+        if (busy) { box.appendChild(keepFoot); box.scrollTop = this.railTop; return; }
         const foot = box.createDiv({ cls: "vl-rfoot" });
         foot.createDiv({ cls: "vl-sech", text: "Device" });
         const devc = deviceOf(this.doc.device);
@@ -893,7 +958,41 @@ class Editor {
             const off = (e: Event) => { if (!m.isConnected) return R.doc.removeEventListener("pointerdown", off, true); if (!m.contains(e.target as Node) && !dev.contains(e.target as Node)) { m.remove(); R.doc.removeEventListener("pointerdown", off, true); } };
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
+        const on = this.current();
+        if (on) this.deviceFrame(foot, on);
         box.scrollTop = this.railTop;   // the list stays where it was scrolled (a tap opens a screen, the rail is drawn again)
+    }
+    // the device's frame for every screen, under the device: the corner, the status bar, the safe areas
+    deviceFrame(foot: HTMLElement, p: Page) {
+        const dv = deviceOf(p.device ?? this.doc.device), ownR = dv.radius, bar = this.doc.bar ?? {}, bs = bar.style ?? "ios", cur = this.screen(p).safe;
+        const fb = this.section(foot, "Corner, bar, safe areas", true, { shut: true, hint: `${this.doc.radius ?? ownR} pt · ${bs === "ios" ? "iOS" : bs === "android" ? "Android" : "no bar"}` });
+        fb.createDiv({ cls: "vl-frameinfo", text: "Every screen." });
+        this.num(fb.createDiv({ cls: "vl-nums" }), "Corner", () => this.doc.radius ?? ownR, (v) => { if (v === ownR) delete this.doc.radius; else this.doc.radius = v; }, { min: 0, max: 200, unit: "pt" });
+        if (this.doc.radius !== undefined) this.actions(fb, [["rotate-ccw", `The device's own corner (${ownR} pt)`, () => this.edit(() => { delete this.doc.radius; })]]);
+        const setBar = (k: keyof Bar, v?: string) => { const o: Bar = { ...this.doc.bar }; if (v && v !== "none") o[k] = v as never; else delete o[k]; if (Object.keys(o).length) this.doc.bar = o; else delete this.doc.bar; };
+        this.seg(this.frow(fb, "Status bar"), [["ios", "iOS"], ["android", "Android"], ["none", "None"]], bs, (v) => setBar("style", v === "ios" ? undefined : v));
+        if (bs === "android") {
+            this.text(this.frow(fb, "Clock"), () => bar.time ?? "12:00", (v) => setBar("time", v.trim() && v.trim() !== "12:00" ? v.trim() : undefined), { title: "The time on the bar" });
+            fb.createDiv({ cls: "vl-frameinfo", text: "Bar colour" });
+            this.colors(fb, bar.fill, (v) => setBar("fill", v), true);
+            fb.createDiv({ cls: "vl-frameinfo", text: "Clock and icons" });
+            this.colors(fb, bar.ink, (v) => setBar("ink", v), true);
+        }
+        // the safe areas: the device's, or set for this doc (every screen, this orientation); hovering lights them on the phone
+        fb.createDiv({ cls: "vl-frameinfo", text: `Safe areas, ${this.land ? "landscape" : "portrait"}: ${cur.top} · ${cur.bottom} · ${cur.left} · ${cur.right}` });
+        const own = screenOf(dv, this.land).safe, key = this.land ? "safeLand" : "safe";
+        const nums = fb.createDiv({ cls: "vl-nums" });
+        const lit = (side?: string) => { const w = this.wall; if (!w) return; if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side; };
+        nums.addEventListener("mouseenter", () => lit("all")); nums.addEventListener("mouseleave", () => lit());
+        for (const [k, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
+            const nw = this.num(nums, name, () => this.screen(p).safe[k], (v) => {
+                const o = { ...this.doc[key] };
+                if (v === own[k]) delete o[k]; else o[k] = v;
+                if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
+            }, { min: 0, max: 400, unit: "pt" });
+            nw.addEventListener("mouseenter", () => lit(k)); nw.addEventListener("mouseleave", () => lit("all"));
+        }
+        if (this.doc[key]) this.actions(fb, [["rotate-ccw", `The device's own safe areas (${own.top} · ${own.bottom} · ${own.left} · ${own.right})`, () => this.edit(() => { delete this.doc[key]; })]]);
     }
     // a large look at a screen without opening it: the pointer resting on its row (computer), a long press (phone)
     peekOn(row: HTMLElement, p: Page) {
@@ -925,7 +1024,7 @@ class Editor {
     unpeek() { this.root?.querySelectorAll(".vl-peek").forEach((e) => e.remove()); }
     // a screen drawn small, as it looks (no frames)
     pic(p: Page, TW: number): HTMLElement {
-        const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, this.land), k = TW / sc.W;
+        const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), sc = screenOf(d, this.land), k = TW / sc.W;
         const el = createDiv({ cls: "vl-pthumb" });
         el.style.width = `${TW}px`; el.style.height = `${Math.round(sc.H * k)}px`; el.style.borderRadius = `${Math.max(3, d.radius * k)}px`;
         const scr = el.createDiv({ cls: "vl-screen is-show" });
@@ -933,7 +1032,7 @@ class Editor {
         const bg = bgOf(this.doc.pages, p);
         if (bg) scr.style.background = colorOf(this.theme, bg);
         const keep = this.sel; this.sel = null;
-        for (const b of drawnBlocks(this.doc.pages, p, this.land)) this.drawBlock(scr, p, b, true);
+        for (const b of this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land))) this.drawBlock(scr, p, b, true);
         this.sel = keep;
         return el;
     }
@@ -960,7 +1059,7 @@ class Editor {
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0 }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
         const GAP = 40, LABEL = 46, slotW = TW + GAP;
-        const dims = (p: Page) => { const d = deviceOf(p.device ?? this.doc.device), sc = screenOf(d, this.land); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
+        const dims = (p: Page) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), sc = screenOf(d, this.land); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         const rowH = Math.max(...pages.map((p) => dims(p).h)) + LABEL + GAP;
         // a tidy tree: each leaf a slot, a parent centred over its children
         const pos = new Map<string, { x: number; y: number }>();
@@ -1005,7 +1104,7 @@ class Editor {
             const bg = bgOf(pages, p);
             if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
-            for (const b of drawnBlocks(pages, p, this.land)) this.drawBlock(scr, p, b, true);
+            for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
@@ -1014,7 +1113,7 @@ class Editor {
         return { slots: x, rows: depthMax + 1 };
     }
     drawPage(p: Page) {
-        const dev = deviceOf(p.device ?? this.doc.device), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
+        const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
         fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
         // Show: the screen as a preview: its name and the way to it above, the next / previous screen beside it, the
@@ -1030,8 +1129,21 @@ class Editor {
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
         scr.style.setProperty("--vl-iz", String(1 / z));   // handles, outlines and labels keep their size on the monitor at any zoom
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
-        if (!this.land) {
-            const sb = scr.createDiv({ cls: "vl-status" }); sb.style.height = `${dev.top}px`;
+        // the bar is as high as the doc's top safe area when that is set, else the device's
+        const bar = this.doc.bar ?? {}, style = bar.style ?? "ios", barH = this.doc.safe?.top ?? dev.top;
+        if (!this.land && style === "android" && barH) {
+            // Android: the clock on the left, signal and battery on the right, on the bar's own colours
+            const sb = scr.createDiv({ cls: "vl-status is-android" }); sb.style.height = `${barH}px`;
+            if (bar.fill) sb.style.background = colorOf(this.theme, bar.fill);
+            if (bar.ink) sb.style.color = colorOf(this.theme, bar.ink);
+            sb.createSpan({ cls: "vl-atime", text: bar.time ?? "12:00" });
+            const r = sb.createDiv({ cls: "vl-aicons" });
+            r.createSvg("svg", { attr: { viewBox: "0 0 12 12", width: 12, height: 12 } }).createSvg("path", { attr: { d: "M12 0v12H0z" } });
+            const batt = r.createSvg("svg", { attr: { viewBox: "0 0 8 13", width: 8, height: 13 } });
+            batt.createSvg("rect", { attr: { x: 2.5, y: 0, width: 3, height: 1.5 } });
+            batt.createSvg("rect", { attr: { x: 0, y: 1.5, width: 8, height: 11.5, rx: 1 } });
+        } else if (!this.land && style === "ios" && barH) {
+            const sb = scr.createDiv({ cls: "vl-status" }); sb.style.height = `${barH}px`;
             const cutW = dev.cut === "island" ? 125 : dev.cut === "notch" ? 209 : 0;
             sb.style.setProperty("--ear", `${(W - cutW) / 2}px`);
             sb.createDiv({ cls: "vl-ear" }).createSpan({ cls: "vl-time", text: "9:41" });
@@ -1052,8 +1164,9 @@ class Editor {
         const layers = this.layers(p);
         const ov = this.ov, ovOn = ov.show && anyOn(ov) && (!show || ov.inShow);
         ovlGrid = ovOn && ov.snap && ov.grid.on ? ov.grid.size : 0;
-        for (const l of layers) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
+        for (const l of layers) if (!show || !isDraft(l.block, W, H)) this.drawBlock(scr, p, l.block, show, show ? undefined : l);
         if (ovOn) this.drawOv(scr, p, z);
+        if (!show) this.spill(scr, p);
         if (!show && this.ov.notes) this.drawMarks(scr, p, z);
         scr.toggleClass("is-marking", this.marking && !show);
         // pointer: choose and drag
@@ -1182,6 +1295,29 @@ class Editor {
         const old = scr.querySelector(`[data-block="${b.id}"]`);
         const el = this.drawBlock(scr, p, b, false, this.layers(p).find((l) => l.block === b));
         if (old) old.replaceWith(el);
+        this.spill(scr, p);
+    }
+    // the blocks drawn as the screen is: drafts (wholly outside it) only beside it in the editor
+    onScreen(p: Page, list: Block[]) { const { W, H } = this.screen(p); return list.filter((b) => !isDraft(b, W, H)); }
+    // while editing, the parts of blocks past the screen's edge, faded: a copy behind the screen, which stays clipped
+    // with its round corners, so only what is outside it shows. The copy takes the pointer as the block would (choose,
+    // drag back in); a block wholly outside is a draft
+    spill(scr: HTMLElement, p: Page) {
+        const phone = scr.parentElement;
+        if (!phone?.hasClass("vl-phone")) return;
+        phone.querySelector(":scope > .vl-spill")?.remove();
+        const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
+        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H);
+        if (!out.length) return;
+        const g = createDiv({ cls: "vl-spill" });
+        Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
+        g.style.setProperty("--vl-iz", scr.style.getPropertyValue("--vl-iz"));
+        for (const el of out) {
+            const c = g.appendChild(el.cloneNode(true) as HTMLElement), L = px(el, "left"), T = px(el, "top");
+            if (L >= W || T >= H || L + px(el, "width") <= 0 || T + px(el, "height") <= 0) c.addClass("is-draft");
+        }
+        g.addEventListener("pointerdown", (e) => this.down(e, p, scr));
+        phone.prepend(g);
     }
     // l (editing): where the block comes from: a frame's (inherited: faded, locked) or an override of one (a small mark)
     drawBlock(scr: HTMLElement, p: Page, b: Block, show: boolean, l?: Layer): HTMLElement {
@@ -1401,7 +1537,8 @@ class Editor {
                 const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
                 b.x = g1 ? Math.round(L + g1.d) : sn(L); b.y = g2 ? Math.round(T + g2.d) : sn(T);
             }
-            if (!dragItem && keep) clampTo(b, R, grip);
+            // pushed wholly off the screen, a block leaves it (a draft); short of that it keeps to its room
+            if (!dragItem && keep && (grip || !isDraft(b, this.screen(p).W, this.screen(p).H))) clampTo(b, R, grip);
             this.redrawBlock(scr, p, b);
             this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy));
             this.livePanel();
@@ -1674,7 +1811,8 @@ class Editor {
         if (mod && k === "z") { if (e.shiftKey) this.redo(); else this.undo(); return true; }
         if (mod && k === "y") { this.redo(); return true; }
         if (mod && k === "d") { this.duplicate(); return true; }
-        if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.marking = !this.marking; this.drawPages(); return true; }
+        if (!mod && !e.altKey && e.shiftKey && k === "n" && !this.v.show && !this.v.map) { this.toggleMarks(); return true; }
+        if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.markTool(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
@@ -2425,32 +2563,13 @@ class Editor {
             setIcon(c.createSpan({ cls: "vl-addi" }), k.icon ?? "square"); c.createSpan({ text: k.name.split(" / ")[0] });
             c.addEventListener("click", () => this.edit(() => {
                 const { W, safe } = this.screen(p);
-                const low = drawnBlocks(this.doc.pages, p, this.land).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
+                const low = this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land)).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
                 const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
                 this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
             }));
         }
         if (this.land && p.land) this.actions(a, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
         else if (this.land && p.blocks.length) this.actions(a, [["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]]);
-        // the safe areas: the device's, or set for this doc (every screen, this orientation)
-        const cur = this.screen(p).safe;
-        const sa = this.section(body, "Safe areas", true, { shut: true, hint: `${cur.top} · ${cur.bottom} · ${cur.left} · ${cur.right}` });
-        sa.createDiv({ cls: "vl-frameinfo", text: `Every screen, ${this.land ? "landscape" : "portrait"}.` });
-        const own = screenOf(deviceOf(p.device ?? this.doc.device), this.land).safe, key = this.land ? "safeLand" : "safe";
-        const nums = sa.createDiv({ cls: "vl-nums" });
-        // hovering the section lights the safe areas on the phone; a side's number, that side
-        const lit = (side?: string) => { const w = this.wall; if (!w) return; if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side; };
-        const sec = sa.parentElement!;
-        sec.addEventListener("mouseenter", () => lit("all")); sec.addEventListener("mouseleave", () => lit());
-        for (const [k, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
-            const nw = this.num(nums, name, () => this.screen(p).safe[k], (v) => {
-                const o = { ...this.doc[key] };
-                if (v === own[k]) delete o[k]; else o[k] = v;
-                if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
-            }, { min: 0, max: 400, unit: "pt" });
-            nw.addEventListener("mouseenter", () => lit(k)); nw.addEventListener("mouseleave", () => lit("all"));
-        }
-        if (this.doc[key]) this.actions(sa, [["rotate-ccw", `The device's own (${own.top} · ${own.bottom} · ${own.left} · ${own.right})`, () => this.edit(() => { delete this.doc[key]; })]]);
         const n = this.section(body, "Note", true, { shut: true, hint: p.note ? p.note.split("\n")[0].slice(0, 26) : "empty" });
         this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this screen is for" });
     }
@@ -2996,6 +3115,8 @@ class ImagePick extends FuzzySuggestModal<TFile> {
 }
 // a block inside a room; kept in it: moved back in (resize: its size cut to the room instead)
 const inRoom = (b: Block, R: { l: number; t: number; r: number; b: number }) => b.x >= R.l && b.y >= R.t && b.x + b.w <= R.r && b.y + b.h <= R.b;
+// a block wholly outside the screen: a draft, kept beside it while editing, never drawn in Show, previews or notes
+const isDraft = (b: Block, W: number, H: number) => b.x >= W || b.y >= H || b.x + b.w <= 0 || b.y + b.h <= 0;
 const clampTo = (b: Block, R: { l: number; t: number; r: number; b: number }, resize: boolean) => {
     if (resize) { b.w = Math.max(8, Math.min(b.w, R.r - b.x)); b.h = Math.max(8, Math.min(b.h, R.b - b.y)); return; }
     b.x = Math.max(R.l, Math.min(b.x, R.r - b.w)); b.y = Math.max(R.t, Math.min(b.y, R.b - b.h));

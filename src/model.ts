@@ -33,14 +33,29 @@ export interface Block { id: string; name: string; kind: string; x: number; y: n
 // with its text; area: a box x, y, w, h with a label, and a composition guide drawn in it if wanted; line: a guide line
 // across (axis y, at y) or down (axis x, at x) with a label. Drags snap to lines and areas. by: who wrote it ("agent")
 export type Guide = "thirds" | "phi" | "spiral" | "diag" | "center";
-export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
+// size: its text's size (11 if not set); a note's w: its bubble's width (else as wide as its text, up to 200)
+export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; size?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks
 export interface Page { id: string; name: string; note?: string; parent?: string; link?: string; inherit?: boolean; device?: string; side?: boolean; land?: Block[]; mock?: boolean; bg?: string; marks?: Mark[]; blocks: Block[] }   // bg: the screen colour (a theme name or #hex), default paper
 // safe / safeLand: the safe areas set for this doc (each side optional), upright and sideways; else the device's own
 export type Insets = { top: number; bottom: number; left: number; right: number };
-export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; pages: Page[] }
+// radius: the screen's corner for every screen (0: square), else the device's. bar: the status bar drawn over the top safe
+// area: iOS (the default), Android (clock left, signal and battery right, on its own fill / ink) or none
+export interface Bar { style?: "ios" | "android" | "none"; fill?: string; ink?: string; time?: string }
+export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; radius?: number; bar?: Bar; pages: Page[] }
+// the doc's frame fields as read from a file (only what can be drawn)
+export const frameOfDoc = (v: { radius?: unknown; bar?: unknown }, doc: Doc) => {
+    if (typeof v.radius === "number" && v.radius >= 0) doc.radius = v.radius;
+    const b = v.bar as Record<string, unknown> | undefined;
+    if (b && typeof b === "object") {
+        const bar: Bar = {};
+        if (b.style === "ios" || b.style === "android" || b.style === "none") bar.style = b.style;
+        for (const k of ["fill", "ink", "time"] as const) if (typeof b[k] === "string" && b[k]) bar[k] = b[k];
+        if (Object.keys(bar).length) doc.bar = bar;
+    }
+};
 
 export const GRAVITIES: Gravity[] = ["tl", "t", "tr", "l", "c", "r", "bl", "b", "br"];
 export const uid = () => Math.random().toString(36).slice(2, 8);
@@ -65,13 +80,14 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
         const doc: Doc = { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages };
         const sf = insetsOf(v.safe), sl = insetsOf(v.safeLand);
         if (sf) doc.safe = sf; if (sl) doc.safeLand = sl;
+        frameOfDoc(v, doc);
         return { doc };
     } catch (e) {
         return { doc: empty, error: `The vellum JSON could not be read: ${(e as Error).message}` };
     }
 };
 // one page per line: a change to a page is one line in git
-export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, ` + (d.safe ? `"safe": ${JSON.stringify(d.safe)}, ` : "") + (d.safeLand ? `"safeLand": ${JSON.stringify(d.safeLand)}, ` : "") + `"pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
+export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, ` + (d.safe ? `"safe": ${JSON.stringify(d.safe)}, ` : "") + (d.safeLand ? `"safeLand": ${JSON.stringify(d.safeLand)}, ` : "") + (d.radius !== undefined ? `"radius": ${d.radius}, ` : "") + (d.bar ? `"bar": ${JSON.stringify(d.bar)}, ` : "") + `"pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
 
 // safe area overrides as read: only numbers 0–400 on the four sides, none = undefined
 export const insetsOf = (v: unknown): Partial<Insets> | undefined => {

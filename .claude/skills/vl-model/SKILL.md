@@ -7,7 +7,7 @@ description: Vellum's screen format. Use when reading or writing Vellum screen J
 `src/model.ts` is the source of truth for fields; the README's File format section is the public description. Keep both in step with any change.
 
 ## Shape
-- Doc: `{id, device, safe?, safeLand?, pages}`. As a folder: one JSON per screen, plus `_doc.json` (`id`, `device`, `safe`, `safeLand`, `order`).
+- Doc: `{id, device, safe?, safeLand?, radius?, bar?, pages}`. As a folder: one JSON per screen, plus `_doc.json` (`id`, `device`, `safe`, `safeLand`, `radius`, `bar`, `order`). `radius` overrides the device's corner (0: square); `bar` is `{style: ios|android|none, fill, ink, time}`.
 - Page: `{id, name, parent?, link?, inherit?, mock?, bg?, note?, blocks, land?, marks?}`. `land` is the landscape layout. `marks`: notes on the screen for the people and the agent (`note`, `area`, `line`), never drawn in the design.
 - Block: `{id, name, kind, x, y, w, h, bleed?, fill?, stroke?, sw?, r?, sides?, note?, items}`.
 - Item types: `text`, `rect`, `ellipse`, `line`, `img`, `icon`, `row`, `col`, `group` (its `items` each placed in its `w h` box by their own gravity; moved as one).
@@ -19,7 +19,8 @@ description: Vellum's screen format. Use when reading or writing Vellum screen J
 - A text's box has the same padding on every side, so a text off to one side keeps its rect.
 - Colours are theme names (`paper`, `text`, `dim`, `line`, `tile`, `loud`, `accent`) where possible, so they follow the theme. Otherwise use `#hex`.
 - Frames: with `inherit`, the parent's blocks are drawn under the page's own. An own block with the same `id` as a frame's block overrides it, so ids must be stable. Item ids should be unique within a page.
-- `bleed` lets a block go into the safe areas. Otherwise drags keep it inside.
+- `bleed` lets a block go into the safe areas. Otherwise drags keep it inside, until it is pushed wholly off the screen.
+- A block wholly outside the screen (`x >= W`, `y >= H`, `x + w <= 0` or `y + h <= 0`) is a draft: drawn beside the screen in the editor only, never in Show, previews or notes. An agent does not build drafts.
 - `mock: true` marks an option to choose from, not a real screen.
 
 ## Writing files
