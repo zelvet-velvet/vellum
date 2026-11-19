@@ -105,7 +105,7 @@ Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plug
 2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
 3. **The agent builds** from the screens you changed.
 
-<p align="center"><img src="assets/agent.png" alt="Claude Code in a terminal above Vellum: the copied reference to the Sort block with what to change, a two-line reply, and the next request typed; the phone shows VALUE in the accent colour"><br><sub><b>Copy reference</b> on the Sort block, then what to change. The agent edits the file and the phone updates; the next request is already typed.</sub></p>
+<p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Sort block, its hint showing. 2: the reference pasted into Claude Code with what to change, a two-line reply, the next request typed. 3: an arrow to the block on the phone, now with VALUE in the accent colour"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the phone updates as the file changes.</sub></p>
 
 <table>
   <tr>

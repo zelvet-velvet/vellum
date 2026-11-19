@@ -44,9 +44,12 @@ Short and easy to read beats real-and-messy: a real session prints whole JSON fi
 5. Shrink the window (`scripts/shots/terminal.ps1`, about 1400 × 440) until only the demo shows: Ctrl+L doesn't clear
    Claude Code's screen; the setup scrolls off instead. Capture it with `scripts/shots/capture-window.ps1`.
 6. The screen file must already show the result the reply describes (make the change by hand if needed).
-7. Capture the stage and panel with Sort chosen, stack the two with `scripts/shots/stack.ps1`.
-8. Point from the pasted reference to the block with `scripts/shots/arrow.ps1`: a box round each, an arrow routed
-   through empty space (down the gap between phone and panel), labelled "the block you copied". Never across text.
+7. Capture the stage and panel with Sort chosen **and the Copy reference hint showing**: `node scripts/shots/hover.mjs
+   "Vellum ·" <button x> <y> <out.png> <clip x y w h>` (a hint shows only in a focused window; this emulates focus).
+   Stack the two with `scripts/shots/stack.ps1`.
+8. Mark the flow with `scripts/shots/arrow.ps1`, numbered: **1** a box round the Copy reference button and its hint,
+   **2** a box round the pasted reference ("paste it, say what to change"), **3** an arrow from it to the block ("the
+   block you copied"), routed through empty space (the gaps between lines, the stage beside the phone). Never across text.
 
 The caption says what the reader does (Copy reference, then what to change), not that the session was unscripted.
 
