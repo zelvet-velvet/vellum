@@ -45,7 +45,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
   </tr>
 </table>
 
-<p align="center"><sub>Screens of ZeLedger, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
+<p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens tree, the phone, and the settings of the chosen block"></p>
 
@@ -141,7 +141,7 @@ not with rectangles under them.
 >
 > Ask for two or three **mocks** (`"mock": true`) as sub screens and keep the one you like. The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
 
-<sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and ZeLedger were designed this way, with Claude Code.</sub>
+<sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and Ledgerline were designed this way, with Claude Code.</sub>
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> File format
 

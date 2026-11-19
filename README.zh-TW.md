@@ -45,7 +45,7 @@
   </tr>
 </table>
 
-<p align="center"><sub>ZeLedger 的畫面。ZeLedger 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
+<p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
 <p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表、手機與所選區塊的設定"></p>
 
@@ -143,7 +143,7 @@
 >
 > 可請 agent 產生兩到三個 **mock**（`"mock": true`）作為子畫面，再保留選定的版本。編輯器開啟時 agent 仍可寫入檔案，Vellum 會重新載入，且不會覆蓋尚未儲存的修改。
 
-<sub>[Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) 與 ZeLedger 的畫面皆以此方式與 Claude Code 協作設計。</sub>
+<sub>[Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) 與 Ledgerline 的畫面皆以此方式與 Claude Code 協作設計。</sub>
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> 檔案格式
 
