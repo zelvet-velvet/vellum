@@ -286,6 +286,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-side-toggle { color: var(--icon-color); }
 .vl .vl-side-toggle:hover { color: var(--icon-color-hover); }
 .vl-pgname { margin-left: 6px; }
+.vl-appbtn + .vl-pgsep { color: var(--text-faint); margin: 0 2px; }
+.vl-pgsep + .vl-pgname { margin-left: 4px; }
 .vl .vl-appbtn { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 8px; height: auto; background: transparent; box-shadow: none; min-width: 0; }
 .vl .vl-appbtn:not(.is-one):hover, .vl .vl-appbtn.is-on { background: var(--background-modifier-hover); }
 .vl .vl-appbtn.is-one { cursor: default; opacity: 1; }

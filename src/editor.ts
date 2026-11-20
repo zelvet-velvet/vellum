@@ -177,8 +177,9 @@ class Editor {
     paint(e: HTMLElement) { this.paintLook(e); for (const ev of ["pointerdown", "mousedown", "click", "touchstart", "dblclick"]) e.addEventListener(ev, (x) => x.stopPropagation()); }
 
     // ---- state, undo, drafts, save
-    // an app's folder remembers its last screen on the device, so switching back (or reopening Obsidian) lands there
-    get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
+    // the editor opens in the Map (when there are screens); an app's folder remembers its last screen on the device, so
+    // switching back (or reopening Obsidian) has it chosen
+    get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000, map: this.doc.pages.length > 0, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
     setView(p: Partial<View>) {
         view.set(this.doc.id, { ...this.v, ...p });
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
@@ -516,7 +517,7 @@ class Editor {
     // ---- the workspace: over the whole window; top bar, screens rail, the stage with the phone in its middle, the panel
     // computer: its own window (a pop-out, focused if already open); phone: over the whole screen
     openWs(page?: string) {
-        if (page) this.setView({ page, fit: true });
+        if (page) this.setView({ page, fit: true, map: false });
         if (Platform.isMobile) { if (!this.root?.isConnected) this.mount(activeDocument.body); else this.draw(); return; }
         const key = this.draftKey();
         const w = windows.get(key) ?? this.plugin.app.workspace.getLeavesOfType(VIEW).map((l) => l.view).find((v): v is VellumWindow => v instanceof VellumWindow && v.key === key);
@@ -615,7 +616,12 @@ class Editor {
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
             this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
-            if (this.store) this.drawAppBtn(l); else l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+            // where you are: the app (a folder; a click switches), then the screen (none in the Map)
+            if (this.store) this.drawAppBtn(l);
+            if (!this.store || (cur && !this.v.map)) {
+                if (this.store) l.createSpan({ cls: "vl-pgsep", text: "·" });
+                l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+            }
         }
         const r = b.createDiv({ cls: "vl-tr" });
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
