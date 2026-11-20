@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { customDevice, deviceOf, DEVICES, framed, screenOf } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
@@ -615,7 +615,7 @@ class Editor {
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
             this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
-            l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+            if (this.store) this.drawAppBtn(l); else l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
         }
         const r = b.createDiv({ cls: "vl-tr" });
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
@@ -855,12 +855,31 @@ class Editor {
     }
     // the app switcher at the top of the screens list: every folder in the vault with a _doc.json (one folder per app),
     // shown when there are two or more. Each keeps its own device, last screen and unsaved edits
-    drawApps(box: HTMLElement) {
-        const dir = this.store?.dir; if (dir === undefined) return;
+    apps(): string[] {
+        const dir = this.store?.dir; if (dir === undefined) return [];
         const apps = this.plugin.app.vault.getFiles().filter((f) => f.name === "_doc.json" && f.parent && f.parent.path !== "/").map((f) => f.parent!.path);
         if (!apps.includes(dir)) apps.push(dir);
-        if (apps.length < 2) return;
-        apps.sort((a, b) => a.localeCompare(b));
+        return apps.sort((a, b) => a.localeCompare(b));
+    }
+    // the top bar (computer): the app's name, which opens the list of the others
+    drawAppBtn(l: HTMLElement) {
+        const dir = this.store!.dir, apps = this.apps(), many = apps.length > 1;
+        const b = l.createEl("button", { cls: "vl-appbtn" + (many ? "" : " is-one") });
+        b.createSpan({ cls: "vl-pg", text: dir.split("/").pop() || dir });
+        if (!many) { b.disabled = true; setTooltip(b, dir); return; }
+        setIcon(b.createSpan({ cls: "vl-chev" }), "chevron-down");
+        setTooltip(b, `${dir}: switch to another app`, { placement: "bottom" });
+        b.addEventListener("click", (e) => {
+            const m = new Menu();
+            for (const a of apps) m.addItem((i) => i.setTitle(a.split("/").pop() || a).setChecked(a === dir).onClick(() => { void this.switchApp(a); }));
+            const r = b.getBoundingClientRect();
+            m.showAtPosition({ x: r.left, y: r.bottom + 4 }, b.doc);
+            e.stopPropagation();
+        });
+    }
+    drawApps(box: HTMLElement) {
+        const dir = this.store?.dir, apps = this.apps();
+        if (dir === undefined || apps.length < 2) return;
         const r = box.createDiv({ cls: "vl-apps" });
         r.createSpan({ cls: "vl-sech", text: "App" });
         const m = r.createEl("select", { cls: "dropdown vl-menu2", attr: { "aria-label": "Switch to another app's screens" } });
@@ -908,7 +927,7 @@ class Editor {
         box.addEventListener("scroll", () => { this.railTop = box.scrollTop; this.unpeek(); }, { passive: true });
         box.addEventListener("mouseleave", () => this.unpeek());
         const pics = getLocal("vellum:pics") === "1";
-        this.drawApps(box);
+        if (Platform.isMobile) this.drawApps(box);   // a computer: in the top bar
         const hd = box.createDiv({ cls: "vl-railhead" });
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
         // the preview that opens when the pointer rests on a screen's name: on unless turned off here (kept on the device)

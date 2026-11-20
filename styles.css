@@ -286,6 +286,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-side-toggle { color: var(--icon-color); }
 .vl .vl-side-toggle:hover { color: var(--icon-color-hover); }
 .vl-pgname { margin-left: 6px; }
+.vl .vl-appbtn { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 8px; height: auto; background: transparent; box-shadow: none; min-width: 0; }
+.vl .vl-appbtn:not(.is-one):hover { background: var(--background-modifier-hover); }
+.vl .vl-appbtn.is-one { cursor: default; opacity: 1; }
+.vl-appbtn .vl-chev { display: flex; color: var(--text-muted); }
+.vl-appbtn .vl-chev svg { width: 14px; height: 14px; }
 /* icon buttons are plain at rest (Obsidian and themes fill every button: this wins over them), a light hover */
 .vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
 .vl button.vl-btn:hover { background: var(--background-modifier-hover); }
