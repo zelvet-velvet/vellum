@@ -18,9 +18,9 @@
   <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
 </p>
 
-輕量外掛，UI 草稿全在儲存庫內完成，不需另開設計工具、網站或註冊帳號。以真實手機外框排版，每個畫面存為一個 JSON 檔，可存取儲存庫的 agent 皆能得知每個元件的位置與尺寸，並修改同一份檔案。不需截圖或額外說明。
+輕量外掛，UI 草稿全在儲存庫內完成，不需另開設計工具、網站或註冊帳號。以真實裝置外框排版（手機、平板、桌面視窗或任意尺寸），每個畫面存為一個 JSON 檔，可存取儲存庫的 agent 皆能得知每個元件的位置與尺寸，並修改同一份檔案。不需截圖或額外說明。
 
-- **不限 Obsidian 外掛**：個人專案或工作專案皆可。筆記在 Obsidian，畫面也能放在同一處
+- **不限 app 類型與畫面尺寸**：手機 app、桌面視窗、網頁與 Obsidian 外掛皆可，個人專案或工作專案皆適用。同一儲存庫可放多個 app，各自一個資料夾與裝置設定。筆記在 Obsidian，畫面也能放在同一處
 - **指定元件請 agent 修改**：一鍵複製 block 或 item 給 agent，說明要改的地方，於手機外框上確認結果
 - **討論流程，而非只有排版**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯與 UX
 
@@ -53,7 +53,7 @@
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>真實機型</b><br><sub>支援 iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸，包含瀏海、安全區域，並可自訂圓角與狀態列。</sub></td>
+    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>真實機型</b><br><sub>支援 iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（桌面視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>直向與橫向</b><br><sub>兩種方向各自排版，整個編輯器統一切換。</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>區塊與錨點</b><br><sub>文字與圖形保留錨點與位移，尺寸可設為 hug、固定或 fill。</sub></td>
   </tr>
@@ -153,7 +153,7 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 
 ```text
 Design/Screens/
-├─ _doc.json       手機：機型、安全區域、圓角、狀態列；畫面順序
+├─ _doc.json       裝置：尺寸、安全區域、圓角、狀態列；畫面順序
 ├─ Home.json       一個畫面
 └─ Settings.json   另一個畫面
 ```
@@ -234,6 +234,12 @@ Design/Screens/
 | `row` / `col` | `HStack` / `VStack` | `Row` / `Column` |
 
 區塊本身於畫面上為固定位置，由 agent 轉換為 stack 與間距。
+</details>
+
+<details>
+<summary><b>可否用於桌面 app 或網頁？</b></summary>
+
+可以。將資料夾設為視窗本身的自訂尺寸（`"device": "custom-1280x800"`），再設 `"bar": { "style": "none" }` 與 `"radius": 0`，即為無圓角的矩形。單一畫面可另設尺寸，用於對話框或較小的視窗。每個 app 各自一個資料夾，手機 app 與其桌面端可並存於同一儲存庫。
 </details>
 
 <details>
