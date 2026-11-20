@@ -25,7 +25,7 @@ export default class VellumPlugin extends Plugin {
         this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit }, news: saved?.news ?? true, seen: saved?.seen };
         useApp(this.app);
         addIcon("vellum", ICON);
-        registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui }));
+        registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }));
         // Obsidian's theme changed: the screens' copies of its colours need its new values
         this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); }));
         setSnap(this.settings.snap, () => { void this.save(); });

@@ -258,6 +258,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-railhead { display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 8px; }
 .vl-railhead .vl-sech { margin: 0; padding: 0; }
 .vl-railhead .vl-btn { width: 26px; height: 26px; }
+.vl-apps { display: flex; align-items: center; gap: 8px; padding: 0 0 8px 8px; }
+.vl-apps .vl-sech { margin: 0; }
+.vl-apps select { flex: 1; min-width: 0; }
 .vl-peek { position: absolute; z-index: 30; padding: 8px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); pointer-events: none; }
 .vl-peekname { font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); margin: 0 2px 6px; }
 .vl-peek .vl-pthumb { box-shadow: 0 0 0 1px var(--background-modifier-border); }
@@ -283,6 +286,13 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-side-toggle { color: var(--icon-color); }
 .vl .vl-side-toggle:hover { color: var(--icon-color-hover); }
 .vl-pgname { margin-left: 6px; }
+.vl-appbtn + .vl-pgsep { color: var(--text-faint); margin: 0 2px; }
+.vl-pgsep + .vl-pgname { margin-left: 4px; }
+.vl .vl-appbtn { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 8px; height: auto; background: transparent; box-shadow: none; min-width: 0; }
+.vl .vl-appbtn:not(.is-one):hover, .vl .vl-appbtn.is-on { background: var(--background-modifier-hover); }
+.vl .vl-appbtn.is-one { cursor: default; opacity: 1; }
+.vl-appbtn .vl-chev { display: flex; color: var(--text-muted); }
+.vl-appbtn .vl-chev svg { width: 14px; height: 14px; }
 /* icon buttons are plain at rest (Obsidian and themes fill every button: this wins over them), a light hover */
 .vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
 .vl button.vl-btn:hover { background: var(--background-modifier-hover); }
