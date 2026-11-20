@@ -12,7 +12,8 @@ import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ra
 // from their gravity point), a block's corner resizes it; the panel shows only what is chosen, as controls (no syntax).
 // Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (never out of the editor).
 // Unsaved work is kept on the device (Obsidian's local storage, per vault) until saved into the note.
-export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string> }   // ui: the editor's own colours that differ from Obsidian's
+// ui: the editor's own colours that differ from Obsidian's; onFolder: the editor switched to another app's folder
+export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string>; onFolder?: (dir: string) => void }
 
 // snapping while dragging / resizing: to the grid, and (on) to the edges and middles of the frame (an item's block, a
 // block's screen and safe area), margin lines inside it and the other items / blocks; Alt: none (1 px). Set in the plugin's
@@ -176,8 +177,12 @@ class Editor {
     paint(e: HTMLElement) { this.paintLook(e); for (const ev of ["pointerdown", "mousedown", "click", "touchstart", "dblclick"]) e.addEventListener(ev, (x) => x.stopPropagation()); }
 
     // ---- state, undo, drafts, save
-    get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000 }; }
-    setView(p: Partial<View>) { view.set(this.doc.id, { ...this.v, ...p }); }
+    // an app's folder remembers its last screen on the device, so switching back (or reopening Obsidian) lands there
+    get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
+    setView(p: Partial<View>) {
+        view.set(this.doc.id, { ...this.v, ...p });
+        if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
+    }
     snap() { return JSON.stringify(this.doc); }
     get dirty() { return serialiseDoc(this.doc) !== this.saved; }
     draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx!.sourcePath}:${this.doc.id}`; }
@@ -848,6 +853,35 @@ class Editor {
         }
         this.drawZoom(); keep();
     }
+    // the app switcher at the top of the screens list: every folder in the vault with a _doc.json (one folder per app),
+    // shown when there are two or more. Each keeps its own device, last screen and unsaved edits
+    drawApps(box: HTMLElement) {
+        const dir = this.store?.dir; if (dir === undefined) return;
+        const apps = this.plugin.app.vault.getFiles().filter((f) => f.name === "_doc.json" && f.parent && f.parent.path !== "/").map((f) => f.parent!.path);
+        if (!apps.includes(dir)) apps.push(dir);
+        if (apps.length < 2) return;
+        apps.sort((a, b) => a.localeCompare(b));
+        const r = box.createDiv({ cls: "vl-apps" });
+        r.createSpan({ cls: "vl-sech", text: "App" });
+        const m = r.createEl("select", { cls: "dropdown vl-menu2", attr: { "aria-label": "Switch to another app's screens" } });
+        for (const a of apps) m.createEl("option", { value: a, text: a.split("/").pop() || a, attr: { title: a } });
+        m.value = dir;
+        m.addEventListener("change", () => { void this.switchApp(m.value); });
+    }
+    // the editor in this window (or over the phone's screen) moves to another app's folder; this one keeps its state in
+    // memory (and its unsaved edits on the device) for when it comes back. Already open in another window: that one is raised
+    async switchApp(dir: string) {
+        if (!this.store || dir === this.store.dir) return;
+        ref?.host().onFolder?.(dir);
+        const to = await folderEditor(dir); if (!to) return;
+        const key = this.draftKey(), w = windows.get(key), nk = to.draftKey();
+        if (Platform.isMobile || !w || !this.root || !w.contentEl.contains(this.root) || windows.has(nk)) {
+            if (Platform.isMobile) this.unmount();
+            to.openWs(); return;
+        }
+        windows.delete(key); this.end(); this.root.remove(); this.root = null; this.panel = null; this.drawCard();
+        await w.leaf.setViewState({ type: VIEW, active: true, state: { key: nk } });
+    }
     // the screens rail: every page as a row, sub pages indented under the page they open from (with how you get there);
     // a tap opens it, + beside a row adds a page opened from it; the device for the whole note at the foot
     drawRail() {
@@ -874,6 +908,7 @@ class Editor {
         box.addEventListener("scroll", () => { this.railTop = box.scrollTop; this.unpeek(); }, { passive: true });
         box.addEventListener("mouseleave", () => this.unpeek());
         const pics = getLocal("vellum:pics") === "1";
+        this.drawApps(box);
         const hd = box.createDiv({ cls: "vl-railhead" });
         hd.createDiv({ cls: "vl-sech", text: `Screens · ${this.doc.pages.length}` });
         // the preview that opens when the pointer rests on a screen's name: on unless turned off here (kept on the device)

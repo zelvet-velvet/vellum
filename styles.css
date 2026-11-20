@@ -258,6 +258,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-railhead { display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 8px; }
 .vl-railhead .vl-sech { margin: 0; padding: 0; }
 .vl-railhead .vl-btn { width: 26px; height: 26px; }
+.vl-apps { display: flex; align-items: center; gap: 8px; padding: 0 0 8px 8px; }
+.vl-apps .vl-sech { margin: 0; }
+.vl-apps select { flex: 1; min-width: 0; }
 .vl-peek { position: absolute; z-index: 30; padding: 8px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); pointer-events: none; }
 .vl-peekname { font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); margin: 0 2px 6px; }
 .vl-peek .vl-pthumb { box-shadow: 0 0 0 1px var(--background-modifier-border); }
