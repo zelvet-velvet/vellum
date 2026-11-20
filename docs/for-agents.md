@@ -8,8 +8,8 @@ the [README's File format](../README.md#-file-format).
 - One folder per app, e.g. `Design/Screens/`: one JSON file per screen, and `_doc.json` with the device and screen order.
 - **Tell the user where it is.** Vellum's ribbon button opens the folder in **Settings → Vellum → Screens folder**; if that
   folder has no screens, Vellum offers the folders that do. The command **Vellum: Open screens from another folder** picks one.
-- Several apps in one vault: each its own folder with its own `_doc.json` (its own device). The **App** menu at the top of
-  the editor's screens list switches between them.
+- Several apps in one vault: each its own folder with its own `_doc.json` (its own device). The app's name in the editor's
+  top bar switches between them.
 - To show the screens in a note, add a code block `vellum` with the line `src: Design/Screens`.
 
 ## 2. When the user wants options: mocks, not an artifact
