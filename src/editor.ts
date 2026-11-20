@@ -861,6 +861,7 @@ class Editor {
         if (!apps.includes(dir)) apps.push(dir);
         return apps.sort((a, b) => a.localeCompare(b));
     }
+    appMenu: Menu | null = null;   // the app list, while open
     // the top bar (computer): the app's name, which opens the list of the others
     drawAppBtn(l: HTMLElement) {
         const dir = this.store!.dir, apps = this.apps(), many = apps.length > 1;
@@ -869,12 +870,19 @@ class Editor {
         if (!many) { b.disabled = true; setTooltip(b, dir); return; }
         setIcon(b.createSpan({ cls: "vl-chev" }), "chevron-down");
         setTooltip(b, `${dir}: switch to another app`, { placement: "bottom" });
+        // one list at a time: a click on the name again closes it. The editor keeps its clicks to itself (so Obsidian's menu
+        // never hears a click elsewhere): a press anywhere but the list closes it, caught first on the window
         b.addEventListener("click", (e) => {
-            const m = new Menu();
-            for (const a of apps) m.addItem((i) => i.setTitle(a.split("/").pop() || a).setChecked(a === dir).onClick(() => { void this.switchApp(a); }));
-            const r = b.getBoundingClientRect();
-            m.showAtPosition({ x: r.left, y: r.bottom + 4 }, b.doc);
             e.stopPropagation();
+            if (this.appMenu) { this.appMenu.hide(); return; }
+            const m = (this.appMenu = new Menu()), doc = b.doc;
+            for (const a of apps) m.addItem((i) => i.setTitle(a.split("/").pop() || a).setChecked(a === dir).onClick(() => { void this.switchApp(a); }));
+            const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu, .vl-appbtn")) m.hide(); };
+            doc.addEventListener("pointerdown", out, true);
+            m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.appMenu === m) this.appMenu = null; b.removeClass("is-on"); });
+            b.addClass("is-on");
+            const r = b.getBoundingClientRect();
+            m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
         });
     }
     drawApps(box: HTMLElement) {
