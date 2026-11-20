@@ -7,7 +7,7 @@ export const NEWS: News[] = [
     {
         version: "0.12.0",
         items: [
-            ["app-window", "Switch apps from the top bar", "Several screen folders in a vault? Click the app's name at the top left: each keeps its own device and last screen."],
+            ["folders", "Switch apps from the top bar", "Several screen folders in a vault? Click the app's name at the top left: each keeps its own device and last screen."],
             ["git-fork", "Opens in the Map", "The editor starts on the whole tree of screens; click one to edit it."],
         ],
     },
