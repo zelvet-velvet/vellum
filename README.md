@@ -18,9 +18,9 @@
   <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
 </p>
 
-A light plugin for UI drafts that never leaves your vault: no design app, no website, no account. Lay screens out on a real phone frame; each one is a small JSON file, so any agent that can open the vault reads exactly where everything is and edits the same files. No screenshots, no long descriptions.
+A light plugin for UI drafts that never leaves your vault: no design app, no website, no account. Lay screens out on a real device frame (a phone, a tablet, a desktop window or any size you set); each one is a small JSON file, so any agent that can open the vault reads exactly where everything is and edits the same files. No screenshots, no long descriptions.
 
-- **Any app, not only plugins**: a side project or a work project. If your notes live in Obsidian, its screens can too.
+- **Any app, any screen**: a phone app, a desktop window, a web page or an Obsidian plugin; a side project or a work project. Several apps share a vault, each in its own folder with its own device. If your notes live in Obsidian, its screens can too.
 - **Point at a piece, ask for a change**: copy a block or an item for the agent in one click, say what to change, see it on the phone.
 - **Talk through the flow, not just the pixels**: the Map shows how the screens connect, so you and the agent can work out the app's logic and UX together.
 
@@ -53,7 +53,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size, with cut-outs, safe areas, your own corner and status bar.</sub></td>
+    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a desktop window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>Portrait and landscape</b><br><sub>A layout for each, one switch for the whole editor.</sub></td>
     <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>Blocks and gravity</b><br><sub>Text and shapes keep an anchor point, an offset, and hug / fixed / fill sizes.</sub></td>
   </tr>
@@ -151,7 +151,7 @@ One folder per app, one small file per screen:
 
 ```text
 Design/Screens/
-├─ _doc.json       the phone: device, safe areas, corner, status bar; the screen order
+├─ _doc.json       the device: size, safe areas, corner, status bar; the screen order
 ├─ Home.json       a screen
 └─ Settings.json   another screen
 ```
@@ -232,6 +232,12 @@ Yes, as a sketch your agent translates. Inside a block, items are placed the way
 | `row` / `col` | `HStack` / `VStack` | `Row` / `Column` |
 
 Blocks themselves sit at fixed positions on the screen, so the agent turns those into stacks and spacing.
+</details>
+
+<details>
+<summary><b>Can I use it for a desktop app or a web page?</b></summary>
+
+Yes. Give the folder a custom size, the window's own (`"device": "custom-1280x800"`), with `"bar": { "style": "none" }` and `"radius": 0` for a plain rectangle. A screen can take another size of its own, for a dialog or a smaller window. Each app is its own folder, so a phone app and its desktop companion sit side by side in one vault.
 </details>
 
 <details>
