@@ -101,30 +101,39 @@ export default class VellumPlugin extends Plugin {
     async save() { await this.saveData(this.settings); }
 }
 
-// The settings: a few cards (screens, colours, fonts, snapping) that fold, each a list of compact rows (name and a word
-// on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
+// The settings: tabs (General, Snapping, Colours, Fonts), one shown at a time, each a few cards of compact rows (name and a
+// word on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
+const TABS = [["general", "General"], ["snapping", "Snapping"], ["colours", "Colours"], ["fonts", "Fonts"]] as const;
+type Tab = (typeof TABS)[number][0];
+const TAB_KEY = "vellum:settab";   // the last tab used, kept on the device
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
     save() { void this.plugin.save(); }
-    // a card: a heading (a click unfolds it; at first only Screens is open, the open ones kept on the device) with a short summary at its
-    // right, and its body
-    card(c: HTMLElement, key: string, title: string, summary: string): HTMLElement {
-        const KEY = "vellum:setopen3";
-        let open: string[] = [];
-        try { open = JSON.parse(getLocal(KEY) ?? '["screens"]') as string[]; } catch { /* */ }   // at first only Screens is open
-        const card = c.createDiv({ cls: "vls-card" + (open.includes(key) ? "" : " is-folded") });
-        const head = card.createDiv({ cls: "vls-head", attr: { role: "button", tabindex: "0" } });
-        setIcon(head.createSpan({ cls: "vls-chev" }), "chevron-down");
+    // a card: a heading (a short summary at its right, if any) and its body
+    card(c: HTMLElement, title: string, summary = ""): HTMLElement {
+        const card = c.createDiv({ cls: "vls-card" });
+        const head = card.createDiv({ cls: "vls-head" });
         head.createSpan({ cls: "vls-title", text: title });
-        head.createSpan({ cls: "vls-sum", text: summary });
-        const flip = () => {
-            card.toggleClass("is-folded", !card.hasClass("is-folded"));
-            open = card.hasClass("is-folded") ? open.filter((k) => k !== key) : [...new Set([...open, key])];
-            try { setLocal(KEY, JSON.stringify(open)); } catch { /* */ }
-        };
-        head.addEventListener("click", flip);
-        head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+        head.createSpan({ cls: "vls-sum", text: summary });   // the colour lists fill theirs in ("3 changed")
         return card.createDiv({ cls: "vls-body" });
+    }
+    tab(): Tab {
+        let t: string | null = null;
+        try { t = getLocal(TAB_KEY); } catch { /* */ }
+        return TABS.find(([k]) => k === t)?.[0] ?? "general";
+    }
+    // the row of tabs; arrow keys move between them
+    tabBar(c: HTMLElement, on: Tab) {
+        const bar = c.createDiv({ cls: "vls-tabs", attr: { role: "tablist" } });
+        const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };
+        TABS.forEach(([k, name], i) => {
+            const b = bar.createEl("button", { cls: "vls-tab" + (k === on ? " is-on" : ""), text: name, attr: { role: "tab", "aria-selected": String(k === on), tabindex: k === on ? "0" : "-1" } });
+            b.addEventListener("click", () => { if (k !== on) pick(k); });
+            b.addEventListener("keydown", (e) => {
+                const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                if (d) { e.preventDefault(); pick(TABS[(i + d + TABS.length) % TABS.length][0]); }
+            });
+        });
     }
     // a row: its name (and a line under it) on the left, the control on the right
     row(parent: HTMLElement, name: string, desc?: string): HTMLElement {
@@ -360,95 +369,95 @@ class VellumSettings extends PluginSettingTab {
         const { containerEl: c } = this, s = this.plugin.settings;
         this.pickerOff?.(); this.syncs = [];
         c.empty(); c.addClass("vl-settings");
-        c.createDiv({ cls: "vls-intro", text: "Colours and fonts follow your Obsidian theme until you change them. An open editor updates at once." });
+        const tab = this.tab();
+        this.tabBar(c, tab);
+        if (tab === "general") {
+            // screens
+            const sc = this.card(c, "Screens");
+            this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
 
-        // screens
-        const sc = this.card(c, "screens", "Screens", s.folder);
-        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
+            // editing: number boxes
+            const ed = s.edit;
+            const eg = this.card(c, "Editing");
+            this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
+            this.input(this.row(eg, "Mark text size", "The text of notes and the names of areas and lines, in pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
+            this.input(this.row(eg, "Note width", "A note's width in pixels when it sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
+            new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
 
-        // colours: the editor's own and the phones', each card a list with its own preview
-        // the preview on top, the colours under it
-        const stack = (body: HTMLElement) => [body.createDiv({ cls: "vls-prev" }), body.createDiv({ cls: "vls-list" })];
-        const [edPrev, edList] = stack(this.card(c, "editortheme", "Editor theme", ""));
-        const [scPrev, co] = stack(this.card(c, "colours", "Screen colours", "").createDiv({ cls: "vls-beside" }));   // the phone beside its colours
-        const edDemo = this.demo(edPrev), scDemo = this.demoPhone(scPrev);
-        for (const pv of [edPrev, scPrev]) pv.createDiv({ cls: "vls-prevcap", text: "Point at a colour below to see where it is used." });
-        const paintDemos = () => { this.paintDemo(edDemo); this.paintDemo(scDemo); };
-        const changed = () => { for (const f of this.syncs) f(); paintDemos(); this.queueLook(); };
+            // updates
+            const up = this.card(c, "Updates");
+            new ToggleComponent(this.row(up, "Show what's new", "After an update, a short list of what changed, once.")).setValue(s.news).onChange((v) => { s.news = v; this.save(); });
+        } else if (tab === "snapping") {
+            const sn = s.snap, sp = this.card(c, "Dragging");
+            const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
+            const rest = sp.createDiv({ cls: "vls-group" + (sn.on ? "" : " is-off") });
+            new ToggleComponent(master).setValue(sn.on).onChange((v) => { sn.on = v; rest.toggleClass("is-off", !v); this.save(); });
+            const to = this.row(rest, "Snap to", "The frame: an item's block, or a block's screen and safe area.");
+            const pill = (text: string, on: () => boolean, flip: () => void) => {
+                const b = to.createEl("button", { cls: "vls-pill" + (on() ? " is-on" : ""), text });
+                b.addEventListener("click", () => { flip(); b.toggleClass("is-on", on()); this.save(); });
+            };
+            pill("The frame", () => sn.frame, () => { sn.frame = !sn.frame; });
+            pill("Other items", () => sn.others, () => { sn.others = !sn.others; });
+            const di = this.row(rest, "Distance", "How near a line pulls, in screen pixels.");
+            new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange((v) => { sn.dist = v; this.save(); });   // Obsidian shows its value
+            this.input(this.row(rest, "Grid", "Points a drag steps by when no line is near (1: free); Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
+            this.input(this.row(rest, "Margins", "Lines this far inside each edge, comma separated."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
+            new ToggleComponent(this.row(rest, "Guide lines", "Show the line a drag snapped to.")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
+        } else if (tab === "colours") {
+            c.createDiv({ cls: "vls-intro", text: "Colours follow your Obsidian theme until you change them. An open editor updates at once." });
+            // colours: the editor's own and the phones', each card a list with its own preview
+            // the preview on top, the colours under it
+            const stack = (body: HTMLElement) => [body.createDiv({ cls: "vls-prev" }), body.createDiv({ cls: "vls-list" })];
+            const [scPrev, co] = stack(this.card(c, "Screen colours").createDiv({ cls: "vls-beside" }));   // the phone beside its colours; the screens' look first
+            const [edPrev, edList] = stack(this.card(c, "Editor theme"));
+            const edDemo = this.demo(edPrev), scDemo = this.demoPhone(scPrev);
+            for (const pv of [edPrev, scPrev]) pv.createDiv({ cls: "vls-prevcap", text: "Point at a colour below to see where it is used." });
+            const paintDemos = () => { this.paintDemo(edDemo); this.paintDemo(scDemo); };
+            const changed = () => { for (const f of this.syncs) f(); paintDemos(); this.queueLook(); };
 
-        const uiGroups: [string, Swatch[]][] = [];
-        for (const u of UI_COLORS) {
-            let g = uiGroups.find((x) => x[0] === u.group);
-            if (!g) uiGroups.push((g = [u.group, []]));
-            g[1].push({ key: u.id, name: u.name, follow: u.follow ?? `var(${u.vars[0]})`, get: () => s.ui[u.id], set: (v) => { if (v) s.ui[u.id] = v; else delete s.ui[u.id]; } });
+            const uiGroups: [string, Swatch[]][] = [];
+            for (const u of UI_COLORS) {
+                let g = uiGroups.find((x) => x[0] === u.group);
+                if (!g) uiGroups.push((g = [u.group, []]));
+                g[1].push({ key: u.id, name: u.name, follow: u.follow ?? `var(${u.vars[0]})`, get: () => s.ui[u.id], set: (v) => { if (v) s.ui[u.id] = v; else delete s.ui[u.id]; } });
+            }
+            const pageOf = (title: string, names: string[]): [string, [string, Swatch[]][]] => [title, uiGroups.filter((g) => names.includes(g[0]))];
+            this.swatches(edList, "The editor's panels and controls.", [pageOf("Surfaces and lines", ["Surfaces", "Lines"]), pageOf("Text", ["Text"]), pageOf("Accent and signals", ["Accent", "Signals"])],
+                [["text", "panels", 4.5, "Panels"], ["text", "field", 4.5, "Input boxes"], ["muted", "panels", 3, "Panels"], ["onaccent", "accent", 3, "Accent"]], changed, edDemo);
+
+            const screens: Swatch[] = Object.keys(s.colors).map((name) => name in DEFAULTS.colors
+                ? { key: `s-${name}`, name, desc: SCREEN_USE[name], follow: DEFAULTS.colors[name], get: () => (s.colors[name] === DEFAULTS.colors[name] ? undefined : s.colors[name]), set: (v) => { s.colors[name] = v ?? DEFAULTS.colors[name]; } }
+                : { key: `s-${name}`, name, desc: "Your colour", get: () => s.colors[name], set: (v) => { if (v) s.colors[name] = v; }, drop: () => { delete s.colors[name]; } });
+            const scPage = (title: string, names: string[]): [string, [string, Swatch[]][]] => [title, [["", screens.filter((e) => !e.drop && names.includes(e.name))]]];
+            const scPages = [scPage("Background and lines", ["paper", "tile", "line"]), scPage("Text", ["text", "dim"]), scPage("Accent and warnings", ["accent", "loud"])];
+            const mine = screens.filter((e) => e.drop);
+            if (mine.length) scPages.push(["Your colours", [["", mine]]]);
+            this.swatches(co, "The named colours of the phones you design.", scPages, [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, scDemo);
+            const add = co.createDiv({ cls: "vls-add" });
+            let fresh = "";
+            const ni = this.input(add, "", (v) => { fresh = v.trim(); }, { placeholder: "A new colour name" });
+            const ab = add.createEl("button", { text: "Add colour" });
+            const doAdd = () => { if (!fresh || fresh in s.colors) { ni.focus(); return; } s.colors[fresh] = "#888888"; this.queueLook(); this.display(); };
+            ab.addEventListener("click", doAdd);
+            ni.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
+            paintDemos();
+        } else {
+            c.createDiv({ cls: "vls-intro", text: "Fonts follow your Obsidian theme until you change them. An open editor updates at once." });
+            // fonts: a sample in the font, the name, its CSS value
+            const fo = this.card(c, "Fonts", `${Object.keys(s.fonts).length} named`);
+            const fl = fo.createDiv({ cls: "vls-tokens" });
+            for (const name of Object.keys(s.fonts)) {
+                const t = fl.createDiv({ cls: "vls-token" });
+                const aa = t.createDiv({ cls: "vls-aa", text: "Aa" });
+                aa.style.fontFamily = s.fonts[name];
+                t.createDiv({ cls: "vls-tname", text: name });
+                this.input(t, s.fonts[name], (v) => { s.fonts[name] = v.trim(); aa.style.fontFamily = v; this.queueLook(); }, { cls: "is-mono" });
+                t.createDiv();
+            }
+
         }
-        const pageOf = (title: string, names: string[]): [string, [string, Swatch[]][]] => [title, uiGroups.filter((g) => names.includes(g[0]))];
-        this.swatches(edList, "The editor's panels and controls.", [pageOf("Surfaces and lines", ["Surfaces", "Lines"]), pageOf("Text", ["Text"]), pageOf("Accent and signals", ["Accent", "Signals"])],
-            [["text", "panels", 4.5, "Panels"], ["text", "field", 4.5, "Input boxes"], ["muted", "panels", 3, "Panels"], ["onaccent", "accent", 3, "Accent"]], changed, edDemo);
-
-        const screens: Swatch[] = Object.keys(s.colors).map((name) => name in DEFAULTS.colors
-            ? { key: `s-${name}`, name, desc: SCREEN_USE[name], follow: DEFAULTS.colors[name], get: () => (s.colors[name] === DEFAULTS.colors[name] ? undefined : s.colors[name]), set: (v) => { s.colors[name] = v ?? DEFAULTS.colors[name]; } }
-            : { key: `s-${name}`, name, desc: "Your colour", get: () => s.colors[name], set: (v) => { if (v) s.colors[name] = v; }, drop: () => { delete s.colors[name]; } });
-        const scPage = (title: string, names: string[]): [string, [string, Swatch[]][]] => [title, [["", screens.filter((e) => !e.drop && names.includes(e.name))]]];
-        const scPages = [scPage("Background and lines", ["paper", "tile", "line"]), scPage("Text", ["text", "dim"]), scPage("Accent and warnings", ["accent", "loud"])];
-        const mine = screens.filter((e) => e.drop);
-        if (mine.length) scPages.push(["Your colours", [["", mine]]]);
-        this.swatches(co, "The named colours of the phones you design.", scPages, [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, scDemo);
-        const add = co.createDiv({ cls: "vls-add" });
-        let fresh = "";
-        const ni = this.input(add, "", (v) => { fresh = v.trim(); }, { placeholder: "A new colour name" });
-        const ab = add.createEl("button", { text: "Add colour" });
-        const doAdd = () => { if (!fresh || fresh in s.colors) { ni.focus(); return; } s.colors[fresh] = "#888888"; this.queueLook(); this.display(); };
-        ab.addEventListener("click", doAdd);
-        ni.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
-        paintDemos();
-
-        // fonts: a sample in the font, the name, its CSS value
-        const fo = this.card(c, "fonts", "Fonts", `${Object.keys(s.fonts).length} named`);
-        const fl = fo.createDiv({ cls: "vls-tokens" });
-        for (const name of Object.keys(s.fonts)) {
-            const t = fl.createDiv({ cls: "vls-token" });
-            const aa = t.createDiv({ cls: "vls-aa", text: "Aa" });
-            aa.style.fontFamily = s.fonts[name];
-            t.createDiv({ cls: "vls-tname", text: name });
-            this.input(t, s.fonts[name], (v) => { s.fonts[name] = v.trim(); aa.style.fontFamily = v; this.queueLook(); }, { cls: "is-mono" });
-            t.createDiv();
-        }
-
-        // snapping
-        const sn = s.snap;
-        // editing: number boxes
-        const ed = s.edit;
-        const eg = this.card(c, "editing", "Editing", `Drag step ×${ed.arrow}`);
-        this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; eg.parentElement?.querySelector(".vls-sum")?.setText(`Drag step ×${n}`); this.save(); } }, { cls: "is-num", type: "number" });
-        this.input(this.row(eg, "Mark text size", "The text of notes and the names of areas and lines, in pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
-        this.input(this.row(eg, "Note width", "A note's width in pixels when it sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
-        new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
-
-        // updates
-        const up = this.card(c, "updates", "Updates", s.news ? "What's new: on" : "What's new: off");
-        new ToggleComponent(this.row(up, "Show what's new", "After an update, a short list of what changed, once.")).setValue(s.news).onChange((v) => { s.news = v; up.parentElement?.querySelector(".vls-sum")?.setText(v ? "What's new: on" : "What's new: off"); this.save(); });
-
-        const sp = this.card(c, "snapping", "Snapping", sn.on ? "On" : "Off");
-        const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
-        const rest = sp.createDiv({ cls: "vls-group" + (sn.on ? "" : " is-off") });
-        new ToggleComponent(master).setValue(sn.on).onChange((v) => { sn.on = v; rest.toggleClass("is-off", !v); sp.parentElement?.querySelector(".vls-sum")?.setText(v ? "On" : "Off"); this.save(); });
-        const to = this.row(rest, "Snap to", "The frame: an item's block, or a block's screen and safe area.");
-        const pill = (text: string, on: () => boolean, flip: () => void) => {
-            const b = to.createEl("button", { cls: "vls-pill" + (on() ? " is-on" : ""), text });
-            b.addEventListener("click", () => { flip(); b.toggleClass("is-on", on()); this.save(); });
-        };
-        pill("The frame", () => sn.frame, () => { sn.frame = !sn.frame; });
-        pill("Other items", () => sn.others, () => { sn.others = !sn.others; });
-        const di = this.row(rest, "Distance", "How near a line pulls, in screen pixels.");
-        new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange((v) => { sn.dist = v; this.save(); });   // Obsidian shows its value
-        this.input(this.row(rest, "Grid", "Points a drag steps by when no line is near (1: free); Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
-        this.input(this.row(rest, "Margins", "Lines this far inside each edge, comma separated."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
-        new ToggleComponent(this.row(rest, "Guide lines", "Show the line a drag snapped to.")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
-
-        // the editor's own colours last: the screens' look comes first
-        const edCard = edPrev.closest(".vls-card"); if (edCard) c.appendChild(edCard);
-
+        if (tab !== "colours" && tab !== "fonts") return;
         // back to the theme
         const foot = c.createDiv({ cls: "vls-foot" });
         foot.createSpan({ text: "Back to your Obsidian theme's colours and fonts." });
