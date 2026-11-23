@@ -901,3 +901,19 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-unbare svg, .vl-bareside svg { width: 22px; height: 22px; }
 /* the Map: a drag on the empty stage moves it */
 .vl-stage:has(> .vl-stagemap) { cursor: grab; }
+
+/* lock: drawn, but the screen does not hear a click on it while editing (it goes through to what is under) */
+.vl-screen:not(.is-show) .is-lock { pointer-events: none; }
+.vl-screen:not(.is-show) .vl-block.is-hl { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vl .vl-row.is-on { background: var(--background-modifier-active-hover); }
+.vl .vl-row .vl-rowlock { flex: none; width: 26px; height: 26px; opacity: 0; color: var(--text-faint); --icon-size: 13px; }
+.vl .vl-row:hover .vl-rowlock, .vl .vl-row .vl-rowlock.is-on { opacity: 1; }
+.vl .vl-row .vl-rowlock.is-on { color: var(--interactive-accent); }
+.vl .vl-row.is-locked .vl-rowtx { color: var(--text-muted); }
+.vl-igrip2.is-off { width: 19px; cursor: default; }
+.vl-listh { margin: 10px 0 2px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+/* the screen panel: the name and Real / Mock on one line; + Block at the top of the blocks */
+.vl-namerow { display: flex; align-items: center; gap: 6px; }
+.vl-namerow > :first-child { flex: 1; min-width: 0; }
+.vl-namerow > .vl-seg, .vl-namerow > :last-child { flex: none; width: 124px; }
+.vl .vl-addblock { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; --icon-size: 14px; margin-bottom: 4px; }

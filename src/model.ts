@@ -9,6 +9,7 @@ export type ItemType = "text" | "rect" | "ellipse" | "line" | "row" | "col" | "g
 
 export interface Item {
     id: string; type: ItemType; note?: string;
+    lock?: boolean;         // drawn, but a click on the screen goes through it (chosen from the panel's lists)
     g?: Gravity;            // the block's point the item keeps (default tl); ignored inside a row / column
     dx?: number; dy?: number;   // offset from that point, inward (px)
     w?: Size; h?: Size;     // fixed px, hug the content, fill the block (or the row's room)
@@ -28,7 +29,8 @@ export interface Item {
 // bleed: it may go into the safe areas (under the status bar, the home strip); else drags keep it inside them
 // fill / stroke / sw / r / sides: the block's own look (a card's background, an outline, a separator on chosen sides:
 // "t", "b", "tb"…); drawn by the block itself, so no rectangle under its items is needed
-export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string; note?: string; items: Item[] }
+// lock: drawn, but a click, a drag or an area on the screen goes through it to what is under it (chosen from the lists)
+export interface Block { id: string; name: string; kind: string; x: number; y: number; w: number; h: number; bleed?: boolean; lock?: boolean; fill?: string; stroke?: string; sw?: number; r?: number | number[]; sides?: string; note?: string; items: Item[] }
 // a mark: a note on a screen for the people (and the agent) designing it, never part of the design. note: a pin at x, y
 // with its text; area: a box x, y, w, h with a label, and a composition guide drawn in it if wanted; line: a guide line
 // across (axis y, at y) or down (axis x, at x) with a label. Drags snap to lines and areas. by: who wrote it ("agent")

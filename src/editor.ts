@@ -539,6 +539,9 @@ class Editor {
         // (the window's own capture phase: Obsidian takes Ctrl+S there before it reaches the editor)
         const onKey = (e: KeyboardEvent) => { if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true); const a = R.doc.activeElement; if (this.full() || (a && (R === a || R.contains(a)))) this.key(e); };
         R.win.addEventListener("keydown", onKey, true);
+        // the mouse's back button: one level up, as Esc (Obsidian never hears it, so it does not go back in its history)
+        const back = (e: MouseEvent) => { if (e.button !== 3) return; e.preventDefault(); e.stopPropagation(); if (e.type === "mouseup") this.up(); };
+        for (const t of ["mousedown", "mouseup", "auxclick"] as const) R.addEventListener(t, back, true);
         {   // the editor resized (its window, full screen, a side folded): Fit fits again
             let raf = 0;
             new ResizeObserver(() => {
@@ -1471,7 +1474,7 @@ class Editor {
         const sel = this.sel?.page === p.id && this.sel.block === b.id;
         const inh = !!l?.from && !l.over;
         const inGroup = !show && this.sel?.page === p.id && this.many.includes(b);
-        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : ""), attr: { "data-block": b.id } });
+        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
@@ -1719,7 +1722,7 @@ class Editor {
             box ??= scr.createDiv({ cls: "vl-marq" });
             const L = Math.min(x0, x1), T = Math.min(y0, y1), W = Math.abs(x1 - x0), H = Math.abs(y1 - y0);
             Object.assign(box.style, { left: `${L}px`, top: `${T}px`, width: `${W}px`, height: `${H}px` });
-            const own = this.blocks(p);
+            const own = this.blocks(p).filter((b) => !b.lock);   // locked: an area goes through them
             const whole = own.filter((b) => b.x >= L && b.x + b.w <= L + W && b.y >= T && b.y + b.h <= T + H);
             const touched = own.filter((b) => b.x < L + W && b.x + b.w > L && b.y < T + H && b.y + b.h > T);
             hits = []; itemHits = [];
@@ -1731,7 +1734,7 @@ class Editor {
                 for (const b of touched) {
                     const bEl = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`); if (!bEl) continue;
                     let any = false;
-                    bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]").forEach((iEl) => {
+                    bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]:not(.is-lock)").forEach((iEl) => {
                         const q = iEl.getBoundingClientRect();
                         if (q.left < cR && q.right > cL && q.top < cB && q.bottom > cT) { iEl.addClass("is-hit"); itemHits.push({ block: b.id, item: iEl.dataset.id! }); any = true; }
                     });
@@ -1765,8 +1768,8 @@ class Editor {
             Object.assign(box.style, { left: `${(L - r.left) / z}px`, top: `${(T - r.top) / z}px`, width: `${(R - L) / z}px`, height: `${(B - T) / z}px` });
             hits = [];
             scr.querySelectorAll<HTMLElement>("[data-block]").forEach((bEl) => {
-                if (!own.has(bEl.dataset.block!)) return;
-                bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]").forEach((iEl) => {
+                if (!own.has(bEl.dataset.block!) || bEl.hasClass("is-lock")) return;
+                bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]:not(.is-lock)").forEach((iEl) => {
                     const q = iEl.getBoundingClientRect(), hit = q.left < R && q.right > L && q.top < B && q.bottom > T;
                     iEl.toggleClass("is-hit", hit);
                     if (hit) hits.push({ block: bEl.dataset.block!, item: iEl.dataset.id! });
@@ -1945,6 +1948,14 @@ class Editor {
         if (it?.type === "text") this.writer("Text", it.v ?? "", (v) => this.edit(() => { it.v = v; }));
     }
 
+    // one level up (Esc, the mouse's back button): several chosen or a mark → the page; an item in a group / row → that; an
+    // item → its block; a block → the page; the page → nothing
+    up() {
+        const s = this.sel; if (!s) return;
+        if (s.mark || this.many.length || this.manyItems.length) { this.choose({ page: s.page }); return; }
+        const b = this.block(), par = s.item && b ? parentOf(b.items, s.item) : null;
+        this.choose(par ? { page: s.page, block: s.block, item: par.id } : s.item ? { page: s.page, block: s.block } : s.block ? { page: s.page } : null);
+    }
     // ---- keys (only when not typing in a field)
     key(e: KeyboardEvent) {
         if (this.handle(e)) { e.preventDefault(); if (e.key === "Escape") e.stopImmediatePropagation(); else e.stopPropagation(); }
@@ -1969,14 +1980,10 @@ class Editor {
         if (e.key === "Escape" && !this.sel && this.full()) { void this.root?.doc.exitFullscreen(); return true; }
         if (e.key === "Escape" && !this.sel && this.v.bars === false) { this.setBars(true); return true; }
         if (mod && e.key === "'") { this.ov.show = !this.ov.show; this.keepOv(); this.drawPages(); return true; }
-        if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).map((b) => b.id)); return true; }
+        if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).filter((b) => !b.lock).map((b) => b.id)); return true; }
         if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place
         if (e.key === "Escape" && (this.many.length || this.manyItems.length)) { this.choose({ page: this.sel!.page }); return true; }
-        if (e.key === "Escape") {
-            // one level up: an item in a group / row → that; an item → its block; a block → the page
-            const s = this.sel, b = this.block(), up = s?.item && b ? parentOf(b.items, s.item) : null;
-            this.choose(up ? { page: s!.page, block: s!.block, item: up.id } : s?.item ? { page: s.page, block: s.block } : s?.block ? { page: s.page } : null); return true;
-        }
+        if (e.key === "Escape") { this.up(); return true; }
         if (e.key === "Delete" || e.key === "Backspace") { this.remove(); return true; }
         const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
         if (d && this.mark()) { const m = this.mark()!, st = e.shiftKey ? grid() : 1; this.edit(() => { m.x += d[0] * st; m.y += d[1] * st; }, false); return true; }
@@ -2681,9 +2688,25 @@ class Editor {
         if (!Platform.isMobile) input.focus();   // (a phone: the keyboard only if asked for, the list needs the room)
     }
 
+    // the screen (nothing chosen): what it is (name, real or mock, its note), where it opens from, its colour, then its
+    // blocks (the main part, with the way to add one); its marks fold at the foot
     pagePanel(body: HTMLElement, p: Page) {
+        const s = this.section(body, "Screen");
+        const nr = s.createDiv({ cls: "vl-namerow" });
+        this.text(nr, () => p.name, (v) => { p.name = v; }, { title: "Screen name" });
+        this.seg(nr, [["real", "Real"], ["mock", "Mock"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
+        this.text(s, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this screen is for (for you and the agent)" });
+        this.parentField(this.frow(s, "From"), p);
+        if (p.parent) this.text(this.frow(s, "How"), () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "tap a row, + button…", title: "How you get there" });
+        // a frame: the parent's blocks drawn under this screen's own (a layout template)
+        const par = p.parent ? this.page(p.parent) : undefined;   // (no parent: page() would answer with the chosen page)
+        if (par) this.seg(this.frow(s, "Layout"), [["own", "Its own"], ["frame", `On ${par.name}'s frame`]], p.inherit ? "frame" : "own", (v) => { if (v === "frame") p.inherit = true; else delete p.inherit; });
+        // its colour (with a frame: the frame's unless the screen sets its own): one row, the tiles fold open from it
+        const fr = frameOf(this.doc.pages, p), was = (fr && bgOf(this.doc.pages, fr)) || "paper";
+        this.colors(this.section(body, "Background", true, { shut: true, hint: p.bg ?? was }), p.bg ?? was, (v) => { if (v === was) delete p.bg; else p.bg = v; });
+        this.blockList(body, p);
         // the marks on this screen: notes, areas, guide lines (for you and the agent; never part of the design)
-        const ms = this.section(body, "Marks", true), list = this.marksOf(p);
+        const list = this.marksOf(p), ms = this.section(body, "Marks", true, { shut: true, hint: list.length ? String(list.length) : "none" });
         for (const m of list) {
             const row = ms.createEl("button", { cls: "vl-markrow" });
             row.createSpan({ cls: "vl-ovsw" }).style.background = markColor(m.color);
@@ -2697,40 +2720,18 @@ class Editor {
             ["move-horizontal", "Line across", () => this.addMark(p, { kind: "line", axis: "y", x: 0, y: Math.round(H / 2), text: "" })],
             ["move-vertical", "Line down", () => this.addMark(p, { kind: "line", axis: "x", x: Math.round(W / 2), y: 0, text: "" })],
         ]);
-        const s = this.section(body, "Screen");
-        this.text(this.frow(s, "Name"), () => p.name, (v) => { p.name = v; }, { title: "Screen name" });
-        this.seg(this.frow(s, "Status"), [["real", "Real", "badge-check"], ["mock", "Mock", "lightbulb"]], p.mock ? "mock" : "real", (v) => { if (v === "mock") p.mock = true; else delete p.mock; });
-        this.parentField(this.frow(s, "Opened from"), p);
-        if (p.parent) this.text(this.frow(s, "How"), () => p.link ?? "", (v) => { if (v.trim()) p.link = v; else delete p.link; }, { placeholder: "tap a row, + button…", title: "How you get there" });
-        // a frame: the parent's blocks drawn under this screen's own (a layout template)
-        const par = p.parent ? this.page(p.parent) : undefined;   // (no parent: page() would answer with the chosen page)
-        if (par) this.seg(this.frow(s, "Layout"), [["own", "Its own"], ["frame", `On ${par.name}'s frame`]], p.inherit ? "frame" : "own", (v) => { if (v === "frame") p.inherit = true; else delete p.inherit; });
-        // with a frame: its colour unless the screen sets its own
-        const fr = frameOf(this.doc.pages, p), was = (fr && bgOf(this.doc.pages, fr)) || "paper";
-        this.colors(this.section(body, "Background"), p.bg ?? was, (v) => { if (v === was) delete p.bg; else p.bg = v; });
-        const a = this.section(body, "Add a block");
-        const g = a.createDiv({ cls: "vl-addgrid" });
-        for (const k of this.kinds) {
-            const c = g.createEl("button", { cls: "vl-addt", attr: { "aria-label": `Add a ${k.name} block` } });
-            c.style.setProperty("--k", k.color);
-            setIcon(c.createSpan({ cls: "vl-addi" }), k.icon ?? "square"); c.createSpan({ text: k.name.split(" / ")[0] });
-            c.addEventListener("click", () => this.edit(() => {
-                const { W, safe } = this.screen(p);
-                const low = this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land)).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
-                const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
-                this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
-            }));
-        }
-        if (this.land && p.land) this.actions(a, [["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]]);
-        else if (this.land && p.blocks.length) this.actions(a, [["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]]);
-        const own = this.blocks(p);
-        if (own.some((b) => b.items.some((x) => x.type === "row" || x.type === "col" || x.type === "group"))) this.actions(a, [["ungroup", "Ungroup all rows and columns on this screen", () => this.ungroupAll(p, own)]]);
-        const n = this.section(body, "Note", true, { shut: true, hint: p.note ? p.note.split("\n")[0].slice(0, 26) : "empty" });
-        this.text(n, () => p.note ?? "", (v) => { if (v.trim()) p.note = v; else delete p.note; }, { area: true, placeholder: "What this screen is for" });
     }
+    // a new block of a kind, under the lowest one on the screen
+    addBlock(p: Page, k: Kind) { this.edit(() => {
+        const { W, safe } = this.screen(p);
+        const low = this.onScreen(p, drawnBlocks(this.doc.pages, p, this.land)).reduce((m, x) => Math.max(m, x.y + x.h), safe.top);
+        const nb: Block = { id: uid(), name: k.name.split(" / ")[0], kind: k.id, x: 16 + safe.left, y: low + 8, w: W - 32 - safe.left - safe.right, h: 80, items: [] };
+        this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
+    }); }
     blockPanel(body: HTMLElement, p: Page, b: Block) {
         const s = this.section(body, "Block");
         this.text(this.frow(s, "Name"), () => b.name, (v) => { b.name = v; }, { title: "Block name" });
+        this.lockRow(s, b);
         const kc = this.frow(s, "Kind"), kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
         const ki = kc.createSpan({ cls: "vl-kindi" }); ki.style.setProperty("--k", kind.color); setIcon(ki, kind.icon ?? "square");
         this.menu(kc, this.kinds.map((k) => [k.id, k.name] as [string, string]), b.kind, (v) => { b.kind = v; }, "Kind");
@@ -2945,6 +2946,7 @@ class Editor {
             pick.createSpan({ cls: "vl-rowtx", text: label(it) });
             const d = detail(it); if (d) pick.createSpan({ cls: "vl-rowsub", text: d });
             pick.addEventListener("click", () => this.choose({ page: this.sel!.page, block: b.id, item: it.id }));
+            this.lockBtn(r, it);
             // the pointer on a row lights its item on the phone
             const lit = (on: boolean) => this.wall?.querySelectorAll(`.vl-block[data-block="${b.id}"] .vl-it[data-id="${it.id}"]`).forEach((x) => x.toggleClass("is-hl", on));
             r.addEventListener("mouseenter", () => lit(true)); r.addEventListener("mouseleave", () => lit(false));
@@ -2968,6 +2970,84 @@ class Editor {
             });
         });
     }
+    // lock: drawn, but the screen does not hear a click on it (it goes through to what is under); chosen from the lists
+    lockBtn(r: HTMLElement, x: Block | Item) {
+        const on = !!x.lock;
+        r.toggleClass("is-locked", on);
+        const lb = this.btn(r, on ? "lock" : "lock-open", on ? "Locked: a click on the screen goes through it. Unlock" : "Lock: a click on the screen goes through it", () => this.edit(() => { if (x.lock) delete x.lock; else x.lock = true; }));
+        lb.addClass("vl-rowlock"); lb.toggleClass("is-on", on);
+    }
+    lockRow(parent: HTMLElement, x: Block | Item) {
+        this.seg(this.frow(parent, "On screen"), [["free", "Can be chosen"], ["lock", "Locked"]], x.lock ? "lock" : "free", (v) => { if (v === "lock") x.lock = true; else delete x.lock; });
+    }
+    // the screen's blocks, top first: its own (a drag on the grip changes the order, Shift+click chooses several), then
+    // its frame's under a label. A click chooses one (a locked one too); the pointer on a row lights it on the phone
+    blockList(body: HTMLElement, p: Page) {
+        const layers = this.layers(p), mine = layers.filter((l) => !l.from && !l.over).reverse(), framed = layers.filter((l) => l.from || l.over).reverse();
+        const s = this.section(body, "Blocks", true, { hint: String(layers.length) });
+        const add = s.createEl("button", { cls: "vl-act vl-addblock", attr: { "aria-label": "Add a block: choose its kind" } });
+        setIcon(add.createSpan(), "plus"); add.appendText("Block");
+        add.addEventListener("click", (e) => {
+            const m = new Menu();
+            for (const k of this.kinds) m.addItem((i) => i.setTitle(k.name.split(" / ")[0]).setIcon(k.icon ?? "square").onClick(() => this.addBlock(p, k)));
+            m.showAtMouseEvent(e);
+        });
+        const own = this.blocks(p);
+        const acts: [string, string, () => void][] = [];
+        if (this.land && p.land) acts.push(["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]);
+        else if (this.land && p.blocks.length) acts.push(["rectangle-horizontal", "Make landscape from portrait", () => this.makeLand(p)]);
+        if (own.some((b) => b.items.some((x) => x.type === "row" || x.type === "col" || x.type === "group"))) acts.push(["ungroup", "Ungroup all rows and columns on this screen", () => this.ungroupAll(p, own)]);
+        if (!layers.length) { s.createDiv({ cls: "vl-frameinfo", text: "No blocks yet." }); if (acts.length) this.actions(s, acts); return; }
+        const { W, H } = this.screen(p);
+        const row = (parent: HTMLElement, l: Layer, grip: boolean) => {
+            const b = l.block, kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
+            const on = this.sel?.page === p.id && (this.sel.block === b.id || this.many.includes(b));
+            const r = parent.createDiv({ cls: "vl-row" + (on ? " is-on" : "") });
+            const g = r.createSpan({ cls: "vl-igrip2" + (grip ? "" : " is-off") }); if (grip) { setIcon(g, "grip-vertical"); g.setAttr("aria-label", "Drag up or down: above or below the others"); }
+            const pick = r.createEl("button", { cls: "vl-rowmain" });
+            const ty = pick.createSpan({ cls: "vl-rowty" }); setIcon(ty, kind?.icon ?? "square"); ty.style.color = kind?.color ?? "";
+            pick.createSpan({ cls: "vl-rowtx", text: b.name || "(no name)" });
+            pick.createSpan({ cls: "vl-rowsub", text: isDraft(b, W, H) ? "draft" : l.over ? "changed here" : `${Math.round(b.w)} × ${Math.round(b.h)}` });
+            pick.addEventListener("click", (e) => {
+                if (e.shiftKey && grip) { const ids = new Set([...this.many.map((x) => x.id), ...(this.sel?.block ? [this.sel.block] : [])]); if (ids.has(b.id)) ids.delete(b.id); else ids.add(b.id); if (ids.size) this.chooseMany(p, [...ids]); else this.choose({ page: p.id }); }
+                else this.choose({ page: p.id, block: b.id });
+            });
+            const lit = (v: boolean) => this.wall?.querySelectorAll(`.vl-block[data-block="${b.id}"]`).forEach((x) => x.toggleClass("is-hl", v));
+            r.addEventListener("mouseenter", () => lit(true)); r.addEventListener("mouseleave", () => lit(false));
+            if (grip || l.over) this.lockBtn(r, b);
+            return { r, g };
+        };
+        const list = s.createDiv({ cls: "vl-list" });
+        const rows = mine.map((l) => row(list, l, true));
+        // reorder: the list is top first, the file bottom first
+        rows.forEach(({ r, g }, i) => g.addEventListener("pointerdown", (e) => {
+            e.preventDefault(); g.setPointerCapture(e.pointerId);
+            const els = rows.map((x) => x.r); let to = i;
+            const mv = (m: PointerEvent) => {
+                to = els.findIndex((x) => m.clientY < x.getBoundingClientRect().top + x.offsetHeight / 2); if (to < 0) to = els.length;
+                els.forEach((x, n) => x.toggleClass("is-drop", n === to)); list.toggleClass("is-drop-end", to === els.length); r.addClass("is-moving");
+            };
+            const up = () => {
+                g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up); g.removeEventListener("pointercancel", up);
+                els.forEach((x) => x.removeClass("is-drop")); list.removeClass("is-drop-end"); r.removeClass("is-moving");
+                const dest = to > i ? to - 1 : to;
+                if (dest === i) return;
+                this.edit(() => {
+                    const order = mine.map((l) => l.block); const [x] = order.splice(i, 1); order.splice(dest, 0, x);
+                    // the own blocks in their new order (top first → bottom first), the frame's overrides kept where they were
+                    const rest = own.filter((b) => !order.includes(b)); own.splice(0, own.length, ...rest, ...order.reverse());
+                });
+            };
+            g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up);
+        }));
+        if (framed.length) {
+            const fr = frameOf(this.doc.pages, p);
+            s.createDiv({ cls: "vl-listh", text: `From ${fr?.name ?? "the frame"}` });
+            const fl = s.createDiv({ cls: "vl-list" });
+            for (const l of framed) row(fl, l, false);
+        }
+        if (acts.length) this.actions(s, acts);
+    }
     addButtons(parent: HTMLElement, b: Block, list: Item[], types: ItemType[]) {
         const names: Record<ItemType, string> = { text: "Text", rect: "Shape", ellipse: "Circle", line: "Line", img: "Picture", icon: "Icon", group: "Group", row: "Row", col: "Column" };
         const g = parent.createDiv({ cls: "vl-addgrid is-items" });
@@ -2981,6 +3061,7 @@ class Editor {
         // one page: its look, where it sits, its note (each section folds)
         this.stylePanel(body, b, it);
         this.placePanel(body, b, it, top);
+        this.lockRow(this.section(body, "Screen", true, { shut: !it.lock, hint: it.lock ? "locked" : "" }), it);
         this.text(this.section(body, "Note", true), () => it.note ?? "", (v) => { if (v.trim()) it.note = v; else delete it.note; }, { area: true, placeholder: "Why it is here, what to change (for the agent)" });
     }
     stylePanel(body: HTMLElement, b: Block, it: Item) {
