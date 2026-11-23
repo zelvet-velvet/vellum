@@ -1025,6 +1025,23 @@ class Editor {
     // the one shown renames, copies or deletes it; + a new one of any name), the one the app opens in, then the colours
     // of the theme shown. The same parts as Settings → Screen colours with this app chosen
     themeChips: Menu | null = null;
+    // a menu under its button, one at a time: the editor keeps its clicks to itself, so Obsidian's menu never hears a
+    // press elsewhere; it closes on one here. A click on its button again closes it
+    popped: { m: Menu; at: HTMLElement } | null = null;
+    popMenu(at: HTMLElement, build: (m: Menu) => void) {
+        at.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const was = this.popped; if (was) { was.m.hide(); if (was.at === at) return; }
+            const m = new Menu(), doc = at.doc;
+            build(m);
+            const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu") && !at.contains(t)) m.hide(); };
+            doc.addEventListener("pointerdown", out, true);
+            m.onHide(() => { doc.removeEventListener("pointerdown", out, true); at.removeClass("is-open"); if (this.popped?.m === m) this.popped = null; });
+            this.popped = { m, at }; at.addClass("is-open");
+            const r = at.getBoundingClientRect();
+            m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
+        });
+    }
     looksPanel(body: HTMLElement) {
         const d = this.doc, themes = d.themes ?? {}, names = Object.keys(themes);
         const part = this.themeName() ?? "";
@@ -3065,11 +3082,7 @@ class Editor {
             const c = h.createEl("button", { cls: "vl-kchip", attr: { "aria-label": "Kind: what this part of the screen is" } });
             const ki = c.createSpan({ cls: "vl-kindi" }); ki.style.setProperty("--k", kind.color); setIcon(ki, kind.icon ?? "square");
             c.createSpan({ text: kind.name });
-            c.addEventListener("click", (e) => {
-                const m = new Menu();
-                for (const k of this.kinds) m.addItem((mi) => mi.setTitle(k.name).setIcon(k.icon ?? "square").setChecked(k.id === b.kind).onClick(() => this.edit(() => { b.kind = k.id; })));
-                m.showAtMouseEvent(e);
-            });
+            this.popMenu(c, (m) => { for (const k of this.kinds) m.addItem((mi) => mi.setTitle(k.name).setIcon(k.icon ?? "square").setChecked(k.id === b.kind).onClick(() => this.edit(() => { b.kind = k.id; }))); });
         });
         // an override: the frame's block it takes the place of, and the way back to it
         const l = this.layers(p).find((x) => x.block === b);
@@ -3320,11 +3333,7 @@ class Editor {
         const s = this.section(body, "Blocks", true, { hint: String(layers.length) });
         const add = s.createEl("button", { cls: "vl-act vl-addblock", attr: { "aria-label": "Add a block: choose its kind" } });
         setIcon(add.createSpan(), "plus"); add.appendText("Block");
-        add.addEventListener("click", (e) => {
-            const m = new Menu();
-            for (const k of this.kinds) m.addItem((i) => i.setTitle(k.name.split(" / ")[0]).setIcon(k.icon ?? "square").onClick(() => this.addBlock(p, k)));
-            m.showAtMouseEvent(e);
-        });
+        this.popMenu(add, (m) => { for (const k of this.kinds) m.addItem((i) => i.setTitle(k.name.split(" / ")[0]).setIcon(k.icon ?? "square").onClick(() => this.addBlock(p, k))); });
         const own = this.blocks(p);
         const acts: [string, string, () => void][] = [];
         if (this.land && p.land) acts.push(["trash", "Remove the landscape layout", () => this.edit(() => { delete p.land; this.sel = { page: p.id }; })]);
