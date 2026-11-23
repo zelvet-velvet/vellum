@@ -114,6 +114,7 @@ class VellumSettings extends PluginSettingTab {
     // a card: a heading (a short summary at its right, if any) and its body
     card(c: HTMLElement, title: string, summary = ""): HTMLElement {
         const card = c.createDiv({ cls: "vls-card" });
+        if (!title) return card.createDiv({ cls: "vls-body is-bare" });   // under a tab of its own: no heading
         const head = card.createDiv({ cls: "vls-head" });
         head.createSpan({ cls: "vls-title", text: title });
         head.createSpan({ cls: "vls-sum", text: summary });   // the colour lists fill theirs in ("3 changed")
@@ -126,6 +127,18 @@ class VellumSettings extends PluginSettingTab {
         return TABS.find(([k]) => k === t)?.[0] ?? "general";
     }
     // the row of tabs; arrow keys move between them
+    // a second row of tabs inside a tab: one part shown, the last one used kept on the device (key)
+    subTabs<K extends string>(c: HTMLElement, key: string, list: [K, string][]): K {
+        let on: string | null = null;
+        try { on = getLocal(key); } catch { /* */ }
+        const cur = list.find(([k]) => k === on)?.[0] ?? list[0][0];
+        const row = c.createDiv({ cls: "vls-subtabs", attr: { role: "tablist" } });
+        for (const [k, name] of list) {
+            const b = row.createEl("button", { cls: "vls-subtab" + (k === cur ? " is-on" : ""), text: name, attr: { role: "tab", "aria-selected": String(k === cur) } });
+            b.addEventListener("click", () => { if (k === cur) return; try { setLocal(key, k); } catch { /* */ } this.display(); });
+        }
+        return cur;
+    }
     tabScroll: (() => void) | null = null;
     tabBar(c: HTMLElement, on: Tab) {
         const bar = c.createDiv({ cls: "vls-tabs", attr: { role: "tablist" } });
@@ -570,21 +583,23 @@ class VellumSettings extends PluginSettingTab {
         const tab = this.tab();
         this.tabBar(c, tab);
         if (tab === "general") {
-            // screens
-            const sc = this.card(c, "Screens");
-            this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
-
-            // editing: number boxes
-            const ed = s.edit;
-            const eg = this.card(c, "Editing");
-            this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
-            this.input(this.row(eg, "Mark text size", "The text of notes and the names of areas and lines, in pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
-            this.input(this.row(eg, "Note width", "A note's width in pixels when it sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
-            new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
-
-            // updates
-            const up = this.card(c, "Updates");
-            new ToggleComponent(this.row(up, "Show what's new", "After an update, a short list of what changed, once.")).setValue(s.news).onChange((v) => { s.news = v; this.save(); });
+            // General's parts as tabs of their own, one shown
+            const part = this.subTabs(c, "vellum:setgeneral", [["screens", "Screens"], ["editing", "Editing"], ["updates", "Updates"]]);
+            if (part === "screens") {
+                const sc = this.card(c, "");
+                this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
+            } else if (part === "editing") {
+                // number boxes, marks
+                const ed = s.edit;
+                const eg = this.card(c, "");
+                this.input(this.row(eg, "Drag step", "How many steps a number box moves for each notch of a drag (Shift: ten times that)."), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
+                this.input(this.row(eg, "Mark text size", "The text of notes and the names of areas and lines, in pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
+                this.input(this.row(eg, "Note width", "A note's width in pixels when it sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
+                new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number box, then drag up or down to change it. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
+            } else {
+                const up = this.card(c, "");
+                new ToggleComponent(this.row(up, "Show what's new", "After an update, a short list of what changed, once.")).setValue(s.news).onChange((v) => { s.news = v; this.save(); });
+            }
         } else if (tab === "snapping") {
             const sn = s.snap, sp = this.card(c, "Dragging");
             const master = this.row(sp, "Snap while dragging", "Blocks and items snap to the lines near them. Alt turns it off for one drag; the magnet under the phone switches it too.");
