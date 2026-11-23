@@ -3110,7 +3110,7 @@ class Editor {
             this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
         } else if (it.type === "group") {
             const s = this.section(body, "Group");
-            s.createDiv({ cls: "vl-frameinfo", text: `${it.items?.length ?? 0} items, moved as one. Click in it again (or double-click) to choose one of them; Esc goes back up.` });
+            s.createDiv({ cls: "vl-frameinfo", text: `${itemCount(it.items?.length ?? 0)}, moved as one. Click in it again (or double-click) to choose one of them; Esc goes back up.` });
             const acts: [string, string, () => void][] = [["scan", "Fit to its items", () => { const scr = this.wall.querySelector<HTMLElement>(".vl-screen"); if (scr) this.edit(() => this.refit(scr, b, it)); }]];
             if (canUngroup(it, parentOf(b.items, it.id))) acts.unshift(["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]);
             this.actions(s, acts);
@@ -3399,7 +3399,10 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const ZOOMMAX = 16, MAPMAX = 10;   // 1600 % for a screen, 1000 % for the map
-const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${it.items?.length ?? 0} items`
+// "1 item", "2 items"; a row, a column and a group named in words, so the three read apart in the Items list
+const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
+const KIND_NAME: Record<string, string> = { row: "Row", col: "Column", group: "Group" };
+const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${KIND_NAME[it.type]} · ${itemCount(it.items?.length ?? 0)}`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
 let icons: string[] | null = null;
