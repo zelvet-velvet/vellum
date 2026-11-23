@@ -877,13 +877,32 @@ class Editor {
         const r0 = at ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
         if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
-        this.drawPages();
+        // the Map with the wheel: the tree drawn last is scaled as it is (redrawing every thumbnail took ~150 ms a step
+        // with 40 screens), and drawn again at the new size once the wheel stops
+        const box = this.v.map && at ? this.wall?.querySelector<HTMLElement>(".vl-mapbox") : null;
+        if (box && this.mapDrawn) {
+            box.style.zoom = String((this.v.mapZoom ?? 1) / this.mapDrawn);
+            this.drawZoom();
+            window.clearTimeout(this.mapIdle);
+            this.mapIdle = window.setTimeout(() => {
+                const b = this.wall?.querySelector<HTMLElement>(".vl-mapbox"), w = this.wall;
+                if (!b || !w || !this.v.map) return;
+                // the same spot stays in the middle of the stage through the redraw
+                const s = w.getBoundingClientRect(), r = b.getBoundingClientRect(), cx = s.left + s.width / 2, cy = s.top + s.height / 2;
+                const u = (cx - r.left) / r.width, v = (cy - r.top) / r.height;
+                this.drawPages();
+                const r1 = w.querySelector<HTMLElement>(".vl-mapbox")?.getBoundingClientRect();
+                if (r1?.width) { w.scrollLeft += r1.left + u * r1.width - cx; w.scrollTop += r1.top + v * r1.height - cy; }
+            }, 200);
+        } else this.drawPages();
         const r1 = r0 ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
         const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
         this.wall.scrollLeft += r1.left + u * r1.width - at.x;
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
+    mapDrawn = 0;   // the Map's zoom when its thumbnails were last drawn
+    mapIdle = 0;
     // the middle button held: the stage scrolls with the pointer
     pan(e: PointerEvent) {
         const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
@@ -931,6 +950,7 @@ class Editor {
                 this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
             }
             this.drawMap(box, tw, pick);
+            this.mapDrawn = tw / BASE;
             this.drawZoom(); keep();
             return;
         }
