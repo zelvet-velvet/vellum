@@ -3653,31 +3653,42 @@ class Editor {
     }
     placePanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
         const s = this.section(body, "Place", true);
-        if (top) {
-            const bEl = this.wall?.querySelector<HTMLElement>(`.vl-block[data-block="${b.id}"]`), ib = bEl ? this.itemBox(bEl, b, it) : null;
-            const k = Math.min(250 / b.w, 110 / b.h), pv = s.createDiv({ cls: "vl-apv" });
-            Object.assign(pv.style, { width: `${b.w * k}px`, height: `${b.h * k}px` });
+        // an item in a group is placed as in a block, in the group's box: the same picture, with the group as the frame
+        const holder = top ? null : parentOf(b.items, it.id), grp = holder?.type === "group" ? holder : null;
+        if (top || grp) {
+            const bEl = this.wall?.querySelector<HTMLElement>(`.vl-block[data-block="${b.id}"]`);
+            const gb = grp && bEl ? this.itemBox(bEl, b, grp) : null, ib0 = bEl ? this.itemBox(bEl, b, it) : null;
+            const fw = grp ? Math.max(1, Math.round(gb?.W ?? (typeof grp.w === "number" ? grp.w : 40))) : b.w, fh = grp ? Math.max(1, Math.round(gb?.H ?? (typeof grp.h === "number" ? grp.h : 40))) : b.h;
+            const ib = ib0 && grp ? (gb ? { ...ib0, L: ib0.L - gb.L, T: ib0.T - gb.T } : null) : ib0;
+            const k = Math.min(250 / fw, 110 / fh), pv = s.createDiv({ cls: "vl-apv" });
+            Object.assign(pv.style, { width: `${fw * k}px`, height: `${fh * k}px` });
             if (ib) { const r = pv.createDiv({ cls: "vl-abox" }); Object.assign(r.style, { left: `${ib.L * k}px`, top: `${ib.T * k}px`, width: `${Math.max(2, ib.W * k)}px`, height: `${Math.max(2, ib.H * k)}px` }); }
             const [cx, cy] = axes(it.g);
             for (const g of GRAVITIES) {
                 const [ax, ay] = axes(g);
-                const d = pv.createEl("button", { cls: "vl-adot" + (g === (it.g ?? "tl") ? " is-on" : ""), attr: { "aria-label": `Hold on to the ${({ tl: "top left", t: "top", tr: "top right", l: "left", c: "middle", r: "right", bl: "bottom left", b: "bottom", br: "bottom right" } as Record<string, string>)[g]}` } });
+                const d = pv.createEl("button", { cls: "vl-adot" + (g === (it.g ?? "tl") ? " is-on" : ""), attr: { "aria-label": `Hold on to the ${({ tl: "top left", t: "top", tr: "top right", l: "left", c: "middle", r: "right", bl: "bottom left", b: "bottom", br: "bottom right" } as Record<string, string>)[g]}${grp ? " of the group" : ""}` } });
                 Object.assign(d.style, { left: `${(ax + 1) * 50}%`, top: `${(ay + 1) * 50}%` });
                 d.addEventListener("click", () => this.edit(() => {
                     // the item stays where it is: its offset is worked out from the new point
-                    if (ib) { if (it.w !== "fill") it.dx = toD(ax, ib.L, ib.W, b.w); if (it.h !== "fill") it.dy = toD(ay, ib.T, ib.H, b.h); }
+                    if (ib) { if (it.w !== "fill") it.dx = toD(ax, ib.L, ib.W, fw); if (it.h !== "fill") it.dy = toD(ay, ib.T, ib.H, fh); }
                     it.g = g;
                 }));
             }
             // the line from the point it holds on to, to the same point of the item
             if (ib) {
                 const px = (cx + 1) / 2, py = (cy + 1) / 2;
-                const svg = pv.createSvg("svg", { cls: "vl-aline", attr: { width: b.w * k, height: b.h * k } });
-                svg.createSvg("line", { attr: { x1: px * b.w * k, y1: py * b.h * k, x2: (ib.L + px * ib.W) * k, y2: (ib.T + py * ib.H) * k } });
+                const svg = pv.createSvg("svg", { cls: "vl-aline", attr: { width: fw * k, height: fh * k } });
+                svg.createSvg("line", { attr: { x1: px * fw * k, y1: py * fh * k, x2: (ib.L + px * ib.W) * k, y2: (ib.T + py * ib.H) * k } });
             }
             const nums = s.createDiv({ cls: "vl-nums is-four" });
             if (it.w !== "fill") this.num(nums, cx < 0 ? "← X" : cx > 0 ? "X →" : "X ↔", () => it.dx ?? 0, (v) => { it.dx = v; });
             if (it.h !== "fill") this.num(nums, cy < 0 ? "↑ Y" : cy > 0 ? "Y ↓" : "Y ↕", () => it.dy ?? 0, (v) => { it.dy = v; });
+            // where the group itself sits, and a way to it
+            if (grp) {
+                const p = this.page();
+                s.createDiv({ cls: "vl-frameinfo", text: `In a group of ${itemCount(grp.items?.length ?? 0)}, ${fw} × ${fh}` + (gb ? `, at x ${Math.round(gb.L)} y ${Math.round(gb.T)} in the block.` : ".") + " Moved by dragging, the group fits its items again." });
+                if (p) this.actions(s, [["group", "Choose the group", () => this.choose({ page: p.id, block: b.id, item: grp.id })]]);
+            }
         }
         if (it.type === "icon") { s.createDiv({ cls: "vl-frameinfo", text: "An icon is as big as its Size." }); return; }
         for (const [axis, name] of [["w", "Width"], ["h", "Height"]] as const) {
@@ -3686,12 +3697,12 @@ class Editor {
             const ctl = row.createDiv({ cls: "vl-frowc" });
             const cur = it[axis];
             const rule = cur === "fill" ? "fill" : typeof cur === "number" ? "fixed" : "hug";
-            this.chips(ctl, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
+            this.chips(ctl, [["hug", "Hug: as big as its content", axis === "w" ? "fold-horizontal" : "fold-vertical"], ["fixed", "Fixed: a set size", "lock"], ["fill", grp ? "Fill: the group's box" : "Fill: the block's room", axis === "w" ? "unfold-horizontal" : "unfold-vertical"]], rule, (v) => {
                 if (v === "fixed") { const el = (this.wall ?? activeDocument).querySelector<HTMLElement>(`.vl-it[data-id="${it.id}"]`); it[axis] = Math.round(el ? (axis === "w" ? el.offsetWidth : el.offsetHeight) : 40); }
                 else it[axis] = v;
             });
             if (rule === "fixed") this.num(ctl, "pt", () => it[axis] as number, (v) => { it[axis] = v; }, { min: 1 });
-            if (rule === "fill" && top) this.num(ctl, "Margin", () => Math.abs((axis === "w" ? it.dx : it.dy) ?? 0), (v) => { if (axis === "w") it.dx = v; else it.dy = v; }, { min: 0 });
+            if (rule === "fill" && (top || grp)) this.num(ctl, "Margin", () => Math.abs((axis === "w" ? it.dx : it.dy) ?? 0), (v) => { if (axis === "w") it.dx = v; else it.dy = v; }, { min: 0 });
         }
     }
 }
