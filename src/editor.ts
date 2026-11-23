@@ -1958,6 +1958,7 @@ class Editor {
             const i = list.findIndex((x) => x.item === dragId);
             if (i >= 0) list.splice(i, 1); else list.push({ block: b.id, item: dragId });
             this.chooseItems(p, list);
+            this.holdWatch(e, p, b, true);
             return;
         }
         if (!b) {
@@ -1992,11 +1993,17 @@ class Editor {
         let ib: { L: number; T: number; W: number; H: number } | null = null, lines: Lines = { x: [], y: [] };
         const R = this.room(p, b), keep = !b.bleed && inRoom(b, R);
         scr.setPointerCapture(e.pointerId);
+        // held still a moment (not on a handle or the name tag): a drag then draws an area that picks this block's items
+        const hold = grip || wholeBlock || t.closest("[data-igrip]") ? 0 : window.setTimeout(() => {
+            if (moved) return;
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            this.areaIn(e, p, b, e.shiftKey, () => { this.choose(target); });
+        }, HOLD);
         const move = (m: PointerEvent) => {
             const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
             if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
             if (!moved) {
-                moved = true; this.begin();
+                moved = true; this.begin(); window.clearTimeout(hold);
                 const be = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
                 if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); } else if (!dragItem) lines = this.blockLines(p, b);
                 if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); }
@@ -2033,6 +2040,7 @@ class Editor {
         };
         const up = () => {
             scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            window.clearTimeout(hold);
             this.guides(scr);
             if (moved) { if (inGroup && holder && b.items.includes(holder)) this.refit(scr, b, holder); this.end(); return; }
             const again = target?.item && before?.item === target.item;
@@ -2042,6 +2050,49 @@ class Editor {
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
 
+    // after a Shift+click on an item: held still a moment, a drag then adds the items of an area in that block
+    holdWatch(e: PointerEvent, p: Page, b: Block, add: boolean) {
+        const d = this.root?.doc; if (!d) return;
+        const x0 = e.clientX, y0 = e.clientY;
+        const stop = () => { window.clearTimeout(tm); d.removeEventListener("pointermove", mv, true); d.removeEventListener("pointerup", stop, true); d.removeEventListener("pointercancel", stop, true); };
+        const mv = (m: PointerEvent) => { if (Math.abs(m.clientX - x0) + Math.abs(m.clientY - y0) >= 3) stop(); };
+        const tm = window.setTimeout(() => { stop(); this.areaIn(e, p, b, add); }, HOLD);
+        d.addEventListener("pointermove", mv, true); d.addEventListener("pointerup", stop, true); d.addEventListener("pointercancel", stop, true);
+    }
+    // an area inside one block (held, then dragged): it stays in the block and picks the items it touches, as Ctrl + drag
+    // does. add: to the items already chosen. tap: let go without dragging
+    areaIn(e: PointerEvent, p: Page, b: Block, add: boolean, tap?: () => void) {
+        const d = this.root?.doc, R0 = this.root; if (!d || !R0) return;
+        const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, keep = add ? this.manyItems.map((x) => ({ block: x.b.id, item: x.it.id })) : [];
+        if (add && !keep.length && this.sel?.item && this.sel.block === b.id) { const top = b.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (top) keep.push({ block: b.id, item: top.id }); }
+        R0.addClass("is-holding");
+        let box: HTMLElement | null = null, hits: { block: string; item: string }[] = [];
+        const move = (m: PointerEvent) => {
+            if (!box && Math.abs(m.clientX - x0) + Math.abs(m.clientY - y0) < 4) return;
+            const bEl = this.wall.querySelector<HTMLElement>(`.vl-screen [data-block="${b.id}"]`), scr = bEl?.closest<HTMLElement>(".vl-screen");
+            if (!bEl || !scr) return;
+            if (box?.parentElement !== scr) { box?.remove(); box = scr.createDiv({ cls: "vl-marq is-deep" }); }
+            const r = scr.getBoundingClientRect(), br = bEl.getBoundingClientRect();
+            const cl = (v: number, a: number, c: number) => Math.max(a, Math.min(c, v));
+            const L = cl(Math.min(x0, m.clientX), br.left, br.right), T = cl(Math.min(y0, m.clientY), br.top, br.bottom), Rr = cl(Math.max(x0, m.clientX), br.left, br.right), B = cl(Math.max(y0, m.clientY), br.top, br.bottom);
+            Object.assign(box.style, { left: `${(L - r.left) / z}px`, top: `${(T - r.top) / z}px`, width: `${(Rr - L) / z}px`, height: `${(B - T) / z}px` });
+            hits = [];
+            bEl.querySelectorAll<HTMLElement>(".vl-it[data-top]:not(.is-lock)").forEach((iEl) => {
+                const q = iEl.getBoundingClientRect(), hit = q.left < Rr && q.right > L && q.top < B && q.bottom > T;
+                iEl.toggleClass("is-hit", hit);
+                if (hit) hits.push({ block: b.id, item: iEl.dataset.id! });
+            });
+        };
+        const up = () => {
+            d.removeEventListener("pointermove", move, true); d.removeEventListener("pointerup", up, true); d.removeEventListener("pointercancel", up, true);
+            R0.removeClass("is-holding");
+            if (!box) { tap?.(); return; }
+            box.remove();
+            const all = [...keep]; for (const h of hits) if (!all.some((x) => x.item === h.item)) all.push(h);
+            this.chooseItems(p, all);
+        };
+        d.addEventListener("pointermove", move, true); d.addEventListener("pointerup", up, true); d.addEventListener("pointercancel", up, true);
+    }
     // a drag over empty space draws an area, as in Figma / Sketch: the blocks wholly inside it are chosen together; when
     // none is, the items it touches in the blocks it crosses (a block it touches with no item under the area: the block).
     // Shift: added to what is chosen. A tap: the page (on the screen) or nothing (beside it)
@@ -3763,6 +3814,7 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
     return [f, line].filter(Boolean).join(" · ") || "none";
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
+const HOLD = 300;   // ms held still inside a block before a drag draws an area of its items
 const ZOOMMAX = 16, MAPMAX = 10;   // 1600 % for a screen, 1000 % for the map
 // "1 item", "2 items"; a row, a column and a group named in words, so the three read apart in the Items list
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
