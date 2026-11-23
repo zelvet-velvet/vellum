@@ -373,8 +373,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
 /* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
-.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin: 0 0 16px; padding: 4px 0 0; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); overflow-x: auto; scrollbar-width: none; transition: box-shadow 0.15s ease; }
-.vls-tabs.is-stuck { box-shadow: 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
+.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin: 0 0 16px; padding: 4px 0 0; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); overflow-x: auto; scrollbar-width: none; box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+.vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
 .vl-settings button.vls-tab { flex: none; height: 36px; margin-bottom: -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
 .vl-settings button.vls-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-bottom-color: var(--interactive-accent); background: transparent; }

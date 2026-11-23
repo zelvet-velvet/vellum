@@ -129,21 +129,13 @@ class VellumSettings extends PluginSettingTab {
     tabScroll: (() => void) | null = null;
     tabBar(c: HTMLElement, on: Tab) {
         const bar = c.createDiv({ cls: "vls-tabs", attr: { role: "tablist" } });
-        // pinned to the top while the settings scroll: on their own background, a shadow once something is under it. The
-        // scroller's padding is not known (Obsidian's, a theme's): the first time it is pinned it moves up to the very top
+        // pinned to the top while the settings scroll, on their own background (a band of it above the bar covers the
+        // scroller's top padding, whatever Obsidian or a theme makes it); a shadow once something is under it
         this.tabScroll?.();
         const win = c.win, scroller = (() => { for (let e: HTMLElement | null = c; e; e = e.parentElement) { const o = win.getComputedStyle(e).overflowY; if (o === "auto" || o === "scroll") return e; } return null; })();
         if (scroller) {
             for (let e: HTMLElement | null = scroller; e; e = e.parentElement) { const bg = win.getComputedStyle(e).backgroundColor; if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) { bar.style.setProperty("--vls-bg", bg); break; } }
-            let fixed = false;
-            const onScroll = () => {
-                const st = scroller.scrollTop > 2;
-                bar.toggleClass("is-stuck", st);
-                if (fixed || scroller.scrollTop < bar.offsetTop + 40) return;
-                const gap = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientTop;
-                if (Math.abs(gap) > 0.5) bar.style.top = `${(parseFloat(bar.style.top) || 0) - gap}px`;
-                fixed = true;
-            };
+            const onScroll = () => { bar.toggleClass("is-stuck", scroller.scrollTop > 2); };
             scroller.addEventListener("scroll", onScroll, { passive: true });
             this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); this.tabScroll = null; };
             onScroll();
