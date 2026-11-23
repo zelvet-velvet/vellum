@@ -553,7 +553,17 @@ class Editor {
         this.paint(R);
         // keys: on the editor itself (it may be in another window); capture so Obsidian's own keys do not take them first
         // (the window's own capture phase: Obsidian takes Ctrl+S there before it reaches the editor)
-        const onKey = (e: KeyboardEvent) => { if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true); const a = R.doc.activeElement; if (this.full() || (a && (R === a || R.contains(a)))) this.key(e); };
+        // a click in a side panel redraws it: the button it focused is gone and the focus falls to the page, so the last
+        // click is remembered too (inside the editor: its keys keep working until a click lands elsewhere)
+        let inside = true;
+        const onDown = (e: PointerEvent) => { if (!R.isConnected) return R.win.removeEventListener("pointerdown", onDown, true); inside = R.contains(e.target as Node); };
+        R.win.addEventListener("pointerdown", onDown, true);
+        const onKey = (e: KeyboardEvent) => {
+            if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true);
+            const a = R.doc.activeElement, lost = !a || a === R.doc.body;
+            if (lost && inside) R.focus({ preventScroll: true });
+            if (this.full() || (lost && inside) || (a && (R === a || R.contains(a)))) this.key(e);
+        };
         R.win.addEventListener("keydown", onKey, true);
         // the mouse's back button: one level up, as Esc (Obsidian never hears it, so it does not go back in its history)
         const back = (e: MouseEvent) => { if (e.button !== 3) return; e.preventDefault(); e.stopPropagation(); if (e.type === "mouseup") this.up(); };
