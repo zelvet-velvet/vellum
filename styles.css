@@ -365,6 +365,15 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-guide { position: absolute; z-index: 8; pointer-events: none; background: var(--vlu-guide, var(--color-pink, #e93147)); }
 .vl-guide.is-v { top: 0; bottom: 0; width: calc(1px * var(--vl-iz, 1)); margin-left: calc(-0.5px * var(--vl-iz, 1)); }
 .vl-guide.is-h { left: 0; right: 0; height: calc(1px * var(--vl-iz, 1)); margin-top: calc(-0.5px * var(--vl-iz, 1)); }
+/* an equal gap or size while dragging: a short bar with end ticks, its number on it */
+.vl-gapm { position: absolute; z-index: 8; pointer-events: none; --g: var(--vlu-guide, var(--color-pink, #e93147)); }
+.vl-gapm.is-x { height: 0; border-top: calc(1px * var(--vl-iz, 1)) solid var(--g); }
+.vl-gapm.is-y { width: 0; border-left: calc(1px * var(--vl-iz, 1)) solid var(--g); }
+.vl-gapm.is-x::before, .vl-gapm.is-x::after { content: ""; position: absolute; top: calc(-4px * var(--vl-iz, 1)); height: calc(7px * var(--vl-iz, 1)); border-left: calc(1px * var(--vl-iz, 1)) solid var(--g); }
+.vl-gapm.is-x::before { left: 0; } .vl-gapm.is-x::after { right: 0; }
+.vl-gapm.is-y::before, .vl-gapm.is-y::after { content: ""; position: absolute; left: calc(-4px * var(--vl-iz, 1)); width: calc(7px * var(--vl-iz, 1)); border-top: calc(1px * var(--vl-iz, 1)) solid var(--g); }
+.vl-gapm.is-y::before { top: 0; } .vl-gapm.is-y::after { bottom: 0; }
+.vl-gapm span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 0 calc(3px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--g); color: #fff; font: 600 calc(10px * var(--vl-iz, 1))/1.4 var(--font-interface); white-space: nowrap; }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
 
 /* ---- the plugin's settings: folding cards of compact rows, everything centred on its line */
