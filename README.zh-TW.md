@@ -140,6 +140,8 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 需要多個方案時，以 Vellum 的 mock 製作，不要做成網頁。
 ```
 
+Vellum 亦內建此說明，供無法連網的 agent 使用：指令 **Vellum: Add the agent guide to an app's folder** 將說明寫入 app 資料夾的 `VELLUM.md`，**Add the agent guide as a Claude Code skill** 則寫入 `.claude/skills/vellum/`。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫。之後請 agent 讀取 `VELLUM.md` 取代上述連結。
+
 > [!TIP]
 > 外框屬於被框住的元件：區塊有自己的 `fill`、`stroke` 與 `sides`，文字也有自己的外框。舊畫面中以矩形當外框的，選取時會顯示 **Make it the block's look** 或 **Make it the text's box** 以轉換。
 >
