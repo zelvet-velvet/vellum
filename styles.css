@@ -955,8 +955,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .is-lock { pointer-events: none; }
 .vl-screen:not(.is-show) .vl-block.is-hl { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .vl .vl-row.is-on { background: var(--background-modifier-active-hover); }
-.vl .vl-row .vl-rowlock { flex: none; width: 26px; height: 26px; opacity: 0; color: var(--text-faint); --icon-size: 13px; }
+/* every row shows its lock: open and faint, closed and lit once locked */
+.vl .vl-row .vl-rowlock { flex: none; width: 26px; height: 26px; opacity: 0.55; color: var(--text-faint); --icon-size: 13px; }
 .vl .vl-row:hover .vl-rowlock, .vl .vl-row .vl-rowlock.is-on { opacity: 1; }
+.vl .vl-row .vl-rowlock:hover { color: var(--text-normal); }
 .vl .vl-row .vl-rowlock.is-on { color: var(--interactive-accent); }
 .vl .vl-row.is-locked .vl-rowtx { color: var(--text-muted); }
 .vl-igrip2.is-off { width: 19px; cursor: default; }
