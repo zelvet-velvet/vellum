@@ -292,7 +292,7 @@ class Editor {
     layers(p: Page): Layer[] { return layersOf(this.doc.pages, p, this.land); }
     layer() { const p = this.page(); return p && this.sel?.block ? this.layers(p).find((l) => l.block.id === this.sel?.block) : undefined; }
     item() { const b = this.block(); return b && this.sel?.item ? findItem(b.items, this.sel.item) : null; }
-    choose(s: Sel) { this.sel = s; this.drawPanel(); this.drawPages(); }
+    choose(s: Sel) { this.sel = s; this.devOpen = false; this.drawPanel(); this.drawPages(); }
     // the overlays (grids, composition guides, perspective) of this note, kept on the device
     get ov(): OvlCfg {
         let c = ovls.get(this.doc.id);
@@ -649,7 +649,7 @@ class Editor {
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
-    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }
+    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; this.devOpen = false; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }
     bar!: HTMLElement;
     // the top bar: close and where you are on the left, undo / redo / save on the right; nothing else
     drawBar() {
@@ -977,12 +977,10 @@ class Editor {
     // a tap opens it, + beside a row adds a page opened from it; the device for the whole note at the foot
     // a number in the rail's foot held or dragged: the rail is not drawn again until it is let go (drawn again, the box
     // would move and lose the pointer, leaving its bubble behind)
-    railHold = false;
+    devOpen = false;   // the device's own window is open (over the stage, beside its button)
     drawRail() {
         const r = this.rail; if (!r?.isConnected) return;
-        if (this.railHold && r.querySelector(".vl-rfoot")) return;
         this.unpeek();   // its row is about to go: a peek left from it would never hear the pointer leave
-        const keepFoot = r.querySelector<HTMLElement>(".vl-rfoot");
         r.empty(); r.toggleClass("is-on", this.v.rail);
         if (!this.v.rail) return;
         // its width: the right border drags it (computer), kept on the device
@@ -1050,22 +1048,97 @@ class Editor {
         for (const p of pages) row(p, 0);   // anything left (a loop) as a main page
         const na = box.createEl("button", { cls: "vl-act vl-newp" }); setIcon(na.createSpan(), "plus"); na.appendText("New Screen");
         na.addEventListener("click", () => this.addPage());
-        // the device
-        // mid-change (a number dragged or typed, a field typed in), the foot is kept as it is: drawn again, it would drop
-        // the control in use
-        const act = r.doc.activeElement, busy = keepFoot && (this.pending !== null || (keepFoot.contains(act) && (act?.tagName === "INPUT" || act?.tagName === "TEXTAREA")));
-        if (busy) { box.appendChild(keepFoot); box.scrollTop = this.railTop; return; }
-        const foot = box.createDiv({ cls: "vl-rfoot" });
-        foot.createDiv({ cls: "vl-sech", text: "Device" });
+        // the device: one button at the list's foot, its settings in the right panel (set once per app)
+        // not in the map or Show: there is no right panel for it there
+        if (this.v.map || this.v.show) { box.scrollTop = this.railTop; return; }
         const devc = deviceOf(this.doc.device);
-        const dev = foot.createEl("button", { cls: "vl-dev" });
+        // on a computer under the list, outside its scroll (a phone: at the end of the sheet)
+        const foot = (Platform.isMobile ? box : r).createDiv({ cls: "vl-rfoot" });
+        foot.createDiv({ cls: "vl-sech", text: "Device" });
+        const db = foot.createEl("button", { cls: "vl-devbtn" + (this.devOpen ? " is-on" : ""), attr: { "aria-label": this.devOpen ? "Close the device (Esc)" : "Device: its size, corner, safe areas and status bar" } });
+        setIcon(db.createSpan({ cls: "vl-devi" }), devc.kind === "window" || devc.kind === "web" ? "monitor" : devc.kind === "tablet" ? "tablet" : "smartphone");
+        const dt = db.createSpan({ cls: "vl-devt" });
+        dt.createSpan({ cls: "vl-devn", text: devc.name });
+        dt.createSpan({ cls: "vl-devk", text: KINDS.find((x) => x[0] === devc.kind)?.[1] ?? "" });
+        setIcon(db.createSpan({ cls: "vl-chev" }), "chevron-right");
+        db.addEventListener("click", () => this.openDevice(!this.devOpen));
+        box.scrollTop = this.railTop;   // the list stays where it was scrolled (a tap opens a screen, the rail is drawn again)
+    }
+    // the device's own window (from the button under the screens list): which device, what a custom size is, and the
+    // frame every screen shares. The right panel stays the screen's; Esc, the ✕ or a screen or block chosen closes it
+    devWin: HTMLElement | null = null;
+    devAt: { x: number; y: number } | null = null;   // where its top bar dragged it (till the editor closes)
+    devOff: (() => void) | null = null;
+    openDevice(on: boolean) {
+        this.devOpen = on;
+        this.drawDevice(on); this.drawRail();
+    }
+    drawDevice(focus = false) {
+        const R = this.root, keep = this.devWin?.querySelector(".vl-devwinb")?.scrollTop ?? 0;
+        const had = !!this.devWin && this.devWin.contains(R?.doc.activeElement ?? null);
+        this.devWin?.remove(); this.devWin = null; this.devOff?.(); this.devOff = null;
+        const p = this.current();
+        if (this.v.map || this.v.show) this.devOpen = false;   // no device to set there: it stays closed on the way back
+        if (!R?.isConnected || !this.devOpen || !p) return;
+        const w = (this.devWin = R.createDiv({ cls: "vl-devwin" + (Platform.isMobile ? " is-sheet" : ""), attr: { tabindex: "-1", role: "dialog", "aria-label": "Device" } }));
+        const head = w.createDiv({ cls: "vl-devwinh" });
+        head.createSpan({ text: "Device" });
+        head.createSpan({ cls: "vl-devwinsub", text: "every screen of this app" });
+        this.btn(head, "x", "Close (Esc)", () => this.openDevice(false)).addClass("vl-close");
+        const body = w.createDiv({ cls: "vl-devwinb" });
+        this.devicePanel(body, p);
+        body.scrollTop = keep;
+        // beside the rail, its foot level with the button that opened it
+        const btn = this.rail?.querySelector<HTMLElement>(".vl-devbtn");
+        if (!Platform.isMobile && btn) {
+            const rr = R.getBoundingClientRect(), br = btn.getBoundingClientRect(), rl = this.rail.getBoundingClientRect();
+            w.style.left = `${rl.right - rr.left + 8}px`;
+            w.style.bottom = `${Math.max(8, rr.bottom - br.bottom)}px`;
+            w.style.maxHeight = `${Math.max(240, br.bottom - rr.top - 56)}px`;
+            // dragged by its top bar: kept where it was put, inside the editor
+            const at = this.devAt;
+            if (at) { Object.assign(w.style, { left: `${at.x}px`, top: `${at.y}px`, bottom: "auto", maxHeight: `${Math.max(240, rr.height - at.y - 8)}px` }); }
+            head.addClass("is-grab");
+            head.addEventListener("pointerdown", (e) => {
+                if (e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+                e.preventDefault(); head.setPointerCapture(e.pointerId);
+                const r0 = w.getBoundingClientRect(), x0 = e.clientX - r0.left, y0 = e.clientY - r0.top;
+                const mv = (m: PointerEvent) => {
+                    const x = Math.min(rr.width - 60, Math.max(-r0.width + 60, m.clientX - rr.left - x0)), y = Math.min(rr.height - 40, Math.max(0, m.clientY - rr.top - y0));
+                    this.devAt = { x, y };
+                    Object.assign(w.style, { left: `${x}px`, top: `${y}px`, bottom: "auto", maxHeight: `${Math.max(240, rr.height - y - 8)}px` });
+                };
+                const up = () => { head.removeEventListener("pointermove", mv); head.removeEventListener("pointerup", up); head.removeEventListener("pointercancel", up); };
+                head.addEventListener("pointermove", mv); head.addEventListener("pointerup", up); head.addEventListener("pointercancel", up);
+            });
+        }
+        // a click outside closes it (not on its button, its device menu or a colour picker it opened)
+        const doc = R.doc;
+        const outside = (e: PointerEvent) => {
+            const t = e.target as HTMLElement | null;
+            if (!t || w.contains(t) || t.closest(".vl-devbtn, .vl-menu") || this.picker?.el.contains(t)) return;
+            // only the window goes and the button is lit off: the rail drawn again now would lose the click on its row
+            this.devOpen = false; this.drawDevice();
+            this.rail?.querySelector(".vl-devbtn")?.removeClass("is-on");
+        };
+        doc.addEventListener("pointerdown", outside, true);
+        this.devOff = () => doc.removeEventListener("pointerdown", outside, true);
+        // its own keys: Esc closes it, wherever the focus is inside it (a control redrawn would drop the focus to the page)
+        w.addEventListener("keydown", (e) => { if (e.key === "Escape" && !R.querySelector(".vl-menu")) { e.preventDefault(); e.stopPropagation(); this.openDevice(false); } });
+        if (focus || had || !R.contains(R.doc.activeElement) || R.doc.activeElement === R.doc.body) w.focus({ preventScroll: true });
+    }
+    devicePanel(body: HTMLElement, p: Page) {
+        const devc = deviceOf(this.doc.device);
+        const sec = this.section(body, "Size");
+        const dev = sec.createEl("button", { cls: "vl-dev" });
         dev.createSpan({ text: devc.name }); setIcon(dev.createSpan({ cls: "vl-chev" }), "chevron-down");
         dev.addEventListener("click", () => {
             const R = this.root!; const open = R.querySelector(".vl-menu");
             if (open) { open.remove(); return; }
-            const m = R.createDiv({ cls: "vl-menu" });
+            const m = R.createDiv({ cls: "vl-menu vl-devmenu" });
             const rr = R.getBoundingClientRect(), dr = dev.getBoundingClientRect();
-            m.style.left = `${dr.left - rr.left}px`; m.style.bottom = `${rr.bottom - dr.top + 4}px`;
+            m.style.left = `${Math.max(8, Math.min(dr.left, rr.right - 280) - rr.left)}px`; m.style.top = `${dr.bottom - rr.top + 4}px`;
+            m.style.maxHeight = `${Math.max(200, rr.bottom - dr.bottom - 16)}px`;
             let brand = "";
             for (const d of DEVICES) {
                 if (d.brand !== brand) { brand = d.brand; m.createDiv({ cls: "vl-menuh", text: brand }); }
@@ -1076,10 +1149,9 @@ class Editor {
             // any other size: width × height in points
             m.createDiv({ cls: "vl-menuh", text: "Custom" });
             const cu = m.createDiv({ cls: "vl-custom" });
-            const now = deviceOf(this.doc.device);
-            const wi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "W", value: devc.brand === "Custom" ? String(now.w) : "" } });
+            const wi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "W", value: devc.brand === "Custom" ? String(devc.w) : "" } });
             cu.createSpan({ text: "×" });
-            const hi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "H", value: devc.brand === "Custom" ? String(now.h) : "" } });
+            const hi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "H", value: devc.brand === "Custom" ? String(devc.h) : "" } });
             // what the size is: a window or a web page starts square, with no bar and no safe areas
             const ki = cu.createEl("select", { cls: "dropdown vl-kindsel", attr: { "aria-label": "What it is" } });
             for (const [v, name] of KINDS) ki.createEl("option", { value: v, text: name });
@@ -1094,10 +1166,13 @@ class Editor {
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
         // a custom size says what it is; a change keeps the size and drops what is now the device's own anyway
-        if (devc.brand === "Custom") this.seg(foot, KINDS, devc.kind, (v) => this.toDevice(customDevice(devc.w, devc.h, v as DeviceKind)));
-        const on = this.current();
-        if (on) this.deviceFrame(foot, on);
-        box.scrollTop = this.railTop;   // the list stays where it was scrolled (a tap opens a screen, the rail is drawn again)
+        // as tiles, an icon over its word: in a row with a label beside them, the words were cut off
+        if (devc.brand === "Custom") {
+            sec.createDiv({ cls: "vl-frameinfo", text: "What it is" });
+            const ic: Record<string, string> = { phone: "smartphone", tablet: "tablet", window: "app-window", web: "globe" };
+            this.seg(sec, KINDS.map(([v, n]) => [v, n, ic[v]]), devc.kind, (v) => this.toDevice(customDevice(devc.w, devc.h, v as DeviceKind))).addClass("is-stack");
+        }
+        this.deviceFrame(body, p);
     }
     // the doc on another device: a corner, safe areas or a bar set to what the new device has anyway are let go
     toDevice(d: Device) {
@@ -1112,23 +1187,15 @@ class Editor {
         // a window or a web page has no status bar (its title bar is a block); a phone or a tablet keeps the one set
         if (this.doc.bar?.style === barOf(d) || (this.doc.bar?.style && d.kind !== "phone" && d.kind !== "tablet")) { const b = { ...this.doc.bar }; delete b.style; if (Object.keys(b).length) this.doc.bar = b; else delete this.doc.bar; }
     }
-    // the device's frame for every screen, under the device: the corner and the safe areas on one small outline of the
+    // the device's frame for every screen, in the device's panel: the corner and the safe areas on one small outline of the
     // screen (a number on each side, one at the corner), and the status bar for a phone or a tablet. A value set away from
     // the device's own turns accent with a ↺ beside it; the ↺ keeps its room, so nothing moves when a value changes
     deviceFrame(foot: HTMLElement, p: Page) {
         const dv = deviceOf(p.device ?? this.doc.device), ownR = dv.radius, bar = this.doc.bar ?? {}, defBar = barOf(dv), bs = bar.style ?? defBar;
         const phoneish = dv.kind === "phone" || dv.kind === "tablet";
         const own = screenOf(dv, this.land).safe, key = this.land ? "safeLand" : "safe";
-        const barName = bs === "ios" ? "iOS" : bs === "android" ? "Android" : "no bar";
-        // the folded heading: the device's own, or what is set
-        const r0 = this.doc.radius ?? ownR, cur0 = this.screen(p).safe;
-        const custom = dv.brand === "Custom", changed = this.doc.radius !== undefined || !!this.doc[key] || bar.style !== undefined;
-        const hint = !changed && !custom ? `${dv.name}'s own` : [
-            custom ? KINDS.find((x) => x[0] === dv.kind)?.[1] ?? "" : "", r0 ? `${r0} pt` : "square", barName,
-            cur0.top || cur0.bottom || cur0.left || cur0.right ? `${cur0.top} ${cur0.bottom} ${cur0.left} ${cur0.right}` : "",
-        ].filter(Boolean).join(" · ");
-        const fb = this.section(foot, "Corner, bar, safe areas", true, { shut: true, hint });
-        fb.createDiv({ cls: "vl-frameinfo", text: `Every screen of this app · ${this.land ? "landscape" : "portrait"}` });
+        const fb = this.section(foot, "Corner, bar, safe areas");
+        fb.createDiv({ cls: "vl-frameinfo", text: this.land ? "Landscape" : "Portrait" });
         // a picture of the screen: its corner and its safe areas shaded; pointing at a number lights its side here and on
         // the phone
         const { W, H } = screenOf(dv, this.land), k = Math.min(200 / W, 96 / H);
@@ -1151,14 +1218,8 @@ class Editor {
             if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side;
         };
         scr.addEventListener("mouseenter", () => lit("all")); scr.addEventListener("mouseleave", () => lit());
-        // the numbers, as Place's tiles; a held number keeps the rail as it is until it is let go
+        // the numbers, as Place's tiles
         const nums = fb.createDiv({ cls: "vl-nums vl-fonums" });
-        nums.addEventListener("pointerdown", () => {
-            this.railHold = true;
-            const win = nums.win;   // the editor's own window (it may be a pop-out)
-            const off = () => { this.railHold = false; win.removeEventListener("pointerup", off, true); win.removeEventListener("pointercancel", off, true); };
-            win.addEventListener("pointerup", off, true); win.addEventListener("pointercancel", off, true);
-        });
         const tile = (name: string, get: () => number, set: (v: number) => void, ownV: number, max: number, side: string) => {
             let n: HTMLElement | null = null;
             const mark = () => n?.toggleClass("is-changed", get() !== ownV);
@@ -1182,11 +1243,12 @@ class Editor {
         // the status bar: a phone's or a tablet's only (a window or a web page draws its title bar as a block)
         if (!phoneish) return;
         const setBar = (k: keyof Bar, v?: string) => { const o: Bar = { ...this.doc.bar }; if (v && v !== "none") o[k] = v as never; else delete o[k]; if (Object.keys(o).length) this.doc.bar = o; else delete this.doc.bar; };
-        this.seg(this.frow(fb, "Status bar"), [["ios", "iOS"], ["android", "Android"], ["none", "None"]], bs, (v) => {
+        fb.createDiv({ cls: "vl-frameinfo", text: "Status bar" });
+        this.seg(fb, [["ios", "iOS", "apple"], ["android", "Android", "bot"], ["none", "None", "ban"]], bs, (v) => {
             const o: Bar = { ...this.doc.bar };
             if (v === defBar) delete o.style; else o.style = v as Bar["style"];
             if (Object.keys(o).length) this.doc.bar = o; else delete this.doc.bar;
-        });
+        }).addClass("is-stack");
         if (bs === "android") {
             this.text(this.frow(fb, "Clock"), () => bar.time ?? "12:00", (v) => setBar("time", v.trim() && v.trim() !== "12:00" ? v.trim() : undefined), { title: "The time on the bar" });
             fb.createDiv({ cls: "vl-frameinfo", text: "Bar colour" });
@@ -2047,6 +2109,7 @@ class Editor {
         if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.markTool(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
+        if (e.key === "Escape" && this.devOpen) { this.openDevice(false); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
         if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
         if (mod && e.key === "." && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
@@ -2111,6 +2174,7 @@ class Editor {
         this.panel?.remove(); this.panel = null; this.getters.clear();
         this.drawBar();
         this.panelBody();
+        this.drawDevice();
         if (Platform.isMobile && this.v.fit && this.pending === null) this.drawPages();   // (not mid-drag) the sheet's height changed the stage: the phone fits what is left
     }
     panelBody() {
