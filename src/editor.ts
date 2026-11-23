@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
-import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
+import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
@@ -57,8 +57,8 @@ const near = (pts: number[], lines: number[], reach: number) => {
 };
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
-type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
-const view = new Map<string, View>();   // per doc, kept across redraws
+type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
+const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // the colours a mark can take (or any CSS colour)
 const MARK_COLORS: Record<string, string> = { yellow: "#f5c84b", orange: "#ff8a3d", red: "#ff4d6d", green: "#2fbf71", blue: "#3d8bff", purple: "#9b6dff", gray: "#8a8f98" };
@@ -103,10 +103,10 @@ class Editor {
     // store: the folder the doc is kept in (src: in the block), with the doc as read; none = the JSON in the block itself
     // el / ctx: the ```vellum block it is drawn in; none = opened straight on a folder (the ribbon, a command)
     constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement | undefined, readonly ctx: MarkdownPostProcessorContext | undefined, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
-        this.lookFrom(host);
         this.kinds = host.kinds ?? BASE_KINDS;
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
+        this.lookFrom(host);
         this.saved = serialiseDoc(doc);
         this.card = el ? el.createDiv({ cls: "vl vl-card" }) : createDiv({ cls: "vl vl-card" });
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
@@ -122,6 +122,7 @@ class Editor {
                 else if (d.pages) this.stale = d as unknown as Doc;   // an older draft without its base: offered back too
             } catch { /* a broken draft is dropped */ }
         }
+        this.lookFrom(host);   // a draft may carry other app colours
         this.paint(this.card);
         const onResize = () => { if (this.root?.isConnected && this.v.fit) this.drawPages(); };
         window.addEventListener("resize", onResize);
@@ -152,11 +153,14 @@ class Editor {
     // the theme's colours as --vl-* on an element (the card in the note, the workspace on the body)
     // the look from the host. The editor's own colours are set as Obsidian's variables on the editor, which the screens inside
     // it would inherit: a screen colour that names a changed variable reads a copy of Obsidian's value instead (--vlr--…)
-    ui: Record<string, string> = {};
+    // The app's own colours (_doc.json: colors, then the theme on show) go over the settings' screen colours
+    ui: Record<string, string> = {}; host: VellumHost = {}; lookKey = "";
     lookFrom(host: VellumHost) {
-        this.ui = { ...host.ui };
+        this.host = host; this.ui = { ...host.ui };
         const changed = new Set(UI_COLORS.filter((u) => this.ui[u.id]).flatMap((u) => u.vars));
-        const colors: Record<string, string> = { ...BASE_THEME.colors, ...host.theme?.colors };
+        const own = docColours(this.doc, this.themeName());
+        this.lookKey = JSON.stringify(own);
+        const colors: Record<string, string> = { ...BASE_THEME.colors, ...host.theme?.colors, ...own };
         for (const k of Object.keys(colors)) colors[k] = colors[k].replace(/var\((--[\w-]+)/g, (m, v: string) => (changed.has(v) ? `var(--vlr${v}` : m));
         this.theme = { colors, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
     }
@@ -168,6 +172,17 @@ class Editor {
             else { e.style.removeProperty(`--vlr${name}`); if (own) e.style.removeProperty(name); }
         }
     }
+    // the app theme on show: the switch's, else the doc's ("auto": as Obsidian is light or dark)
+    dark() { return (this.root?.doc ?? activeDocument).body.hasClass("theme-dark"); }   // (every window of Obsidian has the same)
+    themeName() { return themeOn(this.doc, this.dark(), this.v.look); }
+    // the app's colours changed (the switch, the file, an undo, Obsidian light / dark under "auto"): the look again
+    lookCheck(): boolean {
+        if (JSON.stringify(docColours(this.doc, this.themeName())) === this.lookKey) return false;
+        this.lookFrom(this.host); this.paintLook(this.card); if (this.root) this.paintLook(this.root); this.thumbs.clear();
+        return true;
+    }
+    // Obsidian's light or dark changed: only the editors whose app follows it draw again
+    lookAgain() { if (this.lookCheck()) { if (this.root) this.draw(); else this.drawCard(); } }
     // the settings changed (or Obsidian's theme): the open editor takes them at once
     relook(host: VellumHost) {
         this.lookFrom(host); this.paintLook(this.card);
@@ -504,6 +519,7 @@ class Editor {
 
     // ---- the card in the note: the screens as a small map, Open
     drawCard() {
+        this.lookCheck();
         const c = this.card; c.empty();
         const head = c.createDiv({ cls: "vl-chead" });
         const t = head.createDiv({ cls: "vl-ctitle" });
@@ -563,6 +579,7 @@ class Editor {
         // the camera: a rebuild (undo, redo, a change from outside, a side folded) keeps the stage scrolled where it was,
         // as long as it still shows the same thing (the same screen and layout, or the map)
         const was = this.wall?.isConnected ? { key: this.camKey(), l: this.wall.scrollLeft, t: this.wall.scrollTop } : null;
+        this.lookCheck();
         this.unInfo(); R.empty(); this.panel = null;
         this.bar = R.createDiv({ cls: "vl-top" });
         this.drawStale();
@@ -664,10 +681,12 @@ class Editor {
             rt.createSpan({ cls: "vl-pg", text: cur?.name ?? "No screens" });
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
+            this.drawThemeBtn(l);
         } else {
             this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             // where you are: the app (a folder; a click switches), then the screen (none in the Map)
             if (this.store) this.drawAppBtn(l);
+            this.drawThemeBtn(l);
             if (!this.store || (cur && !this.v.map)) {
                 if (this.store) l.createSpan({ cls: "vl-pgsep", text: "·" });
                 const nm = l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
@@ -944,6 +963,33 @@ class Editor {
             const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu, .vl-appbtn")) m.hide(); };
             doc.addEventListener("pointerdown", out, true);
             m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.appMenu === m) this.appMenu = null; b.removeClass("is-on"); });
+            b.addClass("is-on");
+            const r = b.getBoundingClientRect();
+            m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
+        });
+    }
+    // the app's themes (_doc.json "themes"): a switch beside its name, for this editor only (the file keeps its "theme");
+    // every screen is drawn again in the one chosen. Auto: light or dark as Obsidian is, when the app has both
+    themeMenu: Menu | null = null;
+    drawThemeBtn(l: HTMLElement) {
+        const names = Object.keys(this.doc.themes ?? {}), auto = hasAuto(this.doc);
+        if (names.length < 2 && !auto) return;
+        const pick = this.v.look ?? this.doc.theme ?? names[0], on = this.themeName() ?? "";
+        const b = l.createEl("button", { cls: "vl-appbtn vl-themebtn" });
+        setIcon(b.createSpan({ cls: "vl-themeic" }), this.dark() && pick === "auto" ? "moon" : "palette");
+        b.createSpan({ cls: "vl-pg", text: pick === "auto" ? `Auto · ${on}` : on });
+        setIcon(b.createSpan({ cls: "vl-chev" }), "chevron-down");
+        setTooltip(b, "The app's colours: draw every screen in another of its themes", { placement: "bottom" });
+        b.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (this.themeMenu) { this.themeMenu.hide(); return; }
+            const m = (this.themeMenu = new Menu()), doc = b.doc;
+            const choose = (n: string) => { this.setView({ look: n === (this.doc.theme ?? names[0]) ? undefined : n }); this.draw(); };
+            if (auto) m.addItem((i) => i.setTitle("Auto (as Obsidian is)").setChecked(pick === "auto").onClick(() => choose("auto")));
+            for (const n of names) m.addItem((i) => i.setTitle(n + (n === this.doc.theme ? " (the app's)" : "")).setChecked(pick === n).onClick(() => choose(n)));
+            const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu, .vl-themebtn")) m.hide(); };
+            doc.addEventListener("pointerdown", out, true);
+            m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeMenu === m) this.themeMenu = null; b.removeClass("is-on"); });
             b.addClass("is-on");
             const r = b.getBoundingClientRect();
             m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
@@ -3557,6 +3603,8 @@ async function folderEditor(dir: string): Promise<Editor | undefined> {
 // open the editor on a folder of screens (its own window on a computer, the full screen on a phone); the folder is made on
 // the first save
 export function refreshLook() { if (ref) for (const ed of editors.values()) ed.relook(ref.host()); }
+// Obsidian went light or dark: apps on "auto" switch theme
+export function refreshAuto() { for (const ed of editors.values()) ed.lookAgain(); }
 export async function openVellum(dir: string, page?: string): Promise<void> { (await folderEditor(dir))?.openWs(page); }
 
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)

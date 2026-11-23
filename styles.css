@@ -292,6 +292,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-appbtn.is-one { cursor: default; opacity: 1; }
 .vl-appbtn .vl-chev { display: flex; color: var(--text-muted); }
 .vl-appbtn .vl-chev svg { width: 14px; height: 14px; }
+.vl-themeic { display: flex; color: var(--text-muted); }
+.vl-themeic svg { width: 14px; height: 14px; }
 /* icon buttons are plain at rest (Obsidian and themes fill every button: this wins over them), a light hover */
 .vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
 .vl button.vl-btn:hover { background: var(--background-modifier-hover); }

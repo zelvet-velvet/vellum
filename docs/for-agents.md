@@ -60,6 +60,24 @@ Ask the user which device or window size they target if you can't tell.
 - `safeLand` is the same for landscape, if the app turns.
 - A window's own title bar, a browser's address bar or a tab bar are **blocks** on the screen, not the device's bar.
 
+**The app's colours.** Screens use colour names (`paper text dim line tile loud accent`), which follow Settings → Vellum.
+When an app has its own palette (a dark desktop window beside a light phone app), or must be checked in light and dark,
+give it its own colours in `_doc.json` and keep using the names on the screens:
+
+```json
+"themes": {
+  "dark":  {"paper": "#0F1113", "text": "#E6E8EB", "dim": "#9AA3AD", "line": "#2A2F36", "tile": "#181B1F", "loud": "#E5534B", "accent": "#5B8DEF"},
+  "light": {"paper": "#FFFFFF", "text": "#1B1F24", "dim": "#5F6B78", "line": "#D8DDE3", "tile": "#F3F5F7", "loud": "#C9372C", "accent": "#2F6FEB"}
+},
+"theme": "dark"
+```
+
+- `theme` is the one the app opens in: a name from `themes`, or `"auto"` (light or dark as Obsidian is, when the app has
+  both). The user switches between them in the editor's top bar to check every screen; that does not change the file.
+- `colors` (one palette, no names) sets colours for every theme of the app; a theme's colours go over it. Names left out
+  come from Settings → Vellum. An app may add names of its own (`"brand": "#…"`) and use them on its screens.
+- When you build, each theme is the app's light or dark colour set, and the names are its colour tokens.
+
 ## 3. When the user wants options: mocks, not an artifact
 For "show me a few ways this could look", make the options **in Vellum**, not as an HTML page or image: they land on the
 phone frame, next to the real screens, in the same format you will build from.
@@ -79,11 +97,12 @@ phone frame, next to the real screens, in the same format you will build from.
 | The same header on many screens | A frame: the parent screen's blocks, `"inherit": true` on the child |
 | How you get to a screen | `parent` and `link` (e.g. `"tap a row"`): the Map and Show draw it |
 | The phone | `_doc.json`: `device`, `safe` areas, `radius` (0: square), `bar` (iOS, Android, none): see section 2 |
+| Light and dark, or an app's own colours | `_doc.json`: `themes`, `theme`, `colors`: see section 2 |
 | Landscape | `land`: the landscape layout of the same screen |
 
 Items sit in their block by an anchor `g` (`tl t tr l c r bl b br`) and an inward offset `dx dy`; sizes are a number,
-`"hug"` or `"fill"`. Colours are theme names (`paper text dim line tile loud accent`) so the screen follows the user's
-theme; fonts are `ui display mono`.
+`"hug"` or `"fill"`. Colours are theme names (`paper text dim line tile loud accent`, and any the app's `_doc.json`
+adds) so the screen follows the app's or the user's theme; fonts are `ui display mono`.
 
 **The anchor is what the item stays attached to** when the block or the item changes size (the editor's Place panel
 shows it as the point the item holds on to). Choose it by intent, not by where the item happens to be: a value, a

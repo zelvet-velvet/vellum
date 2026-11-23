@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, normalizePath, Notice, Plugin, PluginSettingTab, setIcon, SliderComponent, TFile, TFolder, ToggleComponent } from "obsidian";
-import { EDIT_DEFAULT, EditCfg, openVellum, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
+import { EDIT_DEFAULT, EditCfg, openVellum, refreshAuto, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
 import { NewsModal, newsSince } from "./news";
 import { BASE_THEME, Theme, UI_COLORS } from "./render";
@@ -31,7 +31,7 @@ export default class VellumPlugin extends Plugin {
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }));
         // Obsidian's theme changed: the screens' copies of its colours need its new values
-        this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); }));
+        this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); else refreshAuto(); }));
         setSnap(this.settings.snap, () => { void this.save(); });
         setEdit(this.settings.edit);
         // the editor straight on the screens folder: no note or block needed
@@ -405,7 +405,7 @@ class VellumSettings extends PluginSettingTab {
             this.input(this.row(rest, "Margins", "Lines this far inside each edge, comma separated."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
             new ToggleComponent(this.row(rest, "Guide lines", "Show the line a drag snapped to.")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
         } else if (tab === "colours") {
-            c.createDiv({ cls: "vls-intro", text: "Colours follow your Obsidian theme until you change them. An open editor updates at once." });
+            c.createDiv({ cls: "vls-intro", text: "Colours follow your Obsidian theme until you change them. An open editor updates at once. An app can set its own colours and themes (light, dark…) in its _doc.json: those win over these for that app, and names it leaves out come from here." });
             // colours: the editor's own and the phones', each card a list with its own preview
             // the preview on top, the colours under it
             const stack = (body: HTMLElement) => [body.createDiv({ cls: "vls-prev" }), body.createDiv({ cls: "vls-list" })];

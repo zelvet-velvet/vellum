@@ -1,5 +1,5 @@
 import { App, normalizePath, TFile, TFolder } from "obsidian";
-import { Doc, frameOfDoc, insetsOf, Page, parseDoc, uid } from "./model";
+import { coloursOfDoc, Doc, frameOfDoc, insetsOf, Page, parseDoc, uid } from "./model";
 
 // A doc kept as a folder: one JSON file per screen (blocks one per line) and _doc.json (device, screen order). Small
 // files: an agent reads only the screen it needs, git diffs come per screen, the phone and the computer meet in a conflict
@@ -30,7 +30,7 @@ export class FolderStore {
         this.files.clear();
         const id = this.dir.split("/").pop() || uid();
         if (!(folder instanceof TFolder)) return { doc: { id, device: "iphone-16-pro", pages: [] } };
-        let meta: { id?: string; device?: string; order?: string[]; safe?: unknown; safeLand?: unknown; radius?: unknown; bar?: unknown } = {};
+        let meta: { id?: string; device?: string; order?: string[]; safe?: unknown; safeLand?: unknown; radius?: unknown; bar?: unknown; colors?: unknown; themes?: unknown; theme?: unknown } = {};
         const pages: Page[] = [], bad: string[] = [];
         for (const f of folder.children) {
             if (!(f instanceof TFile) || f.extension !== "json") continue;
@@ -46,7 +46,7 @@ export class FolderStore {
         const doc: Doc = { id: meta.id ?? id, device: meta.device ?? "iphone-16-pro", pages };
         const sf = insetsOf(meta.safe), sl = insetsOf(meta.safeLand);
         if (sf) doc.safe = sf; if (sl) doc.safeLand = sl;
-        frameOfDoc(meta, doc);
+        frameOfDoc(meta, doc); coloursOfDoc(meta, doc);
         return { doc, error: bad.length ? `Not read (fix the JSON): ${bad.join(", ")}` : undefined };
     }
     async save(doc: Doc): Promise<void> {
@@ -73,7 +73,7 @@ export class FolderStore {
             if (f instanceof TFile) await this.app.fileManager.trashFile(f);
         }
         this.files = target;
-        const meta = JSON.stringify({ id: doc.id, device: doc.device, safe: doc.safe, safeLand: doc.safeLand, radius: doc.radius, bar: doc.bar, order: doc.pages.map((p) => p.id) }, null, 2) + "\n";
+        const meta = JSON.stringify({ id: doc.id, device: doc.device, safe: doc.safe, safeLand: doc.safeLand, radius: doc.radius, bar: doc.bar, colors: doc.colors, themes: doc.themes, theme: doc.theme, order: doc.pages.map((p) => p.id) }, null, 2) + "\n";
         const m = v.getAbstractFileByPath(`${this.dir}/${DOC}`);
         if (m instanceof TFile) { if ((await v.read(m)) !== meta) await v.modify(m, meta); }
         else { await v.create(`${this.dir}/${DOC}`, meta); await storeHooks.newApp?.(this.dir).catch(() => { /* no guide: the app is saved all the same */ }); }
