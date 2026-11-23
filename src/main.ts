@@ -376,8 +376,8 @@ class VellumSettings extends PluginSettingTab {
     appData: { dir: string; meta: Record<string, unknown> } | null = null;
     appPart: string | undefined;        // the palette shown: a theme's name, "" the app's colours for every theme
     appT = 0;
-    // Screen colours, in one view that fits the window: a bar (the app, its themes, the one it opens in), then the phone
-    // beside its colours. Every app: the settings' colours. An app: its own (its _doc.json), written at once
+    // Screen colours, in one view that fits the window: a bar (the app; its themes, the one it opens in), then its colours.
+    // Every app: the settings' colours (what Obsidian's chip shows in every app). An app: its themes, in its _doc.json
     screenColours(c: HTMLElement) {
         const apps = this.plugin.appFolders().map((f) => f.path).sort((x, y) => x.localeCompare(y));
         if (this.appDir && !apps.includes(this.appDir)) this.appDir = "";
@@ -385,28 +385,24 @@ class VellumSettings extends PluginSettingTab {
         const bar = card.createDiv({ cls: "vls-sbar" });
         const ag = bar.createDiv({ cls: "vls-sgrp" });
         ag.createSpan({ cls: "vls-slabel", text: "App" });
-        const sel = ag.createEl("select", { cls: "dropdown", attr: { "aria-label": "Whose colours: every app's, or one app's own" } });
+        const sel = ag.createEl("select", { cls: "dropdown", attr: { "aria-label": "Whose colours: every app's, or one app's themes" } });
         sel.createEl("option", { value: "", text: "Every app" });
         for (const a of apps) sel.createEl("option", { value: a, text: a.split("/").pop() || a, attr: { title: a } });
         sel.value = this.appDir;
         sel.addEventListener("change", () => { this.appDir = sel.value; this.appPart = undefined; try { setLocal(APP_KEY, this.appDir || null); } catch { /* */ } this.display(); });
         if (this.appDir && this.appData?.dir !== this.appDir) { card.createDiv({ cls: "vls-intro", text: "Reading the app…" }); void this.readApp(this.appDir); return; }
-        const [prev, co] = this.stack(card.createDiv({ cls: "vls-beside" }));
-        const demo = this.demoPhone(prev);
-        prev.createDiv({ cls: "vls-prevcap", text: "Point at a colour to see where it is used." });
-        if (this.appDir) this.oneApp(bar, co, demo); else this.everyApp(bar, co, demo);
+        const co = card.createDiv({ cls: "vls-list" }), demo = createDiv();   // (no preview: the rows' hover outlines go nowhere)
+        if (this.appDir) this.oneApp(bar, co, demo); else this.everyApp(co, demo);
     }
-    // the settings' screen colours, for every app
-    everyApp(bar: HTMLElement, co: HTMLElement, demo: HTMLElement) {
+    // the settings' screen colours: Obsidian's, unless changed here; every app shows them on its Obsidian chip
+    everyApp(co: HTMLElement, demo: HTMLElement) {
         const s = this.plugin.settings;
-        bar.createDiv({ cls: "vls-snote", text: "Every app uses these, unless it has its own: choose it to give it themes." });
-        const changed = () => { for (const f of this.syncs) f(); this.paintDemo(demo); this.queueLook(); };
+        const changed = () => { for (const f of this.syncs) f(); this.queueLook(); };
         const list: Swatch[] = this.screenOrder(Object.keys(s.colors)).map((name) => name in DEFAULTS.colors
-            ? { key: `s-${name}`, name, desc: SCREEN_USE[name], follow: DEFAULTS.colors[name], get: () => (s.colors[name] === DEFAULTS.colors[name] ? undefined : s.colors[name]), set: (v) => { s.colors[name] = v ?? DEFAULTS.colors[name]; } }
-            : { key: `s-${name}`, name, desc: "Your colour", get: () => s.colors[name], set: (v) => { if (v) s.colors[name] = v; }, drop: () => { delete s.colors[name]; } });
-        this.swatches(co, "The screens' named colours.", [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo);
+            ? { key: `s-${name}`, name, follow: DEFAULTS.colors[name], get: () => (s.colors[name] === DEFAULTS.colors[name] ? undefined : s.colors[name]), set: (v) => { s.colors[name] = v ?? DEFAULTS.colors[name]; } }
+            : { key: `s-${name}`, name, get: () => s.colors[name], set: (v) => { if (v) s.colors[name] = v; }, drop: () => { delete s.colors[name]; } });
+        this.swatches(co, "Every app's screens, unless the app has a theme of its own.", [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo);
         this.addName(co, (n) => n in s.colors, (n) => { s.colors[n] = "#888888"; this.queueLook(); });
-        this.paintDemo(demo);
     }
     // the base names in the order they read on a screen, then any others
     screenOrder(names: string[]) { const base = ["paper", "tile", "line", "text", "dim", "accent", "loud"]; return [...base.filter((n) => names.includes(n)), ...names.filter((n) => !base.includes(n))]; }
@@ -443,13 +439,13 @@ class VellumSettings extends PluginSettingTab {
         }, 300);
     }
     // one app: its themes (chips, the one it opens in, a name, a copy, gone), then the colours of the theme shown beside a phone
-    // one app: its themes as chips in the bar (⋯ on the one shown: rename, copy, delete; + a new one of any name), the one it
-    // opens in, then the colours of the theme shown. The same parts as the editor's Colours window
+    // one app: its themes as chips in the bar (Obsidian: the colours of every app; ⋯ on the one shown renames, copies or
+    // deletes it; + a new one of any name), the one it opens in, then the colours of the theme shown. The same parts as
+    // the editor's Colours window
     oneApp(bar: HTMLElement, co: HTMLElement, demo: HTMLElement) {
         const s = this.plugin.settings, d = this.appDoc(), themes = d.themes ?? {}, names = Object.keys(themes);
-        if (this.appPart === "" && !d.colors) this.appPart = undefined;
         if (this.appPart && !(this.appPart in themes)) this.appPart = undefined;
-        const part = this.appPart ?? (names.length ? (d.theme && d.theme in themes ? d.theme : names[0]) : "");
+        const part = this.appPart ?? (d.theme && d.theme in themes ? d.theme : "");
         const save = (redraw = true) => { this.writeApp(d); if (redraw) this.display(); };
         // a new theme starts as the colours shown now, as hex
         const seed = () => {
@@ -459,30 +455,40 @@ class VellumSettings extends PluginSettingTab {
             tmp.remove();
             return o;
         };
-        const taken = (n: string) => !n || n in themes || n === "auto";
+        const taken = (n: string) => !n || n in themes || n === "auto" || n === "Obsidian";
         const tg = bar.createDiv({ cls: "vls-sgrp is-themes" });
         tg.createSpan({ cls: "vls-slabel", text: "Theme" });
         const chips = tg.createDiv({ cls: "vls-chips" });
-        // a chip turned into a field for a name: Enter keeps it, Esc or an empty name puts it back
+        // a chip turned into a field for a name: Enter keeps it, Esc puts it back
         const field = (at: HTMLElement, value: string, done: (v: string) => void) => {
             const i = createEl("input", { cls: "vls-chipin", attr: { type: "text", spellcheck: "false", placeholder: "Theme name" } });
             i.value = value; at.replaceWith(i); i.focus(); i.select();
             let over = false;
-            const end = (keep: boolean) => { if (over) return; over = true; const v = i.value.trim(); if (keep && v && v !== value) done(v); else this.display(); };
+            const end = (keep: boolean) => {
+                if (over) return; over = true;
+                const v = i.value.trim();
+                if (!keep || !v || v === value) { this.display(); return; }
+                if (taken(v)) { new Notice(`Vellum: ${v} is taken`); this.display(); return; }
+                done(v);
+            };
             i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
             i.addEventListener("blur", () => end(true));
         };
-        if (d.colors && names.length) { const b = chips.createEl("button", { cls: "vls-pill" + (part === "" ? " is-on" : ""), text: "Every theme" }); b.addEventListener("click", () => { this.appPart = ""; this.display(); }); }
+        const chip = (label: string, key: string) => {
+            const b = chips.createEl("button", { cls: "vls-pill" + (part === key ? " is-on" : ""), text: label });
+            if (key === "") b.setAttr("aria-label", LOOK_WORDS.obsidian);
+            b.addEventListener("click", () => { this.appPart = key; this.display(); });
+            return b;
+        };
+        chip("Obsidian", "");
         for (const n of names) {
-            const b = chips.createEl("button", { cls: "vls-pill" + (part === n ? " is-on" : ""), text: n });
-            b.addEventListener("click", () => { this.appPart = n; this.display(); });
+            const b = chip(n, n);
             if (part !== n) continue;
             const more = b.createSpan({ cls: "vls-pillx", attr: { "aria-label": `${n}: rename, copy or delete` } }); setIcon(more, "more-horizontal");
             more.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const m = new Menu();
                 m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
-                    if (taken(to)) { new Notice(`Vellum: ${to} is taken`); this.display(); return; }
                     d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v]));
                     if (d.theme === n) d.theme = to;
                     this.appPart = to; save();
@@ -497,38 +503,44 @@ class VellumSettings extends PluginSettingTab {
                 m.showAtMouseEvent(e);
             });
         }
-        if (!names.length) {
-            const ld = chips.createEl("button", { cls: "vls-pill is-cta", text: "Light and dark", attr: { "aria-label": LOOK_WORDS.pair } });
-            ld.addEventListener("click", () => { const o = seed(); d.themes = { light: { ...o }, dark: { ...o } }; d.theme = "auto"; this.appPart = "light"; save(); });
-        }
-        const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": `New theme. ${LOOK_WORDS.fresh}` } }); setIcon(plus, "plus");
-        plus.addEventListener("click", () => field(plus, "", (n) => {
-            if (taken(n)) { new Notice(`Vellum: ${n} is taken`); this.display(); return; }
-            d.themes = { ...themes, [n]: names.length ? { ...docColours(d, part || undefined) } : seed() }; this.appPart = n; save();
-        }));
+        const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
+        plus.addEventListener("click", () => field(plus, "", (n) => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; this.appPart = n; save(); }));
         if (names.length) {
             const og = bar.createDiv({ cls: "vls-sgrp is-end" });
             og.createSpan({ cls: "vls-slabel", text: "Opens in" });
-            const opens = og.createEl("select", { cls: "dropdown", attr: { "aria-label": "The theme the editor shows first. Auto: light or dark as Obsidian is" } });
-            if (hasAuto(d)) opens.createEl("option", { value: "auto", text: "Auto" });
+            const opens = og.createEl("select", { cls: "dropdown", attr: { "aria-label": "The theme the editor shows first" } });
+            opens.createEl("option", { value: "", text: "Obsidian" });
+            if (hasAuto(d)) opens.createEl("option", { value: "auto", text: "Auto (light / dark)" });
             for (const n of names) opens.createEl("option", { value: n, text: n });
-            opens.value = d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : names[0];
-            opens.addEventListener("change", () => { d.theme = opens.value; save(false); });
+            opens.value = d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "";
+            opens.addEventListener("change", () => { if (opens.value) d.theme = opens.value; else delete d.theme; save(false); });
         }
-        // the colours of the palette shown: unset ones come from the settings
-        const pal = (): Record<string, string> => (part ? (d.themes![part] ??= {}) : (d.colors ??= {}));
-        const paint = () => this.paintDemo(demo, docColours(d, part || undefined));
-        const changed = () => { for (const f of this.syncs) f(); paint(); save(false); };
+        // Obsidian's chip: every app's colours, set under Every app
+        if (!part) {
+            co.createDiv({ cls: "vls-colbar" }).createSpan({ text: "Every app's colours: set them under Every app. Add a theme (+) for colours of this app's own." });
+            const g = co.createDiv({ cls: "vls-groups" }).createDiv({ cls: "vls-group" });
+            const look = docColours(d);
+            for (const name of this.screenOrder(Object.keys(s.colors))) {
+                const r = g.createDiv({ cls: "vls-colour is-fixed" });
+                r.createDiv({ cls: "vls-cname" }).createDiv({ cls: "vls-cn", text: name });
+                const f = r.createDiv({ cls: "vls-cf" });
+                const ch = f.createSpan({ cls: "vls-chip" }).createSpan();
+                ch.style.background = (look[name] ?? s.colors[name]).replace(/var\((--[\w-]+)[^)]*\)/g, (_, v: string) => getComputedStyle(activeDocument.body).getPropertyValue(v).trim());
+                f.createSpan({ cls: "vls-cv", text: look[name] ?? (s.colors[name] === DEFAULTS.colors[name] ? "Obsidian" : s.colors[name]) });
+            }
+            return;
+        }
+        // a theme's colours: unset ones come from Obsidian's chip
+        const pal = (): Record<string, string> => (d.themes![part] ??= {});
+        const changed = () => { for (const f of this.syncs) f(); save(false); };
         const own = [...new Set([...Object.keys(d.colors ?? {}), ...names.flatMap((n) => Object.keys(themes[n]))])].filter((n) => !(n in s.colors));
         const list: Swatch[] = this.screenOrder([...Object.keys(s.colors), ...own]).map((name) => ({
-            key: `s-${name}`, name, desc: SCREEN_USE[name] ?? (name in s.colors ? "Your colour" : "This app's colour"), follow: s.colors[name],
+            key: `s-${name}`, name, follow: s.colors[name],
             get: () => pal()[name], set: (v) => { if (v) pal()[name] = v; else delete pal()[name]; },
-            ...(name in s.colors ? {} : { drop: () => { delete pal()[name]; save(false); } }),
+            ...(name in s.colors ? {} : { drop: () => { for (const t of names) delete themes[t][name]; save(false); } }),
         }));
-        const app = this.appDir.split("/").pop() ?? "";
-        this.swatches(co, part ? `${app} · ${part}` : names.length ? `${app} · every theme` : `${app}'s own colours`, [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo, "the settings");
-        this.addName(co, (n) => n in s.colors || n in pal(), (n) => { pal()[n] = "#888888"; save(false); });
-        paint();
+        this.swatches(co, `${this.appDir.split("/").pop() ?? ""} · ${part}`, [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo, "Obsidian");
+        this.addName(co, (n) => n in s.colors || n in pal(), (n) => { for (const t of names) themes[t][n] = "#888888"; save(false); });
     }
     display() {
         const { containerEl: c } = this, s = this.plugin.settings;
@@ -607,7 +619,6 @@ class VellumSettings extends PluginSettingTab {
 const div = (p: HTMLElement, cls: string, text = "", use = "") => { const e = p.createDiv({ cls }); if (text) e.setText(text); if (use) e.setAttr("data-use", use); return e; };
 // a row of a colour list. get: undefined while it follows Obsidian; drop: a colour of the user's, removable
 type Swatch = { key: string; name: string; desc?: string; follow?: string; get: () => string | undefined; set: (v?: string) => void; drop?: () => void };
-const SCREEN_USE: Record<string, string> = { paper: "Screen background", text: "Main text", dim: "Secondary text", line: "Borders", tile: "Cards", loud: "Warnings", accent: "Buttons, highlights" };
 // a tile's colour as [r, g, b], if it is solid
 const solid = (e: HTMLElement) => { const css = getComputedStyle(e).backgroundColor; if (!css.startsWith("rgb")) return null; const m = (css.match(/[\d.]+/g) ?? []).map(Number); return m.length === 3 || m[3] === 1 ? m : null; };
 const luma = (c: number[]) => { const [r, g, b] = c.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };

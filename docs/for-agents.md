@@ -71,6 +71,7 @@ before the first screen:
 3. Give every palette all seven names, so no screen falls back to the user's own theme by accident. A colour the app
    needs beyond those (a brand colour, a chart colour) gets a name of its own, in every palette.
 4. Set `theme` to the look the app opens in, or `"auto"` when it has a `light` and a `dark` and follows the system.
+   Without `theme` the app opens in the user's Obsidian colours (the editor's **Obsidian** theme).
 5. On the screens, use only the names (`"fill": "tile"`, `"color": "brand"`), never the hex values: then every theme
    draws every screen.
 

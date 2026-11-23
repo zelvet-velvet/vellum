@@ -1025,3 +1025,16 @@ body.is-mobile .vl-chead { align-items: flex-start; }
     .vls-studio .vls-prev { padding-right: var(--vls-pad); }
     .vls-sgrp.is-end { margin-left: 0; }
 }
+/* the theme chips in the editor's Colours window; Obsidian's colours shown, not set there */
+.vl-devwinh { font-size: var(--font-ui-medium); line-height: 1.3; }
+.vl-chip .vl-chipx { display: inline-flex; margin-right: -4px; padding: 1px; border-radius: 5px; color: var(--text-muted); --icon-size: 13px; }
+.vl-chip .vl-chipx:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl .vl-chip.is-add { width: 26px; padding: 0; justify-content: center; --icon-size: 14px; }
+.vl input.vl-chipin { width: 110px; height: 26px; padding: 0 8px; border-radius: 13px; font-size: var(--font-ui-smaller); }
+.vl .vl-looklist.is-fixed .vl-lookc { cursor: default; opacity: 1; }
+.vl .vl-looklist.is-fixed .vl-lookc:hover { background: transparent; }
+.vls-colour.is-fixed:hover { background: transparent; }
+.vls-colour.is-fixed .vls-cf { border-style: dashed; background: transparent; }
+.vls-colour.is-fixed .vls-cv { flex: 1; min-width: 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vls-colour.is-fixed .vls-chip { display: block; width: 26px; height: 26px; border-radius: 6px; overflow: hidden; flex: none; background: repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 8px 8px; }
+.vls-studio > .vls-list { padding-bottom: 4px; }

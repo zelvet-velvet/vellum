@@ -47,7 +47,7 @@ export type Insets = { top: number; bottom: number; left: number; right: number 
 // area: iOS (the default), Android (clock left, signal and battery right, on its own fill / ink) or none
 export interface Bar { style?: "ios" | "android" | "none"; fill?: string; ink?: string; time?: string }
 // colors: this app's own screen colours over Settings → Vellum (names left out follow the settings); themes: named palettes
-// over those (light, dark…), theme: the one the app opens in ("auto": light or dark as Obsidian is), else the first
+// over those (light, dark…), theme: the one the app opens in ("auto": light or dark as Obsidian is); none: the Obsidian colours
 export type Palette = Record<string, string>;
 export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; radius?: number; bar?: Bar; colors?: Palette; themes?: Record<string, Palette>; theme?: string; pages: Page[] }
 // the doc's frame fields as read from a file (only what can be drawn)
@@ -110,14 +110,15 @@ export const coloursOfDoc = (v: { colors?: unknown; themes?: unknown; theme?: un
     }
     if (typeof v.theme === "string" && v.theme) doc.theme = v.theme;
 };
-// the theme on show: the one asked for (the editor's switch), else the doc's, else the first; "auto" is dark or light as
-// Obsidian is, when the doc has both. None when the doc has no themes
+// the theme on show: the one asked for (the editor's switch; "" the Obsidian colours), else the doc's; "auto" is dark or
+// light as Obsidian is, when the doc has both. None (the Obsidian colours: Settings → Vellum, then the doc's colors) when
+// none is set or the name is not one of its themes
 export const themeOn = (doc: Doc, dark: boolean, pick?: string): string | undefined => {
     const t = doc.themes; if (!t) return undefined;
-    const names = Object.keys(t);
-    let n = pick ?? doc.theme ?? names[0];
+    let n = pick ?? doc.theme;
+    if (!n) return undefined;
     if (n === "auto") n = dark ? "dark" : "light";
-    return n in t ? n : names[0];
+    return n in t ? n : undefined;
 };
 export const hasAuto = (doc: Doc) => !!doc.themes?.light && !!doc.themes?.dark;
 // the doc's colours on show: its own, then the theme's over them

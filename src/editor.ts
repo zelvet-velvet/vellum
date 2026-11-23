@@ -970,12 +970,11 @@ class Editor {
         });
     }
     // the theme asked for: the switch's, else the file's, else the first ("auto" as it is)
-    pickedTheme() { return this.v.look ?? this.doc.theme ?? Object.keys(this.doc.themes ?? {})[0]; }
+    pickedTheme() { return this.v.look ?? this.doc.theme ?? ""; }   // "": the Obsidian colours
     // ---- the app's colours window (from the button in the top bar): its themes, which one it opens in, and each colour
     // name's value in the theme on show (or in the app's one palette). Edits are the doc's (undo, Save); choosing a theme
     // to look at is not. Esc, the ✕ or a click outside closes it
     lookOpen = false; lookWin: HTMLElement | null = null; lookOff: (() => void) | null = null;
-    lookPart: string | undefined;   // the palette being edited: a theme's name, "" the app's colours for every theme
     openLooks(on: boolean) { this.lookOpen = on; if (on) this.openDevice(false); this.drawLooks(on); this.drawBar(); }
     drawLooks(focus = false) {
         const R = this.root, keep = this.lookWin?.querySelector(".vl-devwinb")?.scrollTop ?? 0;
@@ -985,7 +984,7 @@ class Editor {
         const w = (this.lookWin = R.createDiv({ cls: "vl-devwin vl-lookwin" + (Platform.isMobile ? " is-sheet" : ""), attr: { tabindex: "-1", role: "dialog", "aria-label": "Colours" } }));
         const head = w.createDiv({ cls: "vl-devwinh" });
         head.createSpan({ text: "Colours" });
-        head.createSpan({ cls: "vl-devwinsub", text: "every screen of this app" });
+        head.createSpan({ cls: "vl-devwinsub" });
         this.btn(head, "x", "Close (Esc)", () => this.openLooks(false)).addClass("vl-close");
         const body = w.createDiv({ cls: "vl-devwinb" });
         this.looksPanel(body);
@@ -1012,112 +1011,113 @@ class Editor {
     }
     // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
     hexNow(v: string) { return hexOf(this.rgbaOf(v)); }
+    // the themes as chips (Obsidian: the colours of your Obsidian theme and Settings → Vellum, then each of the app's; ⋯ on
+    // the one shown renames, copies or deletes it; + a new one of any name), the one the app opens in, then the colours
+    // of the theme shown. The same parts as Settings → Screen colours with this app chosen
+    themeChips: Menu | null = null;
     looksPanel(body: HTMLElement) {
         const d = this.doc, themes = d.themes ?? {}, names = Object.keys(themes);
+        const part = this.themeName() ?? "";
         const base = ["paper", "text", "dim", "line", "tile", "loud", "accent"];
-        // a new theme: the colours as they are drawn now, as hex, so it starts where the screens are
+        // a new theme starts as the colours shown now, as hex
         const seed = () => { const o: Record<string, string> = {}; for (const n of base) o[n] = this.hexNow(n); return o; };
-        if (this.lookPart !== "" && !(this.lookPart && this.lookPart in themes)) this.lookPart = undefined;
-        const part = this.lookPart ?? (names.length ? this.themeName() : "");
-        const show = (n: string | undefined) => { this.lookPart = n; if (n) this.setView({ look: n === (d.theme ?? names[0]) ? undefined : n }); this.draw(); };
-
-        // the same parts, order and words as Settings → Screen colours with this app chosen
-        const ts = this.section(body, "Themes");
-        if (!names.length) {
-            ts.createDiv({ cls: "vl-lookhint", text: LOOK_WORDS.pair });
-            const ld = ts.createDiv({ cls: "vl-lookadd" }).createEl("button", { cls: "mod-cta", text: "Add light and dark" });
-            ld.addEventListener("click", () => { this.edit(() => { const c = seed(); d.themes = { light: { ...c }, dark: { ...c } }; d.theme = "auto"; }); show("light"); });
-        } else {
-            const chips = this.frow(ts, "Theme").createDiv({ cls: "vl-chips" });
-            if (d.colors) { const c = chips.createEl("button", { cls: "vl-chip" + (part === "" ? " is-on" : ""), text: "Every theme" }); c.addEventListener("click", () => { this.lookPart = ""; this.drawLooks(); }); }
-            for (const n of names) {
-                const c = chips.createEl("button", { cls: "vl-chip" + (part === n ? " is-on" : ""), text: n });
-                c.addEventListener("click", () => show(n));
-            }
-            const opts: [string, string][] = [...(hasAuto(d) ? [["auto", "Auto (as Obsidian is)"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
-            this.menu(this.frow(ts, "Opens in"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : names[0], (v) => { d.theme = v; }, "The theme the app opens in");
-            if (part) {
-                // the theme shown: its name, a copy, or gone
-                const nr = this.frow(ts, "Name");
-                const ni = nr.createEl("input", { cls: "vl-lookname", attr: { type: "text", spellcheck: "false", "aria-label": "Theme name" } });
-                ni.value = part;
-                ni.addEventListener("change", () => {
-                    const to = ni.value.trim();
-                    if (!to || to === part) { ni.value = part; return; }
-                    if (to in themes || to === "auto") { this.hint(`${to} is taken`, ni, false); ni.value = part; return; }
-                    this.edit(() => { d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === part ? to : k, v])); if (d.theme === part) d.theme = to; });
-                    if (this.v.look === part) this.setView({ look: to });
-                    this.lookPart = to; this.draw();
-                });
-                ni.addEventListener("keydown", (e) => { if (e.key === "Enter") ni.blur(); });
-                const cp = nr.createEl("button", { text: "Copy" });
-                cp.addEventListener("click", () => {
-                    let n = `${part} copy`, k = 2; while (n in themes) n = `${part} copy ${k++}`;
-                    this.edit(() => { d.themes = { ...themes, [n]: { ...themes[part] } }; });
-                    show(n);
-                });
-                const del = nr.createEl("button", { cls: "mod-warning", text: "Delete" });
-                del.addEventListener("click", () => {
-                    this.edit(() => {
-                        const rest = { ...themes }; delete rest[part];
-                        if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
-                        if (d.theme === part || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
-                    });
-                    if (this.v.look === part || this.v.look === "auto") this.setView({ look: undefined });
-                    this.lookPart = undefined; this.draw();
-                });
-            }
-        }
-        // a theme of any name (high contrast, a brand…): a copy of the colours shown
-        const nt = this.frow(ts, "New theme");
-        const ti = nt.createEl("input", { cls: "vl-lookname", attr: { type: "text", spellcheck: "false", placeholder: "Its name", "aria-label": "New theme name" } });
-        const tb = nt.createEl("button", { text: "Add theme" });
-        const addT = () => {
-            const n = ti.value.trim();
-            if (!n || n in themes || n === "auto") { ti.focus(); if (n) this.hint(`${n} is taken`, ti, false); return; }
-            this.edit(() => { d.themes = { ...themes, [n]: names.length ? { ...docColours(d, part || undefined) } : seed() }; });
-            show(n);
+        const show = (n: string) => { this.setView({ look: n === (d.theme ?? "") ? undefined : n }); this.draw(); };
+        const taken = (n: string) => !n || n in themes || n === "auto" || n === "Obsidian";
+        const ts = this.section(body, "Theme");
+        const chips = ts.createDiv({ cls: "vl-chips" });
+        // a chip turned into a field for a name: Enter keeps it, Esc puts it back
+        const field = (at: HTMLElement, value: string, done: (v: string) => void) => {
+            const i = createEl("input", { cls: "vl-chipin", attr: { type: "text", spellcheck: "false", placeholder: "Theme name" } });
+            i.value = value; at.replaceWith(i); i.focus(); i.select();
+            let over = false;
+            const end = (keep: boolean) => {
+                if (over) return; over = true;
+                const v = i.value.trim();
+                if (!keep || !v || v === value) { this.drawLooks(true); return; }
+                if (taken(v)) { this.hint(`${v} is taken`, i, false); this.drawLooks(true); return; }
+                done(v);
+            };
+            i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
+            i.addEventListener("blur", () => end(true));
         };
-        tb.addEventListener("click", addT); ti.addEventListener("keydown", (e) => { if (e.key === "Enter") addT(); });
-        ts.createDiv({ cls: "vl-lookhint is-under", text: LOOK_WORDS.fresh });
+        const chip = (label: string, key: string) => {
+            const b = chips.createEl("button", { cls: "vl-chip" + (part === key ? " is-on" : ""), text: label });
+            if (key === "") setTooltip(b, LOOK_WORDS.obsidian);
+            b.addEventListener("click", () => { if (part !== key) show(key); });
+            return b;
+        };
+        chip("Obsidian", "");
+        for (const n of names) {
+            const b = chip(n, n);
+            if (part !== n) continue;
+            const more = b.createSpan({ cls: "vl-chipx", attr: { "aria-label": `${n}: rename, copy or delete` } }); setIcon(more, "more-horizontal");
+            more.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (this.themeChips) { this.themeChips.hide(); return; }
+                const m = (this.themeChips = new Menu()), doc = b.doc;
+                m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
+                    this.edit(() => { d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v])); if (d.theme === n) d.theme = to; });
+                    if (this.v.look === n) this.setView({ look: to });
+                    this.draw();
+                })));
+                m.addItem((i) => i.setTitle("Copy").setIcon("copy").onClick(() => {
+                    let c = `${n} copy`, k = 2; while (c in themes) c = `${n} copy ${k++}`;
+                    this.edit(() => { d.themes = { ...themes, [c]: { ...themes[n] } }; });
+                    show(c);
+                }));
+                m.addItem((i) => i.setTitle("Delete").setIcon("trash-2").onClick(() => {
+                    this.edit(() => {
+                        const rest = { ...themes }; delete rest[n];
+                        if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
+                        if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
+                    });
+                    this.setView({ look: undefined }); this.draw();
+                }));
+                // the editor keeps its clicks to itself: a press anywhere but the menu closes it
+                const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu")) m.hide(); };
+                doc.addEventListener("pointerdown", out, true);
+                m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeChips === m) this.themeChips = null; });
+                const r = more.getBoundingClientRect();
+                m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
+            });
+        }
+        const plus = chips.createEl("button", { cls: "vl-chip is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
+        plus.addEventListener("click", () => field(plus, "", (n) => { this.edit(() => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; }); show(n); }));
+        if (names.length) {
+            const opts: [string, string][] = [["", "Obsidian"], ...(hasAuto(d) ? [["auto", "Auto (light / dark)"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
+            this.menu(this.frow(ts, "Opens in"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "", (v) => { if (v) d.theme = v; else delete d.theme; }, "The theme the app opens in");
+        }
 
-        // the colours of the palette being edited: every name (the settings', then the app's own), its value here or the
-        // settings' (faint), a tile that opens the picker, ↺ back to the settings
-        const pal = (): Record<string, string> | undefined => (part ? d.themes?.[part] : d.colors);
-        const cs = this.section(body, part ? `Colours · ${part}` : names.length ? "Colours · every theme" : "Colours");
+        // the colours of the theme shown: a tile that opens the picker, ↺ back to the Obsidian colours. Obsidian's own are
+        // shown, not set here (Settings → Vellum → Screen colours)
+        const cs = this.section(body, "Colours");
         const setNames = Object.keys({ ...BASE_THEME.colors, ...this.host.theme?.colors });
         const all = [...new Set([...setNames, ...Object.keys(d.colors ?? {}), ...names.flatMap((n) => Object.keys(themes[n]))])];
-        const list = cs.createDiv({ cls: "vl-looklist" });
+        const list = cs.createDiv({ cls: "vl-looklist" + (part ? "" : " is-fixed") });
         for (const n of all) {
-            const own = pal()?.[n], row = list.createDiv({ cls: "vl-lookrow" });
-            const b = row.createEl("button", { cls: "vl-lookc", attr: { "aria-label": `${n}: open the picker` } });
+            const own = part ? themes[part]?.[n] : undefined, row = list.createDiv({ cls: "vl-lookrow" });
+            const b = row.createEl("button", { cls: "vl-lookc", attr: { "aria-label": part ? `${n}: open the picker` : n } });
             const sw = b.createSpan({ cls: "vl-cbar-sw" });
             sw.style.setProperty("--c", colorOf(this.theme, n));
             b.createSpan({ cls: "vl-lookn", text: n });
-            const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : " is-faint"), text: own ?? (setNames.includes(n) ? "Settings" : "") });
-            const put = (v: string) => {
-                // a colour name picked: its value now (a name in a palette would point at itself)
-                const c = v in this.theme.colors ? this.hexNow(v) : v;
-                if (part) { d.themes ??= {}; (d.themes[part] ??= {})[n] = c; } else (d.colors ??= {})[n] = c;
-            };
+            const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : " is-faint"), text: own ?? (part ? "Obsidian" : "") });
+            if (!part) { b.disabled = true; continue; }
+            const put = (v: string) => { const c = v in this.theme.colors ? this.hexNow(v) : v; (d.themes![part] ??= {})[n] = c; };   // a name picked: its value now
             b.addEventListener("click", () => {
                 if (this.picker?.anchor === b) { this.closePicker(); return; }
                 this.openPicker(b, colorOf(this.theme, n), put, (v) => { if (!v) return; sw.style.setProperty("--c", v in this.theme.colors ? colorOf(this.theme, v) : v); val.setText(v); val.removeClass("is-faint"); }, false);
             });
-            if (own) this.btn(row, setNames.includes(n) ? "rotate-ccw" : "x", setNames.includes(n) ? "Back to the settings' colour" : "Remove this colour", () => this.edit(() => {
-                const q = pal(); if (!q) return;
-                delete q[n];
-                if (!part && !Object.keys(q).length) delete d.colors;
-            })).addClass("vl-lookx");
+            if (own) this.btn(row, setNames.includes(n) ? "rotate-ccw" : "x", setNames.includes(n) ? "Back to the Obsidian colour" : "Remove this colour", () => this.edit(() => { delete d.themes?.[part]?.[n]; })).addClass("vl-lookx");
         }
-        // a colour name of the app's own (a brand colour…), usable on its screens
+        if (!part) { cs.createDiv({ cls: "vl-lookhint is-under", text: "Set in Settings → Vellum → Screen colours. Add a theme (+) for colours of this app's own." }); return; }
+        // a colour name of the app's own (a brand colour…), in every theme
         const add = cs.createDiv({ cls: "vl-lookadd" });
         const ai = add.createEl("input", { cls: "vl-lookname", attr: { type: "text", spellcheck: "false", placeholder: "A new colour name" } });
         const ab = add.createEl("button", { text: "Add colour" });
         const doAdd = () => {
             const n = ai.value.trim();
             if (!n || n in this.theme.colors) { ai.focus(); if (n) this.hint(`${n} is a colour already`, ai, false); return; }
-            this.edit(() => { for (const t of part ? names : [""]) { if (t) themes[t][n] = "#888888"; else (d.colors ??= {})[n] = "#888888"; } });
+            this.edit(() => { for (const t of names) themes[t][n] = "#888888"; });
         };
         ab.addEventListener("click", doAdd);
         ai.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
@@ -3719,8 +3719,8 @@ const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].sl
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // the words the app's colours use in both places (the editor's Colours window, Settings → Screen colours)
 export const LOOK_WORDS = {
-    pair: "Two looks for this app, side by side; switch between them to check every screen. They start as the colours shown, to change one by one.",
-    fresh: "Any name (high contrast, a brand…): it starts as a copy of the colours shown.",
+    obsidian: "Your Obsidian theme's colours (and Settings → Vellum)",
+    fresh: "New theme: any name, a copy of the colours shown",
 };
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
 let icons: string[] | null = null;
