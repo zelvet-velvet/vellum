@@ -95,7 +95,7 @@ const flow = (el: HTMLElement, it: Item, dir: "row" | "col") => {
 // draw an item into its parent (a block, a row / column, a group); every element gets data-id, the top-level one data-top
 // (an item in a group is placed as in a block, in the group's box, but is not top-level: data-in-group)
 export const drawItem = (t: Theme, parent: HTMLElement, it: Item, inFlow?: "row" | "col", lineUp: "left" | "center" | "right" = "left", inGroup = false): HTMLElement => {
-    const el = parent.createDiv({ cls: `vl-it vl-i-${it.type}`, attr: { "data-id": it.id } });
+    const el = parent.createDiv({ cls: `vl-it vl-i-${it.type}` + (it.lock ? " is-lock" : ""), attr: { "data-id": it.id } });
     if (inFlow) flow(el, it, inFlow); else { el.addClass("is-abs"); place(el, it); }
     const s = el.style;
     if (it.op !== undefined && it.op < 100) s.opacity = String(it.op / 100);

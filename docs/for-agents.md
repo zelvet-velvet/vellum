@@ -113,6 +113,8 @@ ask you to change that one thing. They can only do that to a part that is **its 
 - Keep `id`s stable: the user's references and marks point at them.
 - Keep each file's layout: the screen's own fields on the first line, then one block per line.
 - A block wholly outside the screen is a **draft** the user parked there: leave it, don't build it.
+- `"lock": true` on a block or an item means the user locked it so clicks on the screen go through it (a background, a
+  picture under the content). Keep it, and lock a full-screen background or backdrop you draw yourself.
 - The user may have the editor open. Write the files; Vellum reloads them and never overwrites unsaved edits.
 
 ## 8. Before you finish
