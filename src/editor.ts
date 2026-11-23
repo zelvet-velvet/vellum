@@ -379,6 +379,34 @@ class Editor {
             el.addEventListener("pointerdown", (e) => this.markDown(e, p, scr, m, z));
         }
         layer.style.setProperty("--vl-iz", String(iz));
+        this.stackNotes(layer, z);
+    }
+    // notes whose bubbles would overlap: the lower one is pushed down until it clears the one above, with a thin line back
+    // to its pin. On display only: the file keeps the x y that was written (an agent can't tell how tall a text wraps)
+    stackNotes(layer: HTMLElement, z: number) {
+        const gap = 4 / z, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string }[] = [];
+        layer.querySelectorAll<HTMLElement>(":scope > .vl-mark.is-note").forEach((el) => {
+            const bub = el.querySelector<HTMLElement>(":scope > .vl-mbub"); if (!bub || !bub.offsetHeight) return;
+            const px = parseFloat(el.style.left), py = parseFloat(el.style.top);
+            list.push({ bub, px, py, x: px + bub.offsetLeft, y: py + bub.offsetTop, w: bub.offsetWidth, h: bub.offsetHeight, c: el.style.getPropertyValue("--mc") });
+        });
+        if (list.length < 2) return;
+        list.sort((a, b) => a.y - b.y || a.x - b.x);
+        const placed: typeof list = [];
+        let svg: SVGSVGElement | null = null;
+        for (const n of list) {
+            const y0 = n.y;
+            // down past every bubble above that it runs into, until it is clear of all of them
+            for (let moved = true; moved;) {
+                moved = false;
+                for (const o of placed) if (n.x < o.x + o.w && o.x < n.x + n.w && n.y < o.y + o.h + gap && o.y < n.y + n.h) { n.y = o.y + o.h + gap; moved = true; }
+            }
+            placed.push(n);
+            if (n.y === y0) continue;
+            n.bub.style.transform = `translateY(${n.y - y0}px)`;
+            if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
+            svg.createSvg("line", { attr: { x1: n.px, y1: n.py, x2: n.x, y2: n.y + Math.min(n.h / 2, 10 / z), stroke: n.c, "stroke-width": 1 / z } });
+        }
     }
     // a mark: a press chooses it, a drag moves it (an area's corner resizes it); grid steps, Alt 1 px; lines and areas snap
     markDown(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number) {
