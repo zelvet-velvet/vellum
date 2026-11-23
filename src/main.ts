@@ -544,8 +544,8 @@ class VellumSettings extends PluginSettingTab {
         plus.addEventListener("click", () => field(plus, "", (n) => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; this.appPart = n; save(); }));
         const og = createDiv({ cls: "vls-sgrp" });   // into the colours' bar below, once it is drawn
         if (names.length) {
-            og.createSpan({ cls: "vls-slabel", text: "Opens in" });
-            const opens = og.createEl("select", { cls: "dropdown", attr: { "aria-label": "The theme the editor shows first" } });
+            og.createSpan({ cls: "vls-slabel", text: "Default theme" });
+            const opens = og.createEl("select", { cls: "dropdown", attr: { "aria-label": "The theme the app opens in (its theme in _doc.json): the editor shows it first, an agent builds it as the default" } });
             opens.createEl("option", { value: "", text: "Obsidian" });
             if (hasAuto(d)) opens.createEl("option", { value: "auto", text: "Auto (light / dark)" });
             for (const n of names) opens.createEl("option", { value: n, text: n });
@@ -598,7 +598,7 @@ class VellumSettings extends PluginSettingTab {
                 // number boxes, marks
                 const ed = s.edit;
                 const eg = this.card(c, "");
-                this.input(this.row(eg, "Drag step", "Per notch of a drag. Shift: ×10.", "move-vertical"), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
+                this.input(this.row(eg, "Drag step", "Per notch of a drag. Shift: ×10.", "move"), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
                 this.input(this.row(eg, "Mark text size", "Notes and area names, in px.", "baseline", "In pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
                 this.input(this.row(eg, "Note width", "Empty: as wide as its text.", "sticky-note", "In pixels, when a note sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
                 new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number, drag to change.", "hand", "Hold a number box, then drag up or down. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
@@ -622,7 +622,7 @@ class VellumSettings extends PluginSettingTab {
             pill("Other items", () => sn.others, () => { sn.others = !sn.others; }, "layers");
             const di = this.row(rest, "Distance", "How near a line pulls.", "ruler", "In screen pixels.");
             new SliderComponent(di).setLimits(2, 16, 1).setValue(sn.dist).setDynamicTooltip().onChange((v) => { sn.dist = v; this.save(); });   // Obsidian shows its value
-            this.input(this.row(rest, "Grid", "Step with no line near. 1: free.", "grid-3x3", "Points a drag steps by when no line is near; Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
+            this.input(this.row(rest, "Grid", "Step with no line near. 1: free.", "layout-grid", "Points a drag steps by when no line is near; Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
             this.input(this.row(rest, "Margins", "Lines inside each edge.", "square-dashed", "Comma separated, in points."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
             new ToggleComponent(this.row(rest, "Guide lines", "Show the line snapped to.", "align-center-vertical")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
         } else if (tab === "editor") {

@@ -1087,7 +1087,7 @@ class Editor {
         plus.addEventListener("click", () => field(plus, "", (n) => { this.edit(() => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; }); show(n); }));
         if (names.length) {
             const opts: [string, string][] = [["", "Obsidian"], ...(hasAuto(d) ? [["auto", "Auto (light / dark)"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
-            this.menu(this.frow(ts, "Opens in"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "", (v) => { if (v) d.theme = v; else delete d.theme; }, "The theme the app opens in");
+            this.menu(this.frow(ts, "Default"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "", (v) => { if (v) d.theme = v; else delete d.theme; }, "Default theme: the one the app opens in (its theme in _doc.json)");
         }
 
         // the colours of the theme shown: a tile that opens the picker, ↺ back to the Obsidian colours. Obsidian's own are
