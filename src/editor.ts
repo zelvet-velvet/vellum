@@ -1050,8 +1050,9 @@ class Editor {
         for (const n of names) {
             const b = chip(n, n);
             if (part !== n) continue;
-            const more = b.createSpan({ cls: "vl-chipx", attr: { "aria-label": `${n}: rename, copy or delete` } }); setIcon(more, "more-horizontal");
-            more.addEventListener("click", (e) => {
+            // the theme shown: a click on it again opens its menu
+            setIcon(b.createSpan({ cls: "vl-chipx" }), "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            b.addEventListener("click", (e) => {
                 e.stopPropagation();
                 if (this.themeChips) { this.themeChips.hide(); return; }
                 const m = (this.themeChips = new Menu()), doc = b.doc;
@@ -1077,7 +1078,7 @@ class Editor {
                 const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu")) m.hide(); };
                 doc.addEventListener("pointerdown", out, true);
                 m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeChips === m) this.themeChips = null; });
-                const r = more.getBoundingClientRect();
+                const r = b.getBoundingClientRect();
                 m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
             });
         }

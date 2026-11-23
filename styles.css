@@ -372,7 +372,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-intro { margin: 0 2px 16px; font-size: var(--font-ui-small); line-height: 1.5; color: var(--text-muted); }
 .vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
-.vls-tabs { display: flex; gap: 2px; margin: 0 0 16px; padding: 3px; border-radius: 10px; background: var(--background-secondary); overflow-x: auto; }
+.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 2px; margin: 0 0 16px; padding: 3px; border-radius: 10px; background: var(--background-secondary); overflow-x: auto; box-shadow: 0 -16px 0 8px var(--background-primary), 0 4px 10px -6px rgba(0, 0, 0, 0.35); }
 .vl-settings button.vls-tab { flex: 1; min-width: max-content; height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
 .vl-settings button.vls-tab:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .vl-settings button.vls-tab.is-on { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
@@ -717,6 +717,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-prevcap { margin-top: 8px; text-align: center; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vls-colbar { display: flex; align-items: center; gap: 8px; padding: 10px var(--vls-pad) 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vls-colbar > span { flex: 1; min-width: 0; }
+.vls-colbar > .vls-sgrp { flex: none; margin-right: 8px; }
 .vls-groups { columns: 2 240px; column-gap: 20px; padding: 0 calc(var(--vls-pad) - 8px) 8px; }
 .vls-group { break-inside: avoid; padding-bottom: 6px; }
 .vls-grp { padding: 10px 8px 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
@@ -1002,8 +1003,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-settings .vls-pill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .vl-settings .vls-pill.is-add { width: 28px; padding: 0; justify-content: center; --icon-size: 14px; }
 .vl-settings .vls-pill.is-cta { border-color: var(--interactive-accent); color: var(--text-normal); }
-.vls-pillx { display: inline-flex; margin-right: -6px; padding: 2px; border-radius: 6px; color: var(--text-muted); --icon-size: 14px; }
-.vls-pillx:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vls-pillx { display: inline-flex; margin-right: -4px; color: var(--text-muted); --icon-size: 12px; }
 .vl-settings input.vls-chipin { width: 120px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: var(--font-ui-smaller); }
 /* the phone beside a single column of colours */
 .vls-studio .vls-beside { grid-template-columns: 190px minmax(0, 1fr); }
@@ -1012,6 +1012,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-studio .vls-prevcap { margin-top: 6px; }
 .vls-studio .vls-colbar { padding: 10px var(--vls-pad) 4px; }
 .vls-studio .vls-groups { columns: auto; padding: 0 8px 2px; }
+.vls-studio:not(.is-editor) .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: 12px; }
 .vls-studio .vls-group { padding-bottom: 0; }
 .vls-studio .vls-colour { min-height: 38px; padding: 3px 8px; gap: 10px; }
 .vls-studio .vls-cname { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -1029,8 +1030,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 }
 /* the theme chips in the editor's Colours window; Obsidian's colours shown, not set there */
 .vl-devwinh { font-size: var(--font-ui-medium); line-height: 1.3; }
-.vl-chip .vl-chipx { display: inline-flex; margin-right: -4px; padding: 1px; border-radius: 5px; color: var(--text-muted); --icon-size: 13px; }
-.vl-chip .vl-chipx:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl-chip .vl-chipx { display: inline-flex; margin-right: -3px; color: var(--text-muted); --icon-size: 12px; }
 .vl .vl-chip.is-add { width: 26px; padding: 0; justify-content: center; --icon-size: 14px; }
 .vl input.vl-chipin { width: 110px; height: 26px; padding: 0 8px; border-radius: 13px; font-size: var(--font-ui-smaller); }
 .vl .vl-looklist.is-fixed .vl-lookc { cursor: default; opacity: 1; }

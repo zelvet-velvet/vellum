@@ -477,15 +477,16 @@ class VellumSettings extends PluginSettingTab {
         const chip = (label: string, key: string) => {
             const b = chips.createEl("button", { cls: "vls-pill" + (part === key ? " is-on" : ""), text: label });
             if (key === "") b.setAttr("aria-label", LOOK_WORDS.obsidian);
-            b.addEventListener("click", () => { this.appPart = key; this.display(); });
+            b.addEventListener("click", () => { if (part !== key) { this.appPart = key; this.display(); } });
             return b;
         };
         chip("Obsidian", "");
         for (const n of names) {
             const b = chip(n, n);
             if (part !== n) continue;
-            const more = b.createSpan({ cls: "vls-pillx", attr: { "aria-label": `${n}: rename, copy or delete` } }); setIcon(more, "more-horizontal");
-            more.addEventListener("click", (e) => {
+            // the theme shown: a click on it again opens its menu
+            setIcon(b.createSpan({ cls: "vls-pillx" }), "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            b.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const m = new Menu();
                 m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
@@ -505,8 +506,8 @@ class VellumSettings extends PluginSettingTab {
         }
         const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
         plus.addEventListener("click", () => field(plus, "", (n) => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; this.appPart = n; save(); }));
+        const og = createDiv({ cls: "vls-sgrp" });   // into the colours' bar below, once it is drawn
         if (names.length) {
-            const og = bar.createDiv({ cls: "vls-sgrp is-end" });
             og.createSpan({ cls: "vls-slabel", text: "Opens in" });
             const opens = og.createEl("select", { cls: "dropdown", attr: { "aria-label": "The theme the editor shows first" } });
             opens.createEl("option", { value: "", text: "Obsidian" });
@@ -517,7 +518,9 @@ class VellumSettings extends PluginSettingTab {
         }
         // Obsidian's chip: every app's colours, set under Every app
         if (!part) {
-            co.createDiv({ cls: "vls-colbar" }).createSpan({ text: "Every app's colours: set them under Every app. Add a theme (+) for colours of this app's own." });
+            const cb = co.createDiv({ cls: "vls-colbar" });
+            if (og.childElementCount) cb.appendChild(og);
+            cb.createSpan({ text: "Every app's colours: set them under Every app. Add a theme (+) for colours of this app's own." });
             const g = co.createDiv({ cls: "vls-groups" }).createDiv({ cls: "vls-group" });
             const look = docColours(d);
             for (const name of this.screenOrder(Object.keys(s.colors))) {
@@ -539,7 +542,8 @@ class VellumSettings extends PluginSettingTab {
             get: () => pal()[name], set: (v) => { if (v) pal()[name] = v; else delete pal()[name]; },
             ...(name in s.colors ? {} : { drop: () => { for (const t of names) delete themes[t][name]; save(false); } }),
         }));
-        this.swatches(co, `${this.appDir.split("/").pop() ?? ""} · ${part}`, [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo, "Obsidian");
+        this.swatches(co, "", [["", [["", list]]]], [["s-text", "s-paper", 4.5, "paper"], ["s-dim", "s-paper", 3, "paper"]], changed, demo, "Obsidian");
+        if (og.childElementCount) co.querySelector(".vls-colbar")?.prepend(og);
         this.addName(co, (n) => n in s.colors || n in pal(), (n) => { for (const t of names) themes[t][n] = "#888888"; save(false); });
     }
     display() {
