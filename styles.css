@@ -1077,3 +1077,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-num.is-tog { cursor: pointer; }
 .vl .vl-num.is-tog:hover { border-color: var(--background-modifier-border-hover); }
 .vl .vl-num.is-tog.is-on .vl-numt { color: var(--interactive-accent); }
+/* Settings → Keys: a key as a key cap; a click records the next one */
+.vl-settings .vls-key { min-width: 64px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); border-bottom-width: 2px; background: var(--background-primary); box-shadow: none; color: var(--text-normal); font: 500 var(--font-ui-smaller) var(--font-monospace); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.vl-settings .vls-key.is-rec { border-color: var(--interactive-accent); color: var(--interactive-accent); font-family: var(--font-interface); }
+.vl-settings .vls-key.is-fixed { cursor: default; color: var(--text-muted); }
+.vl-settings .vls-keyback { width: 28px; height: 28px; padding: 0; margin-left: 6px; box-shadow: none; background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }

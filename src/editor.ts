@@ -33,6 +33,44 @@ export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW
 export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0 };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
+// the editor's keys: each action and its key, set in Settings → Keys. The editor handles them itself: it runs in its own
+// window, where Obsidian's Hotkeys don't reach. A key is written as "Mod+Shift+Z" (Mod: Ctrl, or Cmd on a Mac)
+export const KEY_ACTIONS: { id: string; name: string; desc: string; icon: string; key: string }[] = [
+    { id: "edit", name: "Edit", desc: "Frames and safe areas", icon: "pencil", key: "1" },
+    { id: "show", name: "Show", desc: "The screen alone", icon: "play", key: "2" },
+    { id: "map", name: "Map", desc: "Every screen as a tree", icon: "network", key: "3" },
+    { id: "save", name: "Save", desc: "Write the screens to their files", icon: "save", key: "Mod+S" },
+    { id: "undo", name: "Undo", desc: "", icon: "undo-2", key: "Mod+Z" },
+    { id: "redo", name: "Redo", desc: "Mod+Y too", icon: "redo-2", key: "Mod+Shift+Z" },
+    { id: "duplicate", name: "Duplicate", desc: "What is chosen", icon: "copy", key: "Mod+D" },
+    { id: "reference", name: "Copy reference", desc: "A line that points at what is chosen", icon: "link", key: "Mod+Shift+C" },
+    { id: "all", name: "Choose every block", desc: "On the screen", icon: "box-select", key: "Mod+A" },
+    { id: "group", name: "Group", desc: "The chosen items, in one block", icon: "group", key: "Mod+G" },
+    { id: "ungroup", name: "Ungroup", desc: "A group's items back in the block", icon: "ungroup", key: "Mod+Shift+G" },
+    { id: "note", name: "Note or area", desc: "Click: a note; drag: an area", icon: "message-square-plus", key: "N" },
+    { id: "notes", name: "Show the notes", desc: "Or hide them", icon: "message-square", key: "Shift+N" },
+    { id: "overlay", name: "Show the overlay", desc: "Or hide it", icon: "grid-3x3", key: "Mod+'" },
+    { id: "bars", name: "Hide the bars", desc: "Or show them; in full screen, leaves it", icon: "panel-top", key: "Mod+." },
+];
+// the keys that can't be changed, listed so every key is in one place
+export const FIXED_KEYS: [string, string][] = [
+    ["Esc", "Let go, one level at a time; never closes the editor"],
+    ["Delete", "Delete what is chosen"],
+    ["Arrows", "Move what is chosen by 1; Shift: by the grid"],
+    ["← →", "In Show: the previous or next screen"],
+    ["Mod+Y", "Redo"],
+];
+let keyMap: Record<string, string> = {};
+export const setKeys = (m: Record<string, string>) => { keyMap = m; };
+export const keyOf = (id: string) => keyMap[id] || KEY_ACTIONS.find((a) => a.id === id)?.key || "";
+// a key press as it is written ("Mod+Shift+Z"); a modifier alone: ""
+export const comboOf = (e: KeyboardEvent): string => {
+    if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return "";
+    const k = e.key === " " ? "Space" : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    return [e.ctrlKey || e.metaKey ? "Mod" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", k].filter(Boolean).join("+");
+};
+// a key as the user reads it: Ctrl or Cmd
+export const keyText = (k: string) => k.split("+").map((p) => (p === "Mod" ? (Platform.isMacOS ? "Cmd" : "Ctrl") : p)).join("+");
 // the selection's colour: the accent, unless it is too close to the colour of what is chosen (an orange handle on a
 // red shape); then whichever of a few clear colours stands out most from it. Set on the block as --vl-sel (and --vl-sel-ink,
 // the text on it), for the outline, the gravity ring, the corner handles and the size tag
@@ -617,8 +655,8 @@ class Editor {
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
         const bare = this.bare();
         R.toggleClass("is-bare", bare);
-        if (this.full() && bare) this.btn(mid, "minimize", "Leave full screen (Ctrl+. or Esc)", () => { void R.doc.exitFullscreen(); }).addClass("vl-unbare");
-        else if (bare) this.btn(mid, "minimize-2", "Show the bars (Ctrl+.)", () => this.setBars(true)).addClass("vl-unbare");
+        if (this.full() && bare) this.btn(mid, "minimize", `Leave full screen (${keyText(keyOf("bars"))} or Esc)`, () => { void R.doc.exitFullscreen(); }).addClass("vl-unbare");
+        else if (bare) this.btn(mid, "minimize-2", `Show the bars (${keyText(keyOf("bars"))})`, () => this.setBars(true)).addClass("vl-unbare");
         if (bare && !Platform.isMobile) {
             // the top bar's side toggles, in the stage's top corners while it is hidden
             this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
@@ -713,9 +751,9 @@ class Editor {
         });
         const cb = this.btn(r, "palette", this.themeName() ? `This app's colours and themes (${this.pickedTheme() === "auto" ? "Auto · " : ""}${this.themeName()})` : "This app's colours and themes", () => this.openLooks(!this.lookOpen));
         cb.addClass("vl-themebtn"); cb.toggleClass("is-on", this.lookOpen);
-        this.btn(r, "undo-2", "Undo (Ctrl+Z)", () => this.undo(), !this.past.length);
-        this.btn(r, "redo-2", "Redo (Ctrl+Shift+Z)", () => this.redo(), !this.future.length);
-        const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": "Save into the note (Ctrl+S)" } });
+        this.btn(r, "undo-2", `Undo (${keyText(keyOf("undo"))})`, () => this.undo(), !this.past.length);
+        this.btn(r, "redo-2", `Redo (${keyText(keyOf("redo"))})`, () => this.redo(), !this.future.length);
+        const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": `Save into the note (${keyText(keyOf("save"))})` } });
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         if (!Platform.isMobile && !this.v.show && !this.v.map) {   // Show and Map have no settings panel
@@ -732,7 +770,7 @@ class Editor {
         const seg = pill.createDiv({ cls: "vl-seg" });
         const mode = this.v.map ? "map" : this.v.show ? "show" : "edit";
         for (const [label, m] of [["Edit", "edit"], ["Show", "show"], ["Map", "map"]] as const) {
-            const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { "aria-label": m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas" } });
+            const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { "aria-label": `${m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas"} (${keyText(keyOf(m))})` } });
             x.addEventListener("click", () => { if (mode !== m) this.setMode(m); });
         }
         pill.createSpan({ cls: "vl-zsep" });
@@ -765,8 +803,8 @@ class Editor {
                 const close = () => { m.remove(); R.doc.removeEventListener("pointerdown", off, true); };
                 const off = (e: Event) => { if (!m.isConnected) { close(); return; } const t = e.target as HTMLElement; if (!m.contains(t) && !t.closest?.("[data-markbtn]")) close(); };
                 window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
-                line("plus", "Add a mark (N)", () => { close(); this.markTool(); });
-                const vis = (b: HTMLElement) => { b.empty(); setIcon(b.createSpan({ cls: "vl-menuic" }), this.ov.notes ? "eye-off" : "eye"); b.createSpan({ text: this.ov.notes ? "Hide marks (Shift+N)" : "Show marks (Shift+N)" }); };
+                line("plus", `Add a mark (${keyText(keyOf("note"))})`, () => { close(); this.markTool(); });
+                const vis = (b: HTMLElement) => { b.empty(); setIcon(b.createSpan({ cls: "vl-menuic" }), this.ov.notes ? "eye-off" : "eye"); b.createSpan({ text: `${this.ov.notes ? "Hide" : "Show"} marks (${keyText(keyOf("notes"))})` }); };
                 line("eye", "", (b) => { this.toggleMarks(); vis(b); });
                 vis(m.lastElementChild as HTMLElement);
             });
@@ -785,10 +823,10 @@ class Editor {
         const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
         fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
         pill.createSpan({ cls: "vl-zsep" });
-        this.btn(pill, "maximize-2", "Hide the bars (Ctrl+.)", () => this.setBars(false));
+        this.btn(pill, "maximize-2", `Hide the bars (${keyText(keyOf("bars"))})`, () => this.setBars(false));
         if (!Platform.isMobile && this.root?.requestFullscreen) {
-            if (this.full()) this.btn(pill, "minimize", "Leave full screen (Ctrl+. or Esc)", () => { void this.root?.doc.exitFullscreen(); }).addClass("is-on");
-            else this.btn(pill, "maximize", "Full screen: the editor alone on the monitor (Ctrl+. leaves)", () => this.fullOn());
+            if (this.full()) this.btn(pill, "minimize", `Leave full screen (${keyText(keyOf("bars"))} or Esc)`, () => { void this.root?.doc.exitFullscreen(); }).addClass("is-on");
+            else this.btn(pill, "maximize", `Full screen: the editor alone on the monitor (${keyText(keyOf("bars"))} leaves)`, () => this.fullOn());
         }
         // the pill is at the foot: its tooltips open above it, never over its own buttons
         z.querySelectorAll<HTMLElement>("[aria-label]").forEach((e) => e.setAttr("data-tooltip-position", "top"));
@@ -806,7 +844,7 @@ class Editor {
             m.empty();
             const head = m.createDiv({ cls: "vl-ovhead" });
             head.createSpan({ cls: "vl-menuh", text: "Overlays" });
-            const sh = head.createEl("button", { cls: "vl-ovtog" + (ov.show ? " is-on" : ""), text: ov.show ? "Shown" : "Hidden", attr: { "aria-label": "Show / hide them all (Ctrl+')" } });
+            const sh = head.createEl("button", { cls: "vl-ovtog" + (ov.show ? " is-on" : ""), text: ov.show ? "Shown" : "Hidden", attr: { "aria-label": `Show / hide them all (${keyText(keyOf("overlay"))})` } });
             sh.addEventListener("click", () => { ov.show = !ov.show; apply(); draw(); });
             const num = (row: HTMLElement, label: string, get: () => number, set: (v: number) => void, o: { min?: number; max?: number; step?: number } = {}) => {
                 const w = row.createEl("label", { cls: "vl-ovnum" }); w.createSpan({ text: label });
@@ -2301,27 +2339,30 @@ class Editor {
     }
     handle(e: KeyboardEvent): boolean {
         const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable]");
-        const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
-        if (mod && k === "s") { this.save(); return true; }
-        if (mod && e.shiftKey && k === "c" && !typing) { this.copyReference(); return true; }
+        const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), c = comboOf(e), is = (id: string) => c !== "" && c === keyOf(id);
+        const editing = !this.v.show && !this.v.map;
+        if (is("save")) { this.save(); return true; }
+        if (is("reference") && !typing) { this.copyReference(); return true; }
         if (typing) return false;
-        if (mod && k === "z") { if (e.shiftKey) this.redo(); else this.undo(); return true; }
-        if (mod && k === "y") { this.redo(); return true; }
-        if (mod && k === "d") { this.duplicate(); return true; }
-        if (!mod && !e.altKey && e.shiftKey && k === "n" && !this.v.show && !this.v.map) { this.toggleMarks(); return true; }
-        if (!mod && !e.altKey && k === "n" && !this.v.show && !this.v.map) { this.markTool(); return true; }
+        if (is("undo")) { this.undo(); return true; }
+        if (is("redo") || (mod && !e.shiftKey && !e.altKey && k === "y")) { this.redo(); return true; }
+        if (is("duplicate")) { this.duplicate(); return true; }
+        for (const m of ["edit", "show", "map"] as const) if (is(m)) { if ((m === "map") !== !!this.v.map || (m === "show") !== (!!this.v.show && !this.v.map)) this.setMode(m); return true; }
+        if (is("notes") && editing) { this.toggleMarks(); return true; }
+        if (is("note") && editing) { this.markTool(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (e.key === "Escape" && this.devOpen) { this.openDevice(false); return true; }
         if (e.key === "Escape" && this.lookOpen) { this.openLooks(false); return true; }
-        if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
+        if (is("ungroup") && editing) { this.ungroup(); return true; }
+        if (is("group") && editing) { this.groupSel(); return true; }
         if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
-        if (mod && e.key === "." && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
-        if (mod && e.key === ".") { this.setBars(this.v.bars === false); return true; }
+        if (is("bars") && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
+        if (is("bars")) { this.setBars(this.v.bars === false); return true; }
         if (e.key === "Escape" && !this.sel && this.full()) { void this.root?.doc.exitFullscreen(); return true; }
         if (e.key === "Escape" && !this.sel && this.v.bars === false) { this.setBars(true); return true; }
-        if (mod && e.key === "'") { this.ov.show = !this.ov.show; this.keepOv(); this.drawPages(); return true; }
-        if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).filter((b) => !b.lock).map((b) => b.id)); return true; }
+        if (is("overlay")) { this.ov.show = !this.ov.show; this.keepOv(); this.drawPages(); return true; }
+        if (is("all") && editing) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).filter((b) => !b.lock).map((b) => b.id)); return true; }
         if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place
         if (e.key === "Escape" && (this.many.length || this.manyItems.length)) { this.choose({ page: this.sel!.page }); return true; }
         if (e.key === "Escape") { this.up(); return true; }
@@ -2412,7 +2453,7 @@ class Editor {
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
         // the header's actions (always in reach): copy for the agent, duplicate, delete, let go
         const acts = head.createDiv({ cls: "vl-hacts" });
-        const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference(refB));
+        const refB: HTMLElement = this.btn(acts, "link", `Copy reference: one line that points at it (${keyText(keyOf("reference"))})`, () => this.copyReference(refB));
         const agB: HTMLElement = this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent(agB));
         const one = !many.length && !mi.length && !this.sel?.mark ? (f?.item ?? b) : undefined;
         if (one) {   // one block or item: its lock (a click on the screen then goes through it)
@@ -2420,7 +2461,7 @@ class Editor {
             this.btn(acts, x.lock ? "lock" : "lock-open", x.lock ? "Locked: a click on the screen goes through it. Click to unlock" : "Lock it: a click on the screen goes through it", () => this.edit(() => { if (x.lock) delete x.lock; else x.lock = true; })).toggleClass("is-on", !!x.lock);
         }
         if (f || b || many.length || mi.length || this.sel?.mark) {   // what is chosen (several too), never the screen by mistake
-            this.btn(acts, "copy", "Duplicate (Ctrl+D)", () => this.duplicate());
+            this.btn(acts, "copy", `Duplicate (${keyText(keyOf("duplicate"))})`, () => this.duplicate());
             this.btn(acts, "trash-2", "Delete (Delete)", () => this.remove());
         } else if (!inh) {
             this.btn(acts, "copy", "Duplicate the screen", () => this.duplicate());
@@ -3169,7 +3210,7 @@ class Editor {
             if (icon === "|") { al.createSpan({ cls: "vl-alsep" }); continue; }
             this.icon(this.btn(al, icon, label, () => this.edit(act)), icon, label);
         }
-        this.actions(body, [["group", "Group (Ctrl+G)", () => this.groupSel()], ["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
+        this.actions(body, [["group", `Group (${keyText(keyOf("group"))})`, () => this.groupSel()], ["copy", "Duplicate", () => this.duplicate()], ["trash-2", "Delete", () => this.remove()]]);
     }
     // a frame's block on a page that inherits it: locked here; copy it in to change it here, or edit it where it belongs
     framePanel(body: HTMLElement, p: Page, l: Layer) {
@@ -3477,7 +3518,7 @@ class Editor {
             const s = this.section(body, "Group");
             s.createDiv({ cls: "vl-frameinfo", text: `${itemCount(it.items?.length ?? 0)}, moved as one. Click in it again (or double-click) to choose one of them; Esc goes back up.` });
             const acts: [string, string, () => void][] = [["scan", "Fit to its items", () => { const scr = this.wall.querySelector<HTMLElement>(".vl-screen"); if (scr) this.edit(() => this.refit(scr, b, it)); }]];
-            if (canUngroup(it, parentOf(b.items, it.id))) acts.unshift(["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]);
+            if (canUngroup(it, parentOf(b.items, it.id))) acts.unshift(["ungroup", `Ungroup (${keyText(keyOf("ungroup"))})`, () => this.ungroup()]);
             this.actions(s, acts);
             this.num(s.createDiv({ cls: "vl-nums" }), "Opacity", () => it.op ?? 100, (v) => { it.op = v >= 100 ? undefined : v; }, { min: 0, max: 100 });
             const c = this.section(body, "Items in it");
@@ -3491,7 +3532,7 @@ class Editor {
             const r = s.createDiv({ cls: "vl-nums" });
             this.num(r, "Gap", () => it.gap ?? 0, (v) => { it.gap = v; }, { min: 0, unit: "pt" });
             this.num(r, "Padding", () => it.pad ?? 0, (v) => { it.pad = v || undefined; }, { min: 0, unit: "pt" });
-            if (canUngroup(it, parentOf(b.items, it.id))) this.actions(s, [["ungroup", "Ungroup (Ctrl+Shift+G)", () => this.ungroup()]]);
+            if (canUngroup(it, parentOf(b.items, it.id))) this.actions(s, [["ungroup", `Ungroup (${keyText(keyOf("ungroup"))})`, () => this.ungroup()]]);
             const c = this.section(body, "Items in it", true, { hint: String(it.items?.length ?? 0) });
             this.itemList(c, b, it.items ?? (it.items = []));
             this.addButtons(c, b, it.items, ["text", "rect", "img", "icon", "row", "col", "ellipse"]);
