@@ -8,9 +8,33 @@ the [Field reference](../README.md#-file-format).
 - One folder per app, e.g. `Design/Screens/`: one JSON file per screen, and `_doc.json` with the device and screen order.
 - **Tell the user where it is.** Vellum's ribbon button opens the folder in **Settings → Vellum → Screens folder**; if that
   folder has no screens, Vellum offers the folders that do. The command **Vellum: Open screens from another folder** picks one.
-- Several apps in one vault: each its own folder with its own `_doc.json` (its own device). The app's name in the editor's
-  top bar switches between them.
 - To show the screens in a note, add a code block `vellum` with the line `src: Design/Screens`.
+
+### Several apps in one vault
+An app is a folder with a `_doc.json`; its screens are the `.json` files right in it. Put the apps side by side under one
+parent folder:
+
+```text
+Design/
+├─ Remote/                the phone app
+│  ├─ _doc.json           its device, corner, bar, safe areas; "order": the screens' ids in order
+│  ├─ Home.json
+│  └─ Settings.json
+└─ Console/               the desktop companion
+   ├─ _doc.json           "device": "custom-1280x800", "radius": 0, "bar": {"style": "none"}
+   └─ Main window.json
+```
+
+- Each app has its **own frame**: set up each `_doc.json` on its own (section 2). A phone app and a desktop window never
+  share one folder.
+- Vellum reads only the files right in the folder: subfolders are not screens. Don't nest one app inside another; keep
+  anything else (notes, exports, images) out of an app's folder or in a subfolder of it. Any other `.json` file in the
+  folder is read as a screen and reported as broken.
+- A screen links only to screens of its own app: `parent` and `inherit` take the id of a screen in the same folder.
+  Screen ids are unique within an app; the same id may be used in another app.
+- A new screen goes in `order` in `_doc.json` where it belongs in the flow; a screen missing from `order` is listed last.
+- The app's name in the editor's top bar is the folder's name: name folders as the user calls the apps. It switches
+  between the apps, each keeping its own device and last screen.
 
 ## 2. Set up the frame, before the first screen
 Every screen is drawn on the app's frame: its size, corner, status bar and safe areas. Set them in `_doc.json` to match
