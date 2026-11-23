@@ -4,7 +4,8 @@ import { getLocal, setLocal, useApp } from "./local";
 import { NewsModal, newsSince } from "./news";
 import { BASE_THEME, Theme, UI_COLORS } from "./render";
 import { ungroupBlock } from "./flatten";
-import { FolderStore, pageText } from "./store";
+import { FolderStore, pageText, storeHooks } from "./store";
+import { refreshGuides, writeGuide, writeSkill } from "./guide";
 
 // the mark (ribbon, the editor's tab): a sheet behind a phone with two blocks on its screen; 100 × 100, line icons
 const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-linecap="round" stroke-linejoin="round"><rect x="38" y="8" width="48" height="84" rx="11"/><path d="M38 28H20a6 6 0 0 0-6 6v46a6 6 0 0 0 6 6h18"/></g><rect x="50" y="24" width="24" height="10" rx="3" fill="currentColor"/><rect x="50" y="42" width="24" height="33" rx="4" fill="currentColor"/>`;
@@ -16,7 +17,10 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
 interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
-const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
+const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
+
+// the folder a path is in; none at the vault's root
+const parentOf = (path: string) => { const i = path.lastIndexOf("/"); return i > 0 ? path.slice(0, i) : null; };
 
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
@@ -35,6 +39,14 @@ export default class VellumPlugin extends Plugin {
         this.addCommand({ id: "open", name: "Open the screens", callback: () => this.openScreens() });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addCommand({ id: "ungroup-folder", name: "Ungroup every row and column in a folder of screens", callback: () => new FolderPick(this.app, (f) => { void this.ungroupFolder(f.path); }).open() });
+        // the guide for agents, written into the vault (no network): VELLUM.md beside the app folders (by itself when a new
+        // app is made in a folder that has none), or as a Claude Code skill
+        storeHooks.newApp = async (dir) => { const up = parentOf(dir); if (up) await writeGuide(this.app, up, this.manifest.version); };
+        this.addCommand({ id: "agent-guide", name: "Add the agent guide", callback: () => {
+            const homes = this.vellumFolders();
+            new FolderPick(this.app, (f) => { void this.addGuide(f.path); }, homes.length ? homes : undefined, "The folder that holds your app folders (VELLUM.md goes in it)").open();
+        } });
+        this.addCommand({ id: "agent-skill", name: "Add the agent guide as a Claude Code skill", callback: () => { void writeSkill(this.app, this.manifest.version).then((p) => new Notice(`Vellum: the agent guide is in ${p}`), (e) => new Notice(`Vellum: could not write the skill (${String(e)})`)); } });
         this.addSettingTab(new VellumSettings(this.app, this));
         // after an update: what's new since the version last seen, once. A fresh install shows nothing; settings saved
         // before this existed (no version kept) were made by 0.8.3 or older
@@ -43,6 +55,7 @@ export default class VellumPlugin extends Plugin {
             if (seen === now && this.settings.seen === now) return;
             const news = newsSince(seen, now);
             this.settings.seen = now; void this.save();
+            void refreshGuides(this.app, now).catch(() => { /* the guides stay as they were */ });
             if (news.length && this.settings.news) new NewsModal(this.app, news, () => { this.settings.news = false; void this.save(); }).open();
         });
     }
@@ -53,10 +66,21 @@ export default class VellumPlugin extends Plugin {
         const has = (dir: string) => this.app.vault.getAbstractFileByPath(normalizePath(`${dir}/_doc.json`)) instanceof TFile;
         const use = (dir: string) => { this.settings.folder = dir; void this.save().then(() => openVellum(dir)); };
         if (has(this.settings.folder)) { void openVellum(this.settings.folder); return; }
-        const found = this.app.vault.getFiles().filter((f) => f.name === "_doc.json").map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/");
+        const found = this.appFolders();
         if (found.length === 1) { new Notice(`Vellum: screens found in ${found[0].path}, now the screens folder`); use(found[0].path); return; }
         if (found.length > 1) { new FolderPick(this.app, (f) => use(f.path), found).open(); return; }
         void openVellum(this.settings.folder);
+    }
+    // the folders with a _doc.json in them: one per app
+    appFolders(): TFolder[] { return this.app.vault.getFiles().filter((f) => f.name === "_doc.json").map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/"); }
+    // the folders that hold app folders (each app's parent; none at the vault's root): where VELLUM.md goes
+    vellumFolders(): TFolder[] { return [...new Set(this.appFolders().map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/"))]; }
+    async addGuide(dir: string) {
+        try {
+            const p = await writeGuide(this.app, dir, this.manifest.version);
+            new Notice(p ? `Vellum: the agent guide is in ${p}. Point your agent to it once, e.g. in your AGENTS.md.` : `Vellum: ${dir} has a VELLUM.md of its own, left as it is`);
+        }
+        catch (e) { new Notice(`Vellum: could not write the guide (${String(e)})`); }
     }
     // every row and column on every screen of a folder taken apart, where they are drawn (an agent can call this:
     // app.plugins.plugins.vellum.ungroupFolder("path")). Only the screens that change are written, each in its own file
@@ -335,7 +359,7 @@ class VellumSettings extends PluginSettingTab {
 
         // screens
         const sc = this.card(c, "screens", "Screens", s.folder);
-        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Screens" });
+        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
 
         // colours: the editor's own and the phones', each card a list with its own preview
         // the preview on top, the colours under it
@@ -438,7 +462,7 @@ const contrast = (a: number[], b: number[]) => { const x = luma(a), y = luma(b);
 
 // a folder of the vault, typed to find
 class FolderPick extends FuzzySuggestModal<TFolder> {
-    constructor(app: App, readonly pick: (f: TFolder) => void, readonly only?: TFolder[]) { super(app); this.setPlaceholder(only ? "Screens found in these folders: open one" : "A folder of screens"); }
+    constructor(app: App, readonly pick: (f: TFolder) => void, readonly only?: TFolder[], hint?: string) { super(app); this.setPlaceholder(hint ?? (only ? "Screens found in these folders: open one" : "A folder of screens")); }
     getItems() { return this.only ?? this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder && f.path !== "/"); }
     getItemText(f: TFolder) { return f.path; }
     onChooseItem(f: TFolder) { this.pick(f); }

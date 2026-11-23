@@ -136,9 +136,11 @@
 
 ```text
 Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
-將 app 的每一頁寫為 Vellum 畫面，存於 Design/Screens，完成後告訴我資料夾位置。
+將 app 的每一頁寫為 Vellum 畫面，存於 Vellum/<app 名稱>，完成後告訴我資料夾位置。
 需要多個方案時，以 Vellum 的 mock 製作，不要做成網頁。
 ```
+
+Vellum 亦內建此說明，agent 無須連結即可讀取。說明為 `VELLUM.md`，置於存放各 app 的資料夾中，每個 app 為其旁的子資料夾（`Vellum/VELLUM.md`、`Vellum/Remote/`、`Vellum/Console/`）。於尚無說明的資料夾新建 app 時，Vellum 會自動寫入；既有的 app 請執行 **Vellum: Add the agent guide**。於自己的 `AGENTS.md` 或 `CLAUDE.md` 加一行指向此檔即可。Claude Code 可執行 **Add the agent guide as a Claude Code skill**（寫入 `.claude/skills/vellum/`），會自動載入。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫；自行撰寫的 `VELLUM.md` 不會被覆寫。
 
 > [!TIP]
 > 外框屬於被框住的元件：區塊有自己的 `fill`、`stroke` 與 `sides`，文字也有自己的外框。舊畫面中以矩形當外框的，選取時會顯示 **Make it the block's look** 或 **Make it the text's box** 以轉換。
@@ -149,13 +151,15 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> 檔案格式
 
-每個 app 一個資料夾，每個畫面一個小檔案：
+每個 app 一個資料夾，每個畫面一個小檔案，各 app 與 agent 說明並列：
 
 ```text
-Design/Screens/
-├─ _doc.json       裝置：尺寸、安全區域、圓角、狀態列；畫面順序
-├─ Home.json       一個畫面
-└─ Settings.json   另一個畫面
+Vellum/
+├─ VELLUM.md          給 agent 的說明
+└─ Remote/            一個 app
+   ├─ _doc.json       裝置：尺寸、安全區域、圓角、狀態列；畫面順序
+   ├─ Home.json       一個畫面
+   └─ Settings.json   另一個畫面
 ```
 
 畫面由數個 **block** 組成，即手機上的方框。每個 block 內放 **item**，依錨點定位：
@@ -170,7 +174,7 @@ Design/Screens/
 ]}
 ```
 
-於筆記中以 `vellum` 程式碼區塊加上 `src: Design/Screens` 顯示畫面。所有欄位列於下方；agent 另有[專用說明](docs/for-agents.md)。
+於筆記中以 `vellum` 程式碼區塊加上 `src: Vellum/Remote` 顯示畫面。所有欄位列於下方；agent 另有[專用說明](docs/for-agents.md)。
 
 <details>
 <summary><b>欄位說明</b></summary>

@@ -134,9 +134,11 @@ Start your agent with this; the [guide for agents](docs/for-agents.md) tells it 
 
 ```text
 Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
-Write each page of my app as a Vellum screen in Design/Screens, then tell me the folder.
+Write each page of my app as a Vellum screen in Vellum/<app name>, then tell me the folder.
 When I ask for options, make them as Vellum mocks, not as a web page.
 ```
+
+The guide also ships with Vellum, so the agent needs no link. It sits as `VELLUM.md` in the folder that holds your apps, one subfolder per app beside it (`Vellum/VELLUM.md`, `Vellum/Remote/`, `Vellum/Console/`). Vellum writes it when you make an app in a folder that has none; for apps made before, run **Vellum: Add the agent guide**. Point your agent to it once, e.g. a line in your `AGENTS.md` or `CLAUDE.md`. For Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`) loads it by itself. Each copy matches the Vellum you have and is written again when Vellum updates; a `VELLUM.md` you wrote yourself is left alone.
 
 > [!TIP]
 > Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.
@@ -147,13 +149,15 @@ When I ask for options, make them as Vellum mocks, not as a web page.
 
 ## <img src="assets/icons/braces.svg" width="24" height="24" alt=""> File format
 
-One folder per app, one small file per screen:
+One folder per app, one small file per screen, the apps side by side with the agent guide:
 
 ```text
-Design/Screens/
-├─ _doc.json       the device: size, safe areas, corner, status bar; the screen order
-├─ Home.json       a screen
-└─ Settings.json   another screen
+Vellum/
+├─ VELLUM.md          the guide for agents
+└─ Remote/            an app
+   ├─ _doc.json       the device: size, safe areas, corner, status bar; the screen order
+   ├─ Home.json       a screen
+   └─ Settings.json   another screen
 ```
 
 A screen is a few **blocks**, boxes on the phone. Each block holds **items**, placed by an anchor:
@@ -168,7 +172,7 @@ A screen is a few **blocks**, boxes on the phone. Each block holds **items**, pl
 ]}
 ```
 
-Show the screens in a note with a code block `vellum` holding `src: Design/Screens`. Every field is below; agents have [their own guide](docs/for-agents.md).
+Show the screens in a note with a code block `vellum` holding `src: Vellum/Remote`. Every field is below; agents have [their own guide](docs/for-agents.md).
 
 <details>
 <summary><b>Field reference</b></summary>
