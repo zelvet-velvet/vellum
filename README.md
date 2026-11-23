@@ -155,7 +155,7 @@ One folder per app, one small file per screen, the apps side by side with the ag
 Vellum/
 ├─ VELLUM.md          the guide for agents
 └─ Remote/            an app
-   ├─ _doc.json       the device: size, safe areas, corner, status bar; the screen order
+   ├─ _doc.json       the device: size, safe areas, corner, status bar; the app's colours; the screen order
    ├─ Home.json       a screen
    └─ Settings.json   another screen
 ```
@@ -179,7 +179,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 | Level | Fields |
 | :--- | :--- |
-| **Doc** | `device` (a phone's id, or a custom size `custom-<w>x<h>`, ending `-tablet`, `-window` or `-web` for those: a window and a web page are square, with no bar and no safe areas); `safe`, `safeLand` (`top bottom left right`, each optional); `radius` (the screen's corner, `0` for a square screen; else the device's); `bar` (the status bar: `style` `ios`, `android` or `none`, `fill`, `ink`, `time`; as high as `safe.top` when that is set) |
+| **Doc** | `device` (a phone's id, or a custom size `custom-<w>x<h>`, ending `-tablet`, `-window` or `-web` for those: a window and a web page are square, with no bar and no safe areas); `safe`, `safeLand` (`top bottom left right`, each optional); `radius` (the screen's corner, `0` for a square screen; else the device's); `bar` (the status bar: `style` `ios`, `android` or `none`, `fill`, `ink`, `time`; as high as `safe.top` when that is set); `colors` (this app's colours by name, over the settings); `themes` (named palettes over those, `light`, `dark`…) and `theme` (the one it opens in, or `auto`: as Obsidian is light or dark; none: your Obsidian colours) |
 | **Page** | `name`, `note`, `parent`, `link` (how you get there), `inherit` (`true`: the parent is its frame), `device`, `bg`, `mock`, `blocks`, `land` (the landscape layout), `marks` |
 | **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas; a block wholly outside the screen is a **draft**, kept beside it in the editor and not built), its own look: `fill stroke sw r` and `sides` (the outline on some sides only: `"b"`, `"tb"`…), `lock` (`true`: drawn, but a click on the screen goes through it; chosen from the Blocks list), `items` |
 | **Any item** | `g` (anchor: `tl t tr l c r bl b br`), `dx dy`, `w h` (a number, `"hug"` or `"fill"`), `op`, `note`, `lock` (as on a block) |
@@ -193,7 +193,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 
-**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value. The editor's own panels follow your Obsidian theme, or the Editor theme colours in the same settings.
+**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value. An app can have its own colours and themes (light, dark, or any name) in its `_doc.json`. Set them in Settings → Vellum → Screen colours with the app chosen, or in the editor's Colours window (the palette button in its top bar), which also switches between them to check every screen. The editor's own panels follow your Obsidian theme, or the Editor theme colours in the same settings.
 
 </details>
 

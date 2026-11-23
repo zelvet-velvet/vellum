@@ -1,6 +1,6 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
-import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
+import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
@@ -57,8 +57,8 @@ const near = (pts: number[], lines: number[], reach: number) => {
 };
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
-type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
-const view = new Map<string, View>();   // per doc, kept across redraws
+type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
+const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // the colours a mark can take (or any CSS colour)
 const MARK_COLORS: Record<string, string> = { yellow: "#f5c84b", orange: "#ff8a3d", red: "#ff4d6d", green: "#2fbf71", blue: "#3d8bff", purple: "#9b6dff", gray: "#8a8f98" };
@@ -103,10 +103,10 @@ class Editor {
     // store: the folder the doc is kept in (src: in the block), with the doc as read; none = the JSON in the block itself
     // el / ctx: the ```vellum block it is drawn in; none = opened straight on a folder (the ribbon, a command)
     constructor(readonly plugin: Plugin, host: VellumHost, source: string, readonly el: HTMLElement | undefined, readonly ctx: MarkdownPostProcessorContext | undefined, readonly store?: FolderStore, loaded?: { doc: Doc; error?: string }) {
-        this.lookFrom(host);
         this.kinds = host.kinds ?? BASE_KINDS;
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
+        this.lookFrom(host);
         this.saved = serialiseDoc(doc);
         this.card = el ? el.createDiv({ cls: "vl vl-card" }) : createDiv({ cls: "vl vl-card" });
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
@@ -122,6 +122,7 @@ class Editor {
                 else if (d.pages) this.stale = d as unknown as Doc;   // an older draft without its base: offered back too
             } catch { /* a broken draft is dropped */ }
         }
+        this.lookFrom(host);   // a draft may carry other app colours
         this.paint(this.card);
         const onResize = () => { if (this.root?.isConnected && this.v.fit) this.drawPages(); };
         window.addEventListener("resize", onResize);
@@ -152,11 +153,14 @@ class Editor {
     // the theme's colours as --vl-* on an element (the card in the note, the workspace on the body)
     // the look from the host. The editor's own colours are set as Obsidian's variables on the editor, which the screens inside
     // it would inherit: a screen colour that names a changed variable reads a copy of Obsidian's value instead (--vlr--…)
-    ui: Record<string, string> = {};
+    // The app's own colours (_doc.json: colors, then the theme on show) go over the settings' screen colours
+    ui: Record<string, string> = {}; host: VellumHost = {}; lookKey = "";
     lookFrom(host: VellumHost) {
-        this.ui = { ...host.ui };
+        this.host = host; this.ui = { ...host.ui };
         const changed = new Set(UI_COLORS.filter((u) => this.ui[u.id]).flatMap((u) => u.vars));
-        const colors: Record<string, string> = { ...BASE_THEME.colors, ...host.theme?.colors };
+        const own = docColours(this.doc, this.themeName());
+        this.lookKey = JSON.stringify(own);
+        const colors: Record<string, string> = { ...BASE_THEME.colors, ...host.theme?.colors, ...own };
         for (const k of Object.keys(colors)) colors[k] = colors[k].replace(/var\((--[\w-]+)/g, (m, v: string) => (changed.has(v) ? `var(--vlr${v}` : m));
         this.theme = { colors, fonts: { ...BASE_THEME.fonts, ...host.theme?.fonts } };
     }
@@ -168,6 +172,17 @@ class Editor {
             else { e.style.removeProperty(`--vlr${name}`); if (own) e.style.removeProperty(name); }
         }
     }
+    // the app theme on show: the switch's, else the doc's ("auto": as Obsidian is light or dark)
+    dark() { return (this.root?.doc ?? activeDocument).body.hasClass("theme-dark"); }   // (every window of Obsidian has the same)
+    themeName() { return themeOn(this.doc, this.dark(), this.v.look); }
+    // the app's colours changed (the switch, the file, an undo, Obsidian light / dark under "auto"): the look again
+    lookCheck(): boolean {
+        if (JSON.stringify(docColours(this.doc, this.themeName())) === this.lookKey) return false;
+        this.lookFrom(this.host); this.paintLook(this.card); if (this.root) this.paintLook(this.root); this.thumbs.clear();
+        return true;
+    }
+    // Obsidian's light or dark changed: only the editors whose app follows it draw again
+    lookAgain() { if (this.lookCheck()) { if (this.root) this.draw(); else this.drawCard(); } }
     // the settings changed (or Obsidian's theme): the open editor takes them at once
     relook(host: VellumHost) {
         this.lookFrom(host); this.paintLook(this.card);
@@ -504,6 +519,7 @@ class Editor {
 
     // ---- the card in the note: the screens as a small map, Open
     drawCard() {
+        this.lookCheck();
         const c = this.card; c.empty();
         const head = c.createDiv({ cls: "vl-chead" });
         const t = head.createDiv({ cls: "vl-ctitle" });
@@ -563,6 +579,7 @@ class Editor {
         // the camera: a rebuild (undo, redo, a change from outside, a side folded) keeps the stage scrolled where it was,
         // as long as it still shows the same thing (the same screen and layout, or the map)
         const was = this.wall?.isConnected ? { key: this.camKey(), l: this.wall.scrollLeft, t: this.wall.scrollTop } : null;
+        this.lookCheck();
         this.unInfo(); R.empty(); this.panel = null;
         this.bar = R.createDiv({ cls: "vl-top" });
         this.drawStale();
@@ -684,6 +701,8 @@ class Editor {
             const up = () => raise(set.win ?? window);
             up(); for (const ms of [120, 400]) window.setTimeout(up, ms);
         });
+        const cb = this.btn(r, "palette", this.themeName() ? `This app's colours and themes (${this.pickedTheme() === "auto" ? "Auto · " : ""}${this.themeName()})` : "This app's colours and themes", () => this.openLooks(!this.lookOpen));
+        cb.addClass("vl-themebtn"); cb.toggleClass("is-on", this.lookOpen);
         this.btn(r, "undo-2", "Undo (Ctrl+Z)", () => this.undo(), !this.past.length);
         this.btn(r, "redo-2", "Redo (Ctrl+Shift+Z)", () => this.redo(), !this.future.length);
         const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": "Save into the note (Ctrl+S)" } });
@@ -881,6 +900,7 @@ class Editor {
     }
     drawPages() {
         if (!this.wall?.isConnected) return;
+        this.lookCheck();   // the app's colours changed (the picker in the Colours window): the screens take them
         // a redraw keeps where the stage was scrolled (choosing a block or an item does not jump to the top)
         const sx = this.wall.scrollLeft, sy = this.wall.scrollTop, keep = () => { this.wall.scrollLeft = sx; this.wall.scrollTop = sy; };
         this.wall.empty();
@@ -948,6 +968,161 @@ class Editor {
             const r = b.getBoundingClientRect();
             m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
         });
+    }
+    // the theme asked for: the switch's, else the file's, else the first ("auto" as it is)
+    pickedTheme() { return this.v.look ?? this.doc.theme ?? ""; }   // "": the Obsidian colours
+    // ---- the app's colours window (from the button in the top bar): its themes, which one it opens in, and each colour
+    // name's value in the theme on show (or in the app's one palette). Edits are the doc's (undo, Save); choosing a theme
+    // to look at is not. Esc, the ✕ or a click outside closes it
+    lookOpen = false; lookWin: HTMLElement | null = null; lookOff: (() => void) | null = null;
+    openLooks(on: boolean) { this.lookOpen = on; if (on) this.openDevice(false); this.drawLooks(on); this.drawBar(); }
+    drawLooks(focus = false) {
+        const R = this.root, keep = this.lookWin?.querySelector(".vl-devwinb")?.scrollTop ?? 0;
+        const had = !!this.lookWin && this.lookWin.contains(R?.doc.activeElement ?? null);
+        this.lookWin?.remove(); this.lookWin = null; this.lookOff?.(); this.lookOff = null;
+        if (!R?.isConnected || !this.lookOpen) return;
+        const w = (this.lookWin = R.createDiv({ cls: "vl-devwin vl-lookwin" + (Platform.isMobile ? " is-sheet" : ""), attr: { tabindex: "-1", role: "dialog", "aria-label": "Colours" } }));
+        const head = w.createDiv({ cls: "vl-devwinh" });
+        head.createSpan({ text: "Colours" });
+        head.createSpan({ cls: "vl-devwinsub" });
+        this.btn(head, "x", "Close (Esc)", () => this.openLooks(false)).addClass("vl-close");
+        const body = w.createDiv({ cls: "vl-devwinb" });
+        this.looksPanel(body);
+        body.scrollTop = keep;
+        // under its button in the top bar
+        const btn = this.bar?.querySelector<HTMLElement>(".vl-themebtn");
+        if (!Platform.isMobile && btn) {
+            const rr = R.getBoundingClientRect(), br = btn.getBoundingClientRect();
+            w.style.left = `${Math.max(8, Math.min(br.left - rr.left, rr.width - 330))}px`;
+            w.style.top = `${br.bottom - rr.top + 6}px`;
+            w.style.maxHeight = `${Math.max(240, rr.bottom - br.bottom - 20)}px`;
+        }
+        const doc = R.doc;
+        const outside = (e: PointerEvent) => {
+            const t = e.target as HTMLElement | null;
+            if (!t || w.contains(t) || t.closest(".vl-themebtn, .vl-menu, .menu") || this.picker?.el.contains(t)) return;
+            this.lookOpen = false; this.drawLooks();
+            this.bar?.querySelector(".vl-themebtn")?.removeClass("is-on");
+        };
+        doc.addEventListener("pointerdown", outside, true);
+        this.lookOff = () => doc.removeEventListener("pointerdown", outside, true);
+        w.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.picker) { e.preventDefault(); e.stopPropagation(); this.openLooks(false); } });
+        if (focus || had) w.focus({ preventScroll: true });
+    }
+    // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
+    hexNow(v: string) { return hexOf(this.rgbaOf(v)); }
+    // the themes as chips (Obsidian: the colours of your Obsidian theme and Settings → Vellum, then each of the app's; ⋯ on
+    // the one shown renames, copies or deletes it; + a new one of any name), the one the app opens in, then the colours
+    // of the theme shown. The same parts as Settings → Screen colours with this app chosen
+    themeChips: Menu | null = null;
+    looksPanel(body: HTMLElement) {
+        const d = this.doc, themes = d.themes ?? {}, names = Object.keys(themes);
+        const part = this.themeName() ?? "";
+        const base = ["paper", "text", "dim", "line", "tile", "loud", "accent"];
+        // a new theme starts as the colours shown now, as hex
+        const seed = () => { const o: Record<string, string> = {}; for (const n of base) o[n] = this.hexNow(n); return o; };
+        const show = (n: string) => { this.setView({ look: n === (d.theme ?? "") ? undefined : n }); this.draw(); };
+        const taken = (n: string) => !n || n in themes || n === "auto" || n === "Obsidian";
+        const ts = this.section(body, "Theme");
+        const chips = ts.createDiv({ cls: "vl-chips" });
+        // a chip turned into a field for a name: Enter keeps it, Esc puts it back
+        const field = (at: HTMLElement, value: string, done: (v: string) => void) => {
+            const i = createEl("input", { cls: "vl-chipin", attr: { type: "text", spellcheck: "false", placeholder: "Theme name" } });
+            i.value = value; at.replaceWith(i); i.focus(); i.select();
+            let over = false;
+            const end = (keep: boolean) => {
+                if (over) return; over = true;
+                const v = i.value.trim();
+                if (!keep || !v || v === value) { this.drawLooks(true); return; }
+                if (taken(v)) { this.hint(`${v} is taken`, i, false); this.drawLooks(true); return; }
+                done(v);
+            };
+            i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
+            i.addEventListener("blur", () => end(true));
+        };
+        const chip = (label: string, key: string) => {
+            const b = chips.createEl("button", { cls: "vl-chip" + (part === key ? " is-on" : ""), text: label });
+            if (key === "") setTooltip(b, LOOK_WORDS.obsidian);
+            b.addEventListener("click", () => { if (part !== key) show(key); });
+            return b;
+        };
+        chip("Obsidian", "");
+        for (const n of names) {
+            const b = chip(n, n);
+            if (part !== n) continue;
+            // the theme shown: a click on it again opens its menu
+            const chev = b.createSpan({ cls: "vl-chipx" }); setIcon(chev, "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            b.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (this.themeChips) { this.themeChips.hide(); return; }   // open: a click on it again closes it
+                const m = (this.themeChips = new Menu()), doc = b.doc;
+                setIcon(chev, "chevron-up"); b.addClass("is-open");
+                m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
+                    this.edit(() => { d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v])); if (d.theme === n) d.theme = to; });
+                    if (this.v.look === n) this.setView({ look: to });
+                    this.draw();
+                })));
+                m.addItem((i) => i.setTitle("Copy").setIcon("copy").onClick(() => {
+                    let c = `${n} copy`, k = 2; while (c in themes) c = `${n} copy ${k++}`;
+                    this.edit(() => { d.themes = { ...themes, [c]: { ...themes[n] } }; });
+                    show(c);
+                }));
+                m.addItem((i) => i.setTitle("Delete").setIcon("trash-2").onClick(() => {
+                    this.edit(() => {
+                        const rest = { ...themes }; delete rest[n];
+                        if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
+                        if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
+                    });
+                    this.setView({ look: undefined }); this.draw();
+                }));
+                // the editor keeps its clicks to itself: a press anywhere but the menu closes it
+                const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu") && !b.contains(t)) m.hide(); };
+                doc.addEventListener("pointerdown", out, true);
+                m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeChips === m) this.themeChips = null; if (chev.isConnected) { setIcon(chev, "chevron-down"); b.removeClass("is-open"); } });
+                const r = b.getBoundingClientRect();
+                m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
+            });
+        }
+        const plus = chips.createEl("button", { cls: "vl-chip is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
+        plus.addEventListener("click", () => field(plus, "", (n) => { this.edit(() => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; }); show(n); }));
+        if (names.length) {
+            const opts: [string, string][] = [["", "Obsidian"], ...(hasAuto(d) ? [["auto", "Auto (light / dark)"] as [string, string]] : []), ...names.map((n) => [n, n] as [string, string])];
+            this.menu(this.frow(ts, "Default"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "", (v) => { if (v) d.theme = v; else delete d.theme; }, "Default theme: the one the app opens in (its theme in _doc.json)");
+        }
+
+        // the colours of the theme shown: a tile that opens the picker, ↺ back to the Obsidian colours. Obsidian's own are
+        // shown, not set here (Settings → Vellum → Screen colours)
+        const cs = this.section(body, "Colours");
+        const setNames = Object.keys({ ...BASE_THEME.colors, ...this.host.theme?.colors });
+        const all = [...new Set([...setNames, ...Object.keys(d.colors ?? {}), ...names.flatMap((n) => Object.keys(themes[n]))])];
+        const list = cs.createDiv({ cls: "vl-looklist" + (part ? "" : " is-fixed") });
+        for (const n of all) {
+            const own = part ? themes[part]?.[n] : undefined, row = list.createDiv({ cls: "vl-lookrow" });
+            const b = row.createEl("button", { cls: "vl-lookc", attr: { "aria-label": part ? `${n}: open the picker` : n } });
+            const sw = b.createSpan({ cls: "vl-cbar-sw" });
+            sw.style.setProperty("--c", colorOf(this.theme, n));
+            b.createSpan({ cls: "vl-lookn", text: n });
+            const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : " is-faint"), text: own ?? (part ? "Obsidian" : "") });
+            if (!part) { b.disabled = true; continue; }
+            const put = (v: string) => { const c = v in this.theme.colors ? this.hexNow(v) : v; (d.themes![part] ??= {})[n] = c; };   // a name picked: its value now
+            b.addEventListener("click", () => {
+                if (this.picker?.anchor === b) { this.closePicker(); return; }
+                this.openPicker(b, colorOf(this.theme, n), put, (v) => { if (!v) return; sw.style.setProperty("--c", v in this.theme.colors ? colorOf(this.theme, v) : v); val.setText(v); val.removeClass("is-faint"); }, false);
+            });
+            if (own) this.btn(row, setNames.includes(n) ? "rotate-ccw" : "x", setNames.includes(n) ? "Back to the Obsidian colour" : "Remove this colour", () => this.edit(() => { delete d.themes?.[part]?.[n]; })).addClass("vl-lookx");
+        }
+        if (!part) { cs.createDiv({ cls: "vl-lookhint is-under", text: "Set in Settings → Vellum → Screen colours. Add a theme (+) for colours of this app's own." }); return; }
+        // a colour name of the app's own (a brand colour…), in every theme
+        const add = cs.createDiv({ cls: "vl-lookadd" });
+        const ai = add.createEl("input", { cls: "vl-lookname", attr: { type: "text", spellcheck: "false", placeholder: "A new colour name" } });
+        const ab = add.createEl("button", { text: "Add colour" });
+        const doAdd = () => {
+            const n = ai.value.trim();
+            if (!n || n in this.theme.colors) { ai.focus(); if (n) this.hint(`${n} is a colour already`, ai, false); return; }
+            this.edit(() => { for (const t of names) themes[t][n] = "#888888"; });
+        };
+        ab.addEventListener("click", doAdd);
+        ai.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
     }
     drawApps(box: HTMLElement) {
         const dir = this.store?.dir, apps = this.apps();
@@ -1071,6 +1246,7 @@ class Editor {
     devOff: (() => void) | null = null;
     openDevice(on: boolean) {
         this.devOpen = on;
+        if (on && this.lookOpen) { this.lookOpen = false; this.drawLooks(); }
         this.drawDevice(on); this.drawRail();
     }
     drawDevice(focus = false) {
@@ -2110,6 +2286,7 @@ class Editor {
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (e.key === "Escape" && this.devOpen) { this.openDevice(false); return true; }
+        if (e.key === "Escape" && this.lookOpen) { this.openLooks(false); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
         if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
         if (mod && e.key === "." && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
@@ -2174,7 +2351,7 @@ class Editor {
         this.panel?.remove(); this.panel = null; this.getters.clear();
         this.drawBar();
         this.panelBody();
-        this.drawDevice();
+        this.drawDevice(); this.drawLooks();
         if (Platform.isMobile && this.v.fit && this.pending === null) this.drawPages();   // (not mid-drag) the sheet's height changed the stage: the phone fits what is left
     }
     panelBody() {
@@ -3542,6 +3719,11 @@ const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 const KIND_NAME: Record<string, string> = { row: "Row", col: "Column", group: "Group" };
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${KIND_NAME[it.type]} · ${itemCount(it.items?.length ?? 0)}`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
+// the words the app's colours use in both places (the editor's Colours window, Settings → Screen colours)
+export const LOOK_WORDS = {
+    obsidian: "Your Obsidian theme's colours (and Settings → Vellum)",
+    fresh: "New theme: any name, a copy of the colours shown",
+};
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
 let icons: string[] | null = null;
 const iconNames = () => (icons ??= [...new Set(getIconIds().map((n) => n.replace(/^lucide-/, "")))].sort());
@@ -3557,6 +3739,8 @@ async function folderEditor(dir: string): Promise<Editor | undefined> {
 // open the editor on a folder of screens (its own window on a computer, the full screen on a phone); the folder is made on
 // the first save
 export function refreshLook() { if (ref) for (const ed of editors.values()) ed.relook(ref.host()); }
+// Obsidian went light or dark: apps on "auto" switch theme
+export function refreshAuto() { for (const ed of editors.values()) ed.lookAgain(); }
 export async function openVellum(dir: string, page?: string): Promise<void> { (await folderEditor(dir))?.openWs(page); }
 
 // host: the look (colours, fonts, block kinds); a function is read each time a block is drawn (settings may change)

@@ -46,7 +46,10 @@ export type Insets = { top: number; bottom: number; left: number; right: number 
 // radius: the screen's corner for every screen (0: square), else the device's. bar: the status bar drawn over the top safe
 // area: iOS (the default), Android (clock left, signal and battery right, on its own fill / ink) or none
 export interface Bar { style?: "ios" | "android" | "none"; fill?: string; ink?: string; time?: string }
-export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; radius?: number; bar?: Bar; pages: Page[] }
+// colors: this app's own screen colours over Settings → Vellum (names left out follow the settings); themes: named palettes
+// over those (light, dark…), theme: the one the app opens in ("auto": light or dark as Obsidian is); none: the Obsidian colours
+export type Palette = Record<string, string>;
+export interface Doc { id: string; device: string; safe?: Partial<Insets>; safeLand?: Partial<Insets>; radius?: number; bar?: Bar; colors?: Palette; themes?: Record<string, Palette>; theme?: string; pages: Page[] }
 // the doc's frame fields as read from a file (only what can be drawn)
 export const frameOfDoc = (v: { radius?: unknown; bar?: unknown }, doc: Doc) => {
     if (typeof v.radius === "number" && v.radius >= 0) doc.radius = v.radius;
@@ -82,14 +85,44 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
         const doc: Doc = { id: typeof v.id === "string" ? v.id : uid(), device: typeof v.device === "string" ? v.device : empty.device, pages };
         const sf = insetsOf(v.safe), sl = insetsOf(v.safeLand);
         if (sf) doc.safe = sf; if (sl) doc.safeLand = sl;
-        frameOfDoc(v, doc);
+        frameOfDoc(v, doc); coloursOfDoc(v, doc);
         return { doc };
     } catch (e) {
         return { doc: empty, error: `The vellum JSON could not be read: ${(e as Error).message}` };
     }
 };
 // one page per line: a change to a page is one line in git
-export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, ` + (d.safe ? `"safe": ${JSON.stringify(d.safe)}, ` : "") + (d.safeLand ? `"safeLand": ${JSON.stringify(d.safeLand)}, ` : "") + (d.radius !== undefined ? `"radius": ${d.radius}, ` : "") + (d.bar ? `"bar": ${JSON.stringify(d.bar)}, ` : "") + `"pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
+export const serialiseDoc = (d: Doc) => `{"id": ${JSON.stringify(d.id)}, "device": ${JSON.stringify(d.device)}, ` + (d.safe ? `"safe": ${JSON.stringify(d.safe)}, ` : "") + (d.safeLand ? `"safeLand": ${JSON.stringify(d.safeLand)}, ` : "") + (d.radius !== undefined ? `"radius": ${d.radius}, ` : "") + (d.bar ? `"bar": ${JSON.stringify(d.bar)}, ` : "") + (d.colors ? `"colors": ${JSON.stringify(d.colors)}, ` : "") + (d.themes ? `"themes": ${JSON.stringify(d.themes)}, ` : "") + (d.theme ? `"theme": ${JSON.stringify(d.theme)}, ` : "") + `"pages": [\n` + d.pages.map((p) => "  " + JSON.stringify(p)).join(",\n") + "\n]}";
+
+// the doc's own colours as read from a file: names to strings only; a palette with none is left out
+const paletteOf = (v: unknown): Palette | undefined => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+    const out: Palette = {};
+    for (const [k, c] of Object.entries(v as Record<string, unknown>)) if (k && typeof c === "string" && c.trim()) out[k] = c.trim();
+    return Object.keys(out).length ? out : undefined;
+};
+export const coloursOfDoc = (v: { colors?: unknown; themes?: unknown; theme?: unknown }, doc: Doc) => {
+    const c = paletteOf(v.colors); if (c) doc.colors = c;
+    if (v.themes && typeof v.themes === "object" && !Array.isArray(v.themes)) {
+        const t: Record<string, Palette> = {};
+        for (const [k, p] of Object.entries(v.themes as Record<string, unknown>)) if (k && p && typeof p === "object" && !Array.isArray(p)) t[k] = paletteOf(p) ?? {};   // an empty theme stays (every name from the settings)
+        if (Object.keys(t).length) doc.themes = t;
+    }
+    if (typeof v.theme === "string" && v.theme) doc.theme = v.theme;
+};
+// the theme on show: the one asked for (the editor's switch; "" the Obsidian colours), else the doc's; "auto" is dark or
+// light as Obsidian is, when the doc has both. None (the Obsidian colours: Settings → Vellum, then the doc's colors) when
+// none is set or the name is not one of its themes
+export const themeOn = (doc: Doc, dark: boolean, pick?: string): string | undefined => {
+    const t = doc.themes; if (!t) return undefined;
+    let n = pick ?? doc.theme;
+    if (!n) return undefined;
+    if (n === "auto") n = dark ? "dark" : "light";
+    return n in t ? n : undefined;
+};
+export const hasAuto = (doc: Doc) => !!doc.themes?.light && !!doc.themes?.dark;
+// the doc's colours on show: its own, then the theme's over them
+export const docColours = (doc: Doc, theme?: string): Palette => ({ ...doc.colors, ...(theme ? doc.themes?.[theme] : undefined) });
 
 // safe area overrides as read: only numbers 0–400 on the four sides, none = undefined
 export const insetsOf = (v: unknown): Partial<Insets> | undefined => {

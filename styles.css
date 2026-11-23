@@ -372,10 +372,18 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-intro { margin: 0 2px 16px; font-size: var(--font-ui-small); line-height: 1.5; color: var(--text-muted); }
 .vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
-.vls-tabs { display: flex; gap: 2px; margin: 0 0 16px; padding: 3px; border-radius: 10px; background: var(--background-secondary); overflow-x: auto; }
-.vl-settings button.vls-tab { flex: 1; min-width: max-content; height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
-.vl-settings button.vls-tab:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.vl-settings button.vls-tab.is-on { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+/* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
+.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin: 0 0 16px; padding: 4px 0 0; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); overflow-x: auto; scrollbar-width: none; box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+.vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
+/* a second row of tabs inside one (General: Screens, Editing, Updates) */
+.vls-subtabs { display: inline-flex; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
+.vl-settings button.vls-subtab { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-subtab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.vl-settings button.vls-subtab.is-on { color: var(--text-normal); font-weight: 600; background: var(--background-primary); box-shadow: 0 0 0 1px var(--background-modifier-border); }
+.vls-body.is-bare { border-top: 0; }
+.vl-settings button.vls-tab { flex: none; height: 36px; margin-bottom: -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-bottom-color: var(--interactive-accent); background: transparent; }
 .vl-settings button.vls-tab:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .vls-title { font-size: var(--font-ui-medium); font-weight: 600; color: var(--text-normal); }
 .vls-sum { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; }
@@ -448,6 +456,24 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-devwinh.is-grab:active { cursor: grabbing; }
 .vl-devwinsub { flex: 1; font-weight: normal; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vl-devwinb { overflow-y: auto; padding: 4px 14px 14px; min-height: 0; }
+/* the app's Colours window: themes as chips, then each colour name with its value */
+.vl-lookwin { width: 320px; }
+.vl-lookhint { font-size: var(--font-ui-smaller); line-height: 1.45; color: var(--text-muted); margin-bottom: 8px; }
+.vl-lookhint.is-under { margin: 4px 0 0; color: var(--text-faint); }
+.vl-lookwin .vl-frow + .vl-frow { margin-top: 6px; }
+.vl-lookadd { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.vl-lookwin .vl-chips + .vl-frow { margin-top: 8px; }
+.vl-lookwin .vl-frowc { flex-wrap: nowrap; }
+.vl-lookwin .vl-frowc > select, .vl-lookwin .vl-frowc > input { flex: 1; min-width: 0; }
+.vl input.vl-lookname { flex: 1; min-width: 0; height: 30px; font-size: var(--font-ui-small); }
+.vl-looklist { display: flex; flex-direction: column; gap: 2px; }
+.vl-lookrow { display: flex; align-items: center; gap: 4px; }
+.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px 0 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
+.vl .vl-lookc:hover { background: var(--background-modifier-hover); }
+.vl-lookn { flex: 1; min-width: 0; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-lookv { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.vl-lookv.is-faint { font-family: var(--font-interface); color: var(--text-faint); }
+.vl .vl-lookx { flex: none; }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
 /* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
 .vl .vl-newp { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; margin: 10px 0 14px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--interactive-accent); border-radius: 6px; box-shadow: none; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-small); line-height: 1; cursor: pointer; }
@@ -699,6 +725,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-prevcap { margin-top: 8px; text-align: center; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vls-colbar { display: flex; align-items: center; gap: 8px; padding: 10px var(--vls-pad) 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vls-colbar > span { flex: 1; min-width: 0; }
+.vls-colbar > .vls-sgrp { flex: none; margin-right: 8px; }
 .vls-groups { columns: 2 240px; column-gap: 20px; padding: 0 calc(var(--vls-pad) - 8px) 8px; }
 .vls-group { break-inside: avoid; padding-bottom: 6px; }
 .vls-grp { padding: 10px 8px 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
@@ -971,3 +998,65 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-foback svg { width: 11px; height: 11px; }
 .vl .vl-num.is-changed .vl-foback { display: grid; place-items: center; }
 .vl .vl-custom .vl-kindsel { height: 28px; font-size: var(--font-ui-smaller); }
+
+/* Screen colours and Editor theme: one view each that fits the settings window (no pages, no scrolling at a usual size) */
+.vls-studio { margin-bottom: 8px; }
+.vls-sbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 10px var(--vls-pad); border-bottom: 1px solid var(--background-modifier-border); }
+.vls-sgrp { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vls-sgrp.is-end { margin-left: auto; }
+.vls-slabel { font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
+.vls-snote { flex: 1; min-width: 200px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.vl-settings .vls-sbar select.dropdown { height: 28px; font-size: var(--font-ui-small); }
+.vls-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.vl-settings .vls-pill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.vl-settings .vls-pill.is-add { width: 28px; padding: 0; justify-content: center; --icon-size: 14px; }
+.vl-settings .vls-pill.is-cta { border-color: var(--interactive-accent); color: var(--text-normal); }
+.vls-pillx { display: inline-flex; margin-right: -4px; color: var(--text-muted); --icon-size: 12px; }
+.vls-pill.is-open .vls-pillx, .vl-chip.is-open .vl-chipx { color: var(--text-normal); }
+.vl-settings input.vls-chipin { width: 120px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: var(--font-ui-smaller); }
+/* the phone beside a single column of colours */
+.vls-studio .vls-beside { grid-template-columns: 190px minmax(0, 1fr); }
+.vls-studio .vls-prev { padding: 12px 0 8px var(--vls-pad); }
+.vls-studio .vlsd-solo { padding: 10px 6px; }
+.vls-studio .vls-prevcap { margin-top: 6px; }
+.vls-studio .vls-colbar { padding: 10px var(--vls-pad) 4px; }
+.vls-studio .vls-groups { columns: auto; padding: 0 8px 2px; }
+.vls-studio:not(.is-editor) .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); column-gap: 12px; }
+.vls-studio:not(.is-editor) .vls-cf { width: 132px; }
+.vls-studio .vls-group { padding-bottom: 0; }
+.vls-studio .vls-colour { min-height: 38px; padding: 3px 8px; gap: 10px; }
+.vls-studio .vls-cname { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.vls-studio .vls-cwarn { flex-basis: 100%; }
+.vls-studio .vls-cf { width: 148px; height: 30px; }
+.vls-studio .vls-add { padding: 6px var(--vls-pad) 10px; border-top: 0; }
+/* the editor's colours: the preview on top, then the colours in as many columns as fit */
+.vls-studio.is-editor .vls-prev { padding: 12px var(--vls-pad) 4px; }
+.vls-studio.is-editor .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); column-gap: 8px; }
+.vls-studio.is-editor .vls-cf { width: 128px; }
+@media (max-width: 640px) {
+    .vls-studio .vls-beside { grid-template-columns: minmax(0, 1fr); }
+    .vls-studio .vls-prev { padding-right: var(--vls-pad); }
+    .vls-sgrp.is-end { margin-left: 0; }
+}
+/* the theme chips in the editor's Colours window; Obsidian's colours shown, not set there */
+.vl-devwinh { font-size: var(--font-ui-medium); line-height: 1.3; }
+.vl-chip .vl-chipx { display: inline-flex; margin-right: -3px; color: var(--text-muted); --icon-size: 12px; }
+.vl .vl-chip.is-add { width: 26px; padding: 0; justify-content: center; --icon-size: 14px; }
+.vl input.vl-chipin { width: 110px; height: 26px; padding: 0 8px; border-radius: 13px; font-size: var(--font-ui-smaller); }
+.vl .vl-looklist.is-fixed .vl-lookc { cursor: default; opacity: 1; }
+.vl .vl-looklist.is-fixed .vl-lookc:hover { background: transparent; }
+.vls-colour.is-fixed:hover { background: transparent; }
+.vls-colour.is-fixed .vls-cf { border-style: dashed; background: transparent; }
+.vls-colour.is-fixed .vls-cv { flex: 1; min-width: 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vls-colour.is-fixed .vls-chip { display: block; width: 26px; height: 26px; border-radius: 6px; overflow: hidden; flex: none; background: repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 8px 8px; }
+.vls-studio > .vls-list { padding-bottom: 4px; }
+
+/* icons: on the tabs, the sub-tabs and pills, and a tile at the start of each row */
+.vls-tabi { display: inline-flex; --icon-size: 15px; }
+.vl-settings button.vls-tab, .vl-settings button.vls-subtab, .vl-settings button.vls-follow { display: inline-flex; align-items: center; gap: 7px; }
+.vl-settings button.vls-subtab .vls-tabi, .vls-pill .vls-tabi { --icon-size: 13px; }
+.vls-tab:not(.is-on) .vls-tabi, .vls-subtab:not(.is-on) .vls-tabi { opacity: 0.75; }
+.vls-tab.is-on .vls-tabi { color: var(--interactive-accent); }
+.vls-ricon { flex: none; width: 32px; height: 32px; margin-right: -8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--background-secondary); color: var(--text-muted); --icon-size: 16px; }
+.vls-label[aria-label] { cursor: help; }
+@media (max-width: 640px) { .vl-settings button.vls-tab > span:last-child { display: none; } .vl-settings button.vls-tab { padding: 0 12px; } }

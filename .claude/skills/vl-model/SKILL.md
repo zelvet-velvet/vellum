@@ -7,7 +7,7 @@ description: Vellum's screen format. Use when reading or writing Vellum screen J
 `src/model.ts` is the source of truth for fields; the README's File format section is the public description. Keep both in step with any change.
 
 ## Shape
-- Doc: `{id, device, safe?, safeLand?, radius?, bar?, pages}`. As a folder: one JSON per screen, plus `_doc.json` (`id`, `device`, `safe`, `safeLand`, `radius`, `bar`, `order`). `radius` overrides the device's corner (0: square); `bar` is `{style: ios|android|none, fill, ink, time}`.
+- Doc: `{id, device, safe?, safeLand?, radius?, bar?, colors?, themes?, theme?, pages}`. As a folder: one JSON per screen, plus `_doc.json` (`id`, `device`, `safe`, `safeLand`, `radius`, `bar`, `colors`, `themes`, `theme`, `order`). `colors` is the app's own palette over Settings → Vellum; `themes` are named palettes over that, `theme` the one it opens in (`auto`: light / dark as Obsidian is; none: the Obsidian colours, not the first theme). The editor's theme switch is a view choice: it never writes `theme`. `radius` overrides the device's corner (0: square); `bar` is `{style: ios|android|none, fill, ink, time}`.
 - Page: `{id, name, parent?, link?, inherit?, mock?, bg?, note?, blocks, land?, marks?}`. `land` is the landscape layout. `marks`: notes on the screen for the people and the agent (`note`, `area`, `line`), never drawn in the design.
 - Block: `{id, name, kind, x, y, w, h, bleed?, lock?, fill?, stroke?, sw?, r?, sides?, note?, items}`. `lock` (blocks and items): drawn, but clicks on the screen go through it; it is chosen from the panel lists.
 - Item types: `text`, `rect`, `ellipse`, `line`, `img`, `icon`, `row`, `col`, `group` (its `items` each placed in its `w h` box by their own gravity; moved as one).
