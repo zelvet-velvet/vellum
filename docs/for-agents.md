@@ -84,6 +84,14 @@ Items sit in their block by an anchor `g` (`tl t tr l c r bl b br`) and an inwar
 `"hug"` or `"fill"`. Colours are theme names (`paper text dim line tile loud accent`) so the screen follows the user's
 theme; fonts are `ui display mono`.
 
+**The anchor is what the item stays attached to** when the block or the item changes size (the editor's Place panel
+shows it as the point the item holds on to). Choose it by intent, not by where the item happens to be: a value, a
+chevron or a switch at the right edge takes `r` (or `tr` / `br`), a centred title `t` or `c`, a button at the bottom
+`b`. Then a longer text or a wider card keeps it in place. When you build from a screen, the anchor is the alignment
+(SwiftUI `alignment`, Compose `Alignment`, CSS `justify-self` / `align-self`), and `dx dy` are the padding inward from
+that edge or corner, not coordinates. An item the user moved to the far side while its anchor stayed `tl` is still
+meant to sit where it is drawn: ask, or set the anchor that matches before you build.
+
 ## 5. One item per part: draw it the way the user will edit it
 The user changes your screens by hand: they choose an item, drag it, restyle it, or press **Copy reference** on it and
 ask you to change that one thing. They can only do that to a part that is **its own item**. So:
