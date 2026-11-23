@@ -2397,6 +2397,11 @@ class Editor {
         const acts = head.createDiv({ cls: "vl-hacts" });
         const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference(refB));
         const agB: HTMLElement = this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent(agB));
+        const one = !many.length && !mi.length && !this.sel?.mark ? (f?.item ?? b) : undefined;
+        if (one) {   // one block or item: its lock (a click on the screen then goes through it)
+            const x = one;
+            this.btn(acts, x.lock ? "lock" : "lock-open", x.lock ? "Locked: a click on the screen goes through it. Click to unlock" : "Lock it: a click on the screen goes through it", () => this.edit(() => { if (x.lock) delete x.lock; else x.lock = true; })).toggleClass("is-on", !!x.lock);
+        }
         if (f || b || many.length || mi.length || this.sel?.mark) {   // what is chosen (several too), never the screen by mistake
             this.btn(acts, "copy", "Duplicate (Ctrl+D)", () => this.duplicate());
             this.btn(acts, "trash-2", "Delete (Delete)", () => this.remove());
@@ -2703,7 +2708,7 @@ class Editor {
     }
     // a colour: a bar showing it (its swatch, its name or value; a tap opens the picker) and a palette row under it (the
     // theme's colours, then the recent ones): one tap picks
-    colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false) {
+    colors(parent: HTMLElement, on: string | undefined, pick: (v: string) => void, none = false, bar1 = false) {
         const names = Object.keys(this.theme.colors);
         const bar = parent.createEl("button", { cls: "vl-cbar", attr: { "aria-label": "Colour: open the picker" } });
         const sw = bar.createSpan({ cls: "vl-cbar-sw" }), tx = bar.createSpan({ cls: "vl-cbar-tx" });
@@ -2718,6 +2723,7 @@ class Editor {
         };
         show(on);
         bar.addEventListener("click", () => { if (this.picker?.anchor === bar) this.closePicker(); else this.openPicker(bar, on, pick, show, none); });
+        if (bar1) return;   // one row: the named tiles and recent colours are in the picker it opens
         // the palette: the theme's colours as named tiles, then the last few custom ones as tiles named by their hex
         const opts: string[] = [...(none ? ["none"] : []), ...names];
         const g = parent.createDiv({ cls: "vl-tiles2" });
@@ -3054,12 +3060,17 @@ class Editor {
         this.blocks(p, true).push(nb); this.sel = { page: p.id, block: nb.id };
     }); }
     blockPanel(body: HTMLElement, p: Page, b: Block) {
-        const s = this.section(body, "Block");
-        this.text(this.frow(s, "Name"), () => b.name, (v) => { b.name = v; }, { title: "Block name" });
-        this.lockRow(s, b);
-        const kc = this.frow(s, "Kind"), kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
-        const ki = kc.createSpan({ cls: "vl-kindi" }); ki.style.setProperty("--k", kind.color); setIcon(ki, kind.icon ?? "square");
-        this.menu(kc, this.kinds.map((k) => [k.id, k.name] as [string, string]), b.kind, (v) => { b.kind = v; }, "Kind");
+        this.titleHead(body, b.name, (v) => { b.name = v; }, (h) => {
+            const kind = this.kinds.find((k) => k.id === b.kind) ?? this.kinds[0];
+            const c = h.createEl("button", { cls: "vl-kchip", attr: { "aria-label": "Kind: what this part of the screen is" } });
+            const ki = c.createSpan({ cls: "vl-kindi" }); ki.style.setProperty("--k", kind.color); setIcon(ki, kind.icon ?? "square");
+            c.createSpan({ text: kind.name });
+            c.addEventListener("click", (e) => {
+                const m = new Menu();
+                for (const k of this.kinds) m.addItem((mi) => mi.setTitle(k.name).setIcon(k.icon ?? "square").setChecked(k.id === b.kind).onClick(() => this.edit(() => { b.kind = k.id; })));
+                m.showAtMouseEvent(e);
+            });
+        });
         // an override: the frame's block it takes the place of, and the way back to it
         const l = this.layers(p).find((x) => x.block === b);
         if (l?.over) {
@@ -3070,11 +3081,11 @@ class Editor {
         const pl = this.section(body, "Place");
         this.placeTool(pl, p, b);
         this.seg(this.frow(pl, "Bars"), [["in", "Inside the safe area"], ["bleed", "Under them"]], b.bleed ? "bleed" : "in", (v) => { if (v === "bleed") b.bleed = true; else { delete b.bleed; const R = this.room(p, b); if (!inRoom(b, R)) clampTo(b, R, false); } });
-        this.lookControls(this.section(body, "Look", true, { shut: !lookOn(b), hint: lookHint(b) }), b, { sides: true });
         const it = this.section(body, "Items", true, { hint: String(b.items.length) });
         this.itemList(it, b, b.items);
         this.addButtons(it, b, b.items, ["text", "rect", "img", "icon", "line", "row", "col", "ellipse"]);
         if (b.items.some((x) => x.type === "row" || x.type === "col" || x.type === "group")) this.actions(it, [["ungroup", "Ungroup all rows and columns", () => this.ungroupAll(p, [b])]]);
+        this.lookControls(this.section(body, "Look", true, { shut: !lookOn(b), hint: lookHint(b) }), b, { sides: true });
         const n = this.section(body, "Note", true, { shut: true, hint: b.note ? b.note.split("\n")[0].slice(0, 26) : "empty" });
         this.text(n, () => b.note ?? "", (v) => { if (v.trim()) b.note = v; else delete b.note; }, { area: true, placeholder: "What goes here, what is wrong (for the agent)" });
     }
@@ -3302,9 +3313,6 @@ class Editor {
         const lb = this.btn(r, on ? "lock" : "lock-open", on ? "Locked: a click on the screen goes through it. Unlock" : "Lock: a click on the screen goes through it", () => this.edit(() => { if (x.lock) delete x.lock; else x.lock = true; }));
         lb.addClass("vl-rowlock"); lb.toggleClass("is-on", on);
     }
-    lockRow(parent: HTMLElement, x: Block | Item) {
-        this.seg(this.frow(parent, "On screen"), [["free", "Can be chosen"], ["lock", "Locked"]], x.lock ? "lock" : "free", (v) => { if (v === "lock") x.lock = true; else delete x.lock; });
-    }
     // the screen's blocks, top first: its own (a drag on the grip changes the order, Shift+click chooses several), then
     // its frame's under a label. A click chooses one (a locked one too); the pointer on a row lights it on the phone
     blockList(body: HTMLElement, p: Page) {
@@ -3383,11 +3391,28 @@ class Editor {
         }
     }
     itemPanel(body: HTMLElement, b: Block, it: Item, top: boolean) {
-        // one page: its look, where it sits, its note (each section folds)
-        this.stylePanel(body, b, it);
+        // the same order as a block: where it sits, then what it holds or looks like, then its note (the lock is in the header)
+        this.titleHead(body, label(it), null, (h) => { h.createSpan({ cls: "vl-kchip is-static", text: TYPE_NAME[it.type] }); });
         this.placePanel(body, b, it, top);
-        this.lockRow(this.section(body, "Screen", true, { shut: !it.lock, hint: it.lock ? "locked" : "" }), it);
-        this.text(this.section(body, "Note", true), () => it.note ?? "", (v) => { if (v.trim()) it.note = v; else delete it.note; }, { area: true, placeholder: "Why it is here, what to change (for the agent)" });
+        this.stylePanel(body, b, it);
+        this.text(this.section(body, "Note", true, { shut: true, hint: it.note ? it.note.split("\n")[0].slice(0, 26) : "empty" }), () => it.note ?? "", (v) => { if (v.trim()) it.note = v; else delete it.note; }, { area: true, placeholder: "Why it is here, what to change (for the agent)" });
+    }
+    // a panel's title: the name (a click renames it, when it has one of its own), a chip beside it (its kind)
+    titleHead(body: HTMLElement, name: string, rename: ((v: string) => void) | null, chip: (h: HTMLElement) => void) {
+        const h = body.createDiv({ cls: "vl-phead" });
+        const t = h.createEl(rename ? "button" : "span", { cls: "vl-ptitle", text: name || "(no name)" });
+        if (rename) {
+            t.setAttr("aria-label", "Rename");
+            t.addEventListener("click", () => {
+                const i = createEl("input", { cls: "vl-ptitlein", attr: { type: "text", spellcheck: "false", "aria-label": "Name" } });
+                i.value = name; t.replaceWith(i); i.focus(); i.select();
+                let done = false;
+                const fin = (keep: boolean) => { if (done) return; done = true; const v = i.value.trim(); if (keep && v && v !== name) this.edit(() => rename(v)); else this.drawPanel(); };
+                i.addEventListener("keydown", (k) => { k.stopPropagation(); if (k.key === "Enter") { k.preventDefault(); fin(true); } if (k.key === "Escape") { k.preventDefault(); fin(false); } });
+                i.addEventListener("blur", () => fin(true));
+            });
+        }
+        chip(h);
     }
     stylePanel(body: HTMLElement, b: Block, it: Item) {
         if (it.type === "text") {
@@ -3396,12 +3421,18 @@ class Editor {
             const fc = this.frow(s, "Font");
             this.menu(fc, Object.keys(this.theme.fonts).map((k) => [k, k] as [string, string]), it.font ?? "ui", (v) => { it.font = v === "ui" ? undefined : v; }, "Font");
             this.menu(fc, [["100", "Thin"], ["300", "Light"], ["400", "Regular"], ["500", "Medium"], ["600", "Semibold"], ["700", "Bold"], ["900", "Black"]], String(it.wt ?? 400), (v) => { it.wt = v === "400" ? undefined : Number(v); }, "Weight");
-            const r = s.createDiv({ cls: "vl-nums is-three" });
+            const r = s.createDiv({ cls: "vl-nums is-row4" });
             this.num(r, "Size", () => it.size ?? 15, (v) => { it.size = v; }, { min: 4, max: 400 });
             this.num(r, "Spacing", () => it.ls ?? 0, (v) => { it.ls = v || undefined; }, { step: 0.01 });
             this.num(r, "Line", () => it.lh ?? 1.2, (v) => { it.lh = v; }, { step: 0.05, min: 0.5 });
-            this.seg(this.frow(s, "Case"), [["no", "As typed"], ["up", "CAPITALS"]], it.upper ? "up" : "no", (v) => { it.upper = v === "up" || undefined; });
-            this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; });
+            // the case as a tile beside them: a click switches As typed / CAPITALS
+            const cs = r.createDiv({ cls: "vl-num is-tog" + (it.upper ? " is-on" : ""), attr: { tabindex: "0", role: "button", "aria-label": it.upper ? "Case: CAPITALS (click: as typed)" : "Case: as typed (click: CAPITALS)" } });
+            cs.createSpan({ cls: "vl-numl", text: "Case" });
+            cs.createDiv({ cls: "vl-numv" }).createSpan({ cls: "vl-numt", text: it.upper ? "AA" : "Aa" });
+            const flip = () => this.edit(() => { it.upper = !it.upper || undefined; });
+            cs.addEventListener("click", flip);
+            cs.addEventListener("keydown", (k) => { if (k.key === "Enter" || k.key === " ") { k.preventDefault(); flip(); } });
+            this.colors(this.section(body, "Colour"), it.color ?? "text", (v) => { it.color = v === "text" ? undefined : v; }, false, true);
             this.lookControls(this.section(body, "Box", true, { shut: !lookOn(it), hint: lookHint(it) }), it, { pad: true });
         } else if (it.type === "line") {
             const s = this.section(body, "Line");
@@ -3727,6 +3758,7 @@ const ZOOMMAX = 16, MAPMAX = 10;   // 1600 % for a screen, 1000 % for the map
 // "1 item", "2 items"; a row, a column and a group named in words, so the three read apart in the Items list
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 const KIND_NAME: Record<string, string> = { row: "Row", col: "Column", group: "Group" };
+const TYPE_NAME: Record<ItemType, string> = { text: "Text", rect: "Rectangle", ellipse: "Circle", line: "Line", row: "Row", col: "Column", group: "Group", img: "Picture", icon: "Icon" };
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${KIND_NAME[it.type]} · ${itemCount(it.items?.length ?? 0)}`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // the words the app's colours use in both places (the editor's Colours window, Settings → Screen colours)
