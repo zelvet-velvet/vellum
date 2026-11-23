@@ -138,7 +138,7 @@ Write each page of my app as a Vellum screen in Design/Screens, then tell me the
 When I ask for options, make them as Vellum mocks, not as a web page.
 ```
 
-The guide also ships with Vellum, for an agent without network: the command **Vellum: Add the agent guide to an app's folder** writes it into the app's folder as `VELLUM.md`, and **Add the agent guide as a Claude Code skill** writes it to `.claude/skills/vellum/`. Each matches the Vellum you have, and is written again when Vellum updates. The agent then reads `VELLUM.md` instead of the link.
+The guide also ships with Vellum, so the agent needs no link: a new app gets it as `AGENTS.md` in its folder, which agents that follow [AGENTS.md](https://agents.md) (Codex, Cursor, Copilot…) read when they work there. For an app made before, run **Vellum: Add the agent guide to an app's folder**; for Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`). Each matches the Vellum you have and is written again when Vellum updates; an `AGENTS.md` you wrote yourself is left alone.
 
 > [!TIP]
 > Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.

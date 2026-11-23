@@ -27,6 +27,8 @@ Design/
 
 - Each app has its **own frame**: set up each `_doc.json` on its own (section 2). A phone app and a desktop window never
   share one folder.
+- Vellum puts this guide in each app's folder as `AGENTS.md` when the app is made in Vellum. When you make an app folder
+  yourself, copy the `AGENTS.md` of another app into it as it is (Vellum keeps the copies up to date).
 - Vellum reads only the files right in the folder: subfolders are not screens. Don't nest one app inside another; keep
   anything else (notes, exports, images) out of an app's folder or in a subfolder of it. Any other `.json` file in the
   folder is read as a screen and reported as broken.

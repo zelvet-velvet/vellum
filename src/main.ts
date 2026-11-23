@@ -4,7 +4,7 @@ import { getLocal, setLocal, useApp } from "./local";
 import { NewsModal, newsSince } from "./news";
 import { BASE_THEME, Theme, UI_COLORS } from "./render";
 import { ungroupBlock } from "./flatten";
-import { FolderStore, pageText } from "./store";
+import { FolderStore, pageText, storeHooks } from "./store";
 import { refreshGuides, writeGuide, writeSkill } from "./guide";
 
 // the mark (ribbon, the editor's tab): a sheet behind a phone with two blocks on its screen; 100 × 100, line icons
@@ -36,10 +36,12 @@ export default class VellumPlugin extends Plugin {
         this.addCommand({ id: "open", name: "Open the screens", callback: () => this.openScreens() });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addCommand({ id: "ungroup-folder", name: "Ungroup every row and column in a folder of screens", callback: () => new FolderPick(this.app, (f) => { void this.ungroupFolder(f.path); }).open() });
-        // the guide for agents, written into the vault (no network): in an app's folder, or as a Claude Code skill
+        // the guide for agents, written into the vault (no network): in an app's folder (by itself in a new app), or as a
+        // Claude Code skill
+        storeHooks.newApp = (dir) => writeGuide(this.app, dir, this.manifest.version);
         this.addCommand({ id: "agent-guide", name: "Add the agent guide to an app's folder", callback: () => {
             const apps = this.appFolders();
-            new FolderPick(this.app, (f) => { void this.addGuide(f.path); }, apps.length ? apps : undefined, "The app to add the guide to (VELLUM.md in its folder)").open();
+            new FolderPick(this.app, (f) => { void this.addGuide(f.path); }, apps.length ? apps : undefined, "The app to add the guide to (AGENTS.md in its folder)").open();
         } });
         this.addCommand({ id: "agent-skill", name: "Add the agent guide as a Claude Code skill", callback: () => { void writeSkill(this.app, this.manifest.version).then((p) => new Notice(`Vellum: the agent guide is in ${p}`), (e) => new Notice(`Vellum: could not write the skill (${String(e)})`)); } });
         this.addSettingTab(new VellumSettings(this.app, this));
@@ -69,7 +71,10 @@ export default class VellumPlugin extends Plugin {
     // the folders with a _doc.json in them: one per app
     appFolders(): TFolder[] { return this.app.vault.getFiles().filter((f) => f.name === "_doc.json").map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/"); }
     async addGuide(dir: string) {
-        try { const p = await writeGuide(this.app, dir, this.manifest.version); new Notice(`Vellum: the agent guide is in ${p}. Tell your agent to read it.`); }
+        try {
+            const p = await writeGuide(this.app, dir, this.manifest.version);
+            new Notice(p ? `Vellum: the agent guide is in ${p}. Agents read it when they work in that folder.` : `Vellum: ${dir} has its own AGENTS.md, left as it is`);
+        }
         catch (e) { new Notice(`Vellum: could not write the guide (${String(e)})`); }
     }
     // every row and column on every screen of a folder taken apart, where they are drawn (an agent can call this:

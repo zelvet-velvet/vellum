@@ -9,6 +9,8 @@ export const srcOf = (source: string): string | null => {
     return m && !source.trim().startsWith("{") ? normalizePath(m[1].replace(/^["']|["']$/g, "")) : null;
 };
 const DOC = "_doc.json";
+// newApp: called once a folder becomes an app (its _doc.json first written): the plugin adds the agent guide
+export const storeHooks: { newApp?: (dir: string) => Promise<unknown> } = {};
 
 // a screen's file: its own fields on the first line, then one block per line
 export const pageText = (p: Page) => {
@@ -73,7 +75,8 @@ export class FolderStore {
         this.files = target;
         const meta = JSON.stringify({ id: doc.id, device: doc.device, safe: doc.safe, safeLand: doc.safeLand, radius: doc.radius, bar: doc.bar, order: doc.pages.map((p) => p.id) }, null, 2) + "\n";
         const m = v.getAbstractFileByPath(`${this.dir}/${DOC}`);
-        if (m instanceof TFile) { if ((await v.read(m)) !== meta) await v.modify(m, meta); } else await v.create(`${this.dir}/${DOC}`, meta);
+        if (m instanceof TFile) { if ((await v.read(m)) !== meta) await v.modify(m, meta); }
+        else { await v.create(`${this.dir}/${DOC}`, meta); await storeHooks.newApp?.(this.dir).catch(() => { /* no guide: the app is saved all the same */ }); }
         this.ownUntil = Date.now() + 1500;
     }
 }

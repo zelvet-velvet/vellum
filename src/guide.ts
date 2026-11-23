@@ -1,12 +1,14 @@
 import { App, normalizePath, TFile } from "obsidian";
 
 // The guide for agents (docs/for-agents.md and the README's field reference, put in at build time: esbuild.config.mjs),
-// written into the vault so an agent reads the version that matches this plugin, with no network: as VELLUM.md in an
-// app's folder (any agent), or as a Claude Code skill. Its first line says which Vellum wrote it; an update writes it again
+// written into the vault so an agent reads the version that matches this plugin, with no network: as AGENTS.md in an
+// app's folder (the shared convention: agents read the AGENTS.md nearest the files they edit), or as a Claude Code skill
+// (Claude Code reads no nested AGENTS.md). Its first line says which Vellum wrote it; an update writes it again. An
+// AGENTS.md the user wrote is never touched
 declare const VELLUM_GUIDE: string;
 const GUIDE = VELLUM_GUIDE;   // once: the build puts the text in wherever the name is used
 
-export const GUIDE_FILE = "VELLUM.md";
+export const GUIDE_FILE = "AGENTS.md";
 export const SKILL_PATH = ".claude/skills/vellum/SKILL.md";
 const stamp = (version: string) => `<!-- Written by Vellum ${version}. Vellum writes it again on each update and from the command "Add the agent guide"; edits here are lost. -->\n\n`;
 const skill = (version: string) => `---
@@ -18,10 +20,11 @@ ${stamp(version)}${GUIDE}`;
 // the Vellum version a guide file was written by (none: not written by Vellum, left alone)
 const writtenBy = (text: string) => /<!-- Written by Vellum (\d+\.\d+\.\d+)/.exec(text)?.[1] ?? null;
 
-// VELLUM.md in an app's folder: written, or written again
-export async function writeGuide(app: App, dir: string, version: string): Promise<string> {
+// AGENTS.md in an app's folder: written, or written again; null when the folder has one Vellum did not write
+export async function writeGuide(app: App, dir: string, version: string): Promise<string | null> {
     const path = normalizePath(`${dir}/${GUIDE_FILE}`), text = stamp(version) + GUIDE, f = app.vault.getAbstractFileByPath(path);
-    if (f instanceof TFile) await app.vault.modify(f, text); else await app.vault.create(path, text);
+    if (f instanceof TFile) { if (!writtenBy(await app.vault.read(f))) return null; await app.vault.modify(f, text); }
+    else await app.vault.create(path, text);
     return path;
 }
 // the skill at the vault's root (a hidden folder: through the adapter, which the vault's file list does not cover)
