@@ -5,38 +5,42 @@ vault; they edit them on a phone frame in Obsidian, you read and write the same 
 the [Field reference](../README.md#-file-format).
 
 ## 1. Set up the folder
-- One folder per app, e.g. `Design/Screens/`: one JSON file per screen, and `_doc.json` with the device and screen order.
-- **Tell the user where it is.** Vellum's ribbon button opens the folder in **Settings → Vellum → Screens folder**; if that
-  folder has no screens, Vellum offers the folders that do. The command **Vellum: Open screens from another folder** picks one.
-- To show the screens in a note, add a code block `vellum` with the line `src: Design/Screens`.
-
-### Several apps in one vault
-An app is a folder with a `_doc.json`; its screens are the `.json` files right in it. Put the apps side by side under one
-parent folder:
+Every app is its own folder, inside one **Vellum folder** that holds this guide:
 
 ```text
-Design/
-├─ Remote/                the phone app
+Vellum/
+├─ VELLUM.md              this guide: one copy for every app
+├─ Remote/                an app: the phone app
 │  ├─ _doc.json           its device, corner, bar, safe areas; "order": the screens' ids in order
-│  ├─ Home.json
+│  ├─ Home.json           one JSON file per screen
 │  └─ Settings.json
-└─ Console/               the desktop companion
+└─ Console/               another app: the desktop companion
    ├─ _doc.json           "device": "custom-1280x800", "radius": 0, "bar": {"style": "none"}
    └─ Main window.json
 ```
 
+- The Vellum folder is `Vellum/` at the vault's root unless the user already has one (in a code repo it may be
+  `Docs/Design/` or the like): look for `VELLUM.md`, or for folders with a `_doc.json`.
+- **Each app is a subfolder beside `VELLUM.md`**, even when there is only one app. Never put screens right in the Vellum
+  folder. Name each app's folder as the user calls the app: the editor's top bar shows that name and switches between
+  the apps.
+- Starting from nothing: make the Vellum folder, put this guide in it as `VELLUM.md` (the user can also run **Vellum: Add
+  the agent guide**), then the app's folder with its `_doc.json` (section 2) and its screens.
+- **Tell the user where it is.** Vellum's ribbon button opens the app in **Settings → Vellum → Screens folder**; if that
+  folder has no screens, Vellum offers the folders that do. The command **Vellum: Open screens from another folder** picks one.
+- To show an app's screens in a note, add a code block `vellum` with the line `src: Vellum/Remote`.
+
+### Rules of the folders
 - Each app has its **own frame**: set up each `_doc.json` on its own (section 2). A phone app and a desktop window never
   share one folder.
-- Vellum puts this guide in each app's folder as `AGENTS.md` when the app is made in Vellum. When you make an app folder
-  yourself, copy the `AGENTS.md` of another app into it as it is (Vellum keeps the copies up to date).
-- Vellum reads only the files right in the folder: subfolders are not screens. Don't nest one app inside another; keep
+- A folder in the Vellum folder is an app only when it has a `_doc.json`. Pictures shared by the apps can go in a
+  folder of their own beside them (e.g. `Vellum/Images/`); Vellum leaves it alone.
+- Vellum reads only the files right in an app's folder: subfolders are not screens. Don't nest one app inside another; keep
   anything else (notes, exports, images) out of an app's folder or in a subfolder of it. Any other `.json` file in the
   folder is read as a screen and reported as broken.
 - A screen links only to screens of its own app: `parent` and `inherit` take the id of a screen in the same folder.
   Screen ids are unique within an app; the same id may be used in another app.
 - A new screen goes in `order` in `_doc.json` where it belongs in the flow; a screen missing from `order` is listed last.
-- The app's name in the editor's top bar is the folder's name: name folders as the user calls the apps. It switches
-  between the apps, each keeping its own device and last screen.
 
 ## 2. Set up the frame, before the first screen
 Every screen is drawn on the app's frame: its size, corner, status bar and safe areas. Set them in `_doc.json` to match
@@ -95,7 +99,7 @@ ask you to change that one thing. They can only do that to a part that is **its 
 - Frames are a block's own look or a text's own box, not a `rect` drawn underneath.
 
 ## 6. Talking to the user
-- **References**: the user may paste `[Design/Screens/Home.json › Card (card-1)]`: the file, the block (and item) they
+- **References**: the user may paste `[Vellum/Remote/Home.json › Card (card-1)]`: the file, the block (and item) they
   mean. Change only that.
 - **Marks** are notes on the screen, never part of the design: read the user's (`marks` on a page), and answer with your
   own, `"by": "agent"`: a `note` pinned at `x y`, an `area` (`w h`), a guide `line`.

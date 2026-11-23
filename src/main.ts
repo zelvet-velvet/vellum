@@ -17,7 +17,10 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
 interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
-const DEFAULTS: Settings = { folder: "Screens", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
+const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
+
+// the folder a path is in; none at the vault's root
+const parentOf = (path: string) => { const i = path.lastIndexOf("/"); return i > 0 ? path.slice(0, i) : null; };
 
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
@@ -36,12 +39,12 @@ export default class VellumPlugin extends Plugin {
         this.addCommand({ id: "open", name: "Open the screens", callback: () => this.openScreens() });
         this.addCommand({ id: "open-folder", name: "Open screens from another folder", callback: () => new FolderPick(this.app, (f) => { this.settings.folder = f.path; void this.save().then(() => openVellum(f.path)); }).open() });
         this.addCommand({ id: "ungroup-folder", name: "Ungroup every row and column in a folder of screens", callback: () => new FolderPick(this.app, (f) => { void this.ungroupFolder(f.path); }).open() });
-        // the guide for agents, written into the vault (no network): in an app's folder (by itself in a new app), or as a
-        // Claude Code skill
-        storeHooks.newApp = (dir) => writeGuide(this.app, dir, this.manifest.version);
-        this.addCommand({ id: "agent-guide", name: "Add the agent guide to an app's folder", callback: () => {
-            const apps = this.appFolders();
-            new FolderPick(this.app, (f) => { void this.addGuide(f.path); }, apps.length ? apps : undefined, "The app to add the guide to (AGENTS.md in its folder)").open();
+        // the guide for agents, written into the vault (no network): VELLUM.md beside the app folders (by itself when a new
+        // app is made in a folder that has none), or as a Claude Code skill
+        storeHooks.newApp = async (dir) => { const up = parentOf(dir); if (up) await writeGuide(this.app, up, this.manifest.version); };
+        this.addCommand({ id: "agent-guide", name: "Add the agent guide", callback: () => {
+            const homes = this.vellumFolders();
+            new FolderPick(this.app, (f) => { void this.addGuide(f.path); }, homes.length ? homes : undefined, "The folder that holds your app folders (VELLUM.md goes in it)").open();
         } });
         this.addCommand({ id: "agent-skill", name: "Add the agent guide as a Claude Code skill", callback: () => { void writeSkill(this.app, this.manifest.version).then((p) => new Notice(`Vellum: the agent guide is in ${p}`), (e) => new Notice(`Vellum: could not write the skill (${String(e)})`)); } });
         this.addSettingTab(new VellumSettings(this.app, this));
@@ -70,10 +73,12 @@ export default class VellumPlugin extends Plugin {
     }
     // the folders with a _doc.json in them: one per app
     appFolders(): TFolder[] { return this.app.vault.getFiles().filter((f) => f.name === "_doc.json").map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/"); }
+    // the folders that hold app folders (each app's parent; none at the vault's root): where VELLUM.md goes
+    vellumFolders(): TFolder[] { return [...new Set(this.appFolders().map((f) => f.parent).filter((f): f is TFolder => !!f && f.path !== "/"))]; }
     async addGuide(dir: string) {
         try {
             const p = await writeGuide(this.app, dir, this.manifest.version);
-            new Notice(p ? `Vellum: the agent guide is in ${p}. Agents read it when they work in that folder.` : `Vellum: ${dir} has its own AGENTS.md, left as it is`);
+            new Notice(p ? `Vellum: the agent guide is in ${p}. Point your agent to it once, e.g. in your AGENTS.md.` : `Vellum: ${dir} has a VELLUM.md of its own, left as it is`);
         }
         catch (e) { new Notice(`Vellum: could not write the guide (${String(e)})`); }
     }
@@ -354,7 +359,7 @@ class VellumSettings extends PluginSettingTab {
 
         // screens
         const sc = this.card(c, "screens", "Screens", s.folder);
-        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Screens" });
+        this.input(this.row(sc, "Screens folder", "What the ribbon button opens: one JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
 
         // colours: the editor's own and the phones', each card a list with its own preview
         // the preview on top, the colours under it
