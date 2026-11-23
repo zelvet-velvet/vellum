@@ -105,7 +105,7 @@ export const coloursOfDoc = (v: { colors?: unknown; themes?: unknown; theme?: un
     const c = paletteOf(v.colors); if (c) doc.colors = c;
     if (v.themes && typeof v.themes === "object" && !Array.isArray(v.themes)) {
         const t: Record<string, Palette> = {};
-        for (const [k, p] of Object.entries(v.themes as Record<string, unknown>)) { const q = paletteOf(p); if (k && q) t[k] = q; }
+        for (const [k, p] of Object.entries(v.themes as Record<string, unknown>)) if (k && p && typeof p === "object" && !Array.isArray(p)) t[k] = paletteOf(p) ?? {};   // an empty theme stays (every name from the settings)
         if (Object.keys(t).length) doc.themes = t;
     }
     if (typeof v.theme === "string" && v.theme) doc.theme = v.theme;

@@ -61,22 +61,33 @@ Ask the user which device or window size they target if you can't tell.
 - A window's own title bar, a browser's address bar or a tab bar are **blocks** on the screen, not the device's bar.
 
 **The app's colours.** Screens use colour names (`paper text dim line tile loud accent`), which follow Settings → Vellum.
-When an app has its own palette (a dark desktop window beside a light phone app), or must be checked in light and dark,
-give it its own colours in `_doc.json` and keep using the names on the screens:
+Give an app its own colours in `_doc.json` when it has a palette of its own (a dark desktop window beside a light phone
+app), or looks that must be checked side by side: light and dark, high contrast, a brand. Set it up with the frame,
+before the first screen:
+
+1. Ask which looks the real app has (or read its theme files): only one, light and dark, or more.
+2. One look: put its colours in `colors`. Several: one palette per look in `themes`, named as the app names them
+   (`light`, `dark`, `high contrast`, `brand-blue`…; any name but `auto`).
+3. Give every palette all seven names, so no screen falls back to the user's own theme by accident. A colour the app
+   needs beyond those (a brand colour, a chart colour) gets a name of its own, in every palette.
+4. Set `theme` to the look the app opens in, or `"auto"` when it has a `light` and a `dark` and follows the system.
+5. On the screens, use only the names (`"fill": "tile"`, `"color": "brand"`), never the hex values: then every theme
+   draws every screen.
 
 ```json
 "themes": {
   "dark":  {"paper": "#0F1113", "text": "#E6E8EB", "dim": "#9AA3AD", "line": "#2A2F36", "tile": "#181B1F", "loud": "#E5534B", "accent": "#5B8DEF"},
   "light": {"paper": "#FFFFFF", "text": "#1B1F24", "dim": "#5F6B78", "line": "#D8DDE3", "tile": "#F3F5F7", "loud": "#C9372C", "accent": "#2F6FEB"}
 },
-"theme": "dark"
+"theme": "auto"
 ```
 
-- `theme` is the one the app opens in: a name from `themes`, or `"auto"` (light or dark as Obsidian is, when the app has
-  both). The user switches between them in the editor's top bar to check every screen; that does not change the file.
-- `colors` (one palette, no names) sets colours for every theme of the app; a theme's colours go over it. Names left out
-  come from Settings → Vellum. An app may add names of its own (`"brand": "#…"`) and use them on its screens.
-- When you build, each theme is the app's light or dark colour set, and the names are its colour tokens.
+- `colors` and `themes` can go together: `colors` holds what every theme shares, a theme's colours go over it. Names
+  left out come from Settings → Vellum.
+- The user changes these in Settings → Vellum → Screen colours (with the app chosen) or in the editor's Colours window
+  (the palette button in its top bar), and switches between themes there; switching does not change the file. Read
+  `_doc.json` again before you build: the colours may have changed.
+- When you build, each theme is one of the app's colour sets (light, dark…), and each name is a colour token in it.
 
 ## 3. When the user wants options: mocks, not an artifact
 For "show me a few ways this could look", make the options **in Vellum**, not as an HTML page or image: they land on the

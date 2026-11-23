@@ -292,8 +292,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-appbtn.is-one { cursor: default; opacity: 1; }
 .vl-appbtn .vl-chev { display: flex; color: var(--text-muted); }
 .vl-appbtn .vl-chev svg { width: 14px; height: 14px; }
-.vl-themeic { display: flex; color: var(--text-muted); }
-.vl-themeic svg { width: 14px; height: 14px; }
 /* icon buttons are plain at rest (Obsidian and themes fill every button: this wins over them), a light hover */
 .vl button.vl-btn { background: transparent; box-shadow: none; border: 0; }
 .vl button.vl-btn:hover { background: var(--background-modifier-hover); }
@@ -450,6 +448,24 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-devwinh.is-grab:active { cursor: grabbing; }
 .vl-devwinsub { flex: 1; font-weight: normal; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vl-devwinb { overflow-y: auto; padding: 4px 14px 14px; min-height: 0; }
+/* the app's Colours window: themes as chips, then each colour name with its value */
+.vl-lookwin { width: 320px; }
+.vl-lookhint { font-size: var(--font-ui-smaller); line-height: 1.45; color: var(--text-muted); margin-bottom: 8px; }
+.vl-lookhint.is-under { margin: 4px 0 0; color: var(--text-faint); }
+.vl-lookwin .vl-frow + .vl-frow { margin-top: 6px; }
+.vl-lookadd { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.vl-lookwin .vl-chips + .vl-frow { margin-top: 8px; }
+.vl-lookwin .vl-frowc { flex-wrap: nowrap; }
+.vl-lookwin .vl-frowc > select, .vl-lookwin .vl-frowc > input { flex: 1; min-width: 0; }
+.vl input.vl-lookname { flex: 1; min-width: 0; height: 30px; font-size: var(--font-ui-small); }
+.vl-looklist { display: flex; flex-direction: column; gap: 2px; }
+.vl-lookrow { display: flex; align-items: center; gap: 4px; }
+.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px 0 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
+.vl .vl-lookc:hover { background: var(--background-modifier-hover); }
+.vl-lookn { flex: 1; min-width: 0; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-lookv { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.vl-lookv.is-faint { font-family: var(--font-interface); color: var(--text-faint); }
+.vl .vl-lookx { flex: none; }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
 /* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
 .vl .vl-newp { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; margin: 10px 0 14px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--interactive-accent); border-radius: 6px; box-shadow: none; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-small); line-height: 1; cursor: pointer; }
@@ -971,3 +987,41 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-foback svg { width: 11px; height: 11px; }
 .vl .vl-num.is-changed .vl-foback { display: grid; place-items: center; }
 .vl .vl-custom .vl-kindsel { height: 28px; font-size: var(--font-ui-smaller); }
+
+/* Screen colours and Editor theme: one view each that fits the settings window (no pages, no scrolling at a usual size) */
+.vls-studio { margin-bottom: 8px; }
+.vls-sbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 10px var(--vls-pad); border-bottom: 1px solid var(--background-modifier-border); }
+.vls-sgrp { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vls-sgrp.is-end { margin-left: auto; }
+.vls-slabel { font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
+.vls-snote { flex: 1; min-width: 200px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.vl-settings .vls-sbar select.dropdown { height: 28px; font-size: var(--font-ui-small); }
+.vls-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.vl-settings .vls-pill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.vl-settings .vls-pill.is-add { width: 28px; padding: 0; justify-content: center; --icon-size: 14px; }
+.vl-settings .vls-pill.is-cta { border-color: var(--interactive-accent); color: var(--text-normal); }
+.vls-pillx { display: inline-flex; margin-right: -6px; padding: 2px; border-radius: 6px; color: var(--text-muted); --icon-size: 14px; }
+.vls-pillx:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl-settings input.vls-chipin { width: 120px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: var(--font-ui-smaller); }
+/* the phone beside a single column of colours */
+.vls-studio .vls-beside { grid-template-columns: 190px minmax(0, 1fr); }
+.vls-studio .vls-prev { padding: 12px 0 8px var(--vls-pad); }
+.vls-studio .vlsd-solo { padding: 10px 6px; }
+.vls-studio .vls-prevcap { margin-top: 6px; }
+.vls-studio .vls-colbar { padding: 10px var(--vls-pad) 4px; }
+.vls-studio .vls-groups { columns: auto; padding: 0 8px 2px; }
+.vls-studio .vls-group { padding-bottom: 0; }
+.vls-studio .vls-colour { min-height: 38px; padding: 3px 8px; gap: 10px; }
+.vls-studio .vls-cname { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.vls-studio .vls-cwarn { flex-basis: 100%; }
+.vls-studio .vls-cf { width: 148px; height: 30px; }
+.vls-studio .vls-add { padding: 6px var(--vls-pad) 10px; border-top: 0; }
+/* the editor's colours: the preview on top, then the colours in as many columns as fit */
+.vls-studio.is-editor .vls-prev { padding: 12px var(--vls-pad) 4px; }
+.vls-studio.is-editor .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); column-gap: 8px; }
+.vls-studio.is-editor .vls-cf { width: 128px; }
+@media (max-width: 640px) {
+    .vls-studio .vls-beside { grid-template-columns: minmax(0, 1fr); }
+    .vls-studio .vls-prev { padding-right: var(--vls-pad); }
+    .vls-sgrp.is-end { margin-left: 0; }
+}

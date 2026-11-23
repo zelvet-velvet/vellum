@@ -193,7 +193,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 **Frames.** A page with `"inherit": true` draws its parent's blocks under its own. An own block with the same `id` replaces the parent's one; the page stores only its own blocks.
 
-**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value. An app can have its own colours and themes in its `_doc.json`; the editor's top bar switches between its themes, so every screen can be checked in light and dark. The editor's own panels follow your Obsidian theme, or the Editor theme colours in the same settings.
+**Colours and fonts.** Items use theme names (`paper text dim line tile loud accent`; `ui display mono`), set in Settings → Vellum, or any CSS value. An app can have its own colours and themes (light, dark, or any name) in its `_doc.json`. Set them in Settings → Vellum → Screen colours with the app chosen, or in the editor's Colours window (the palette button in its top bar), which also switches between them to check every screen. The editor's own panels follow your Obsidian theme, or the Editor theme colours in the same settings.
 
 </details>
 
