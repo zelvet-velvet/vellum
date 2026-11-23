@@ -126,8 +126,28 @@ class VellumSettings extends PluginSettingTab {
         return TABS.find(([k]) => k === t)?.[0] ?? "general";
     }
     // the row of tabs; arrow keys move between them
+    tabScroll: (() => void) | null = null;
     tabBar(c: HTMLElement, on: Tab) {
         const bar = c.createDiv({ cls: "vls-tabs", attr: { role: "tablist" } });
+        // pinned to the top while the settings scroll: on their own background, a shadow once something is under it. The
+        // scroller's padding is not known (Obsidian's, a theme's): the first time it is pinned it moves up to the very top
+        this.tabScroll?.();
+        const win = c.win, scroller = (() => { for (let e: HTMLElement | null = c; e; e = e.parentElement) { const o = win.getComputedStyle(e).overflowY; if (o === "auto" || o === "scroll") return e; } return null; })();
+        if (scroller) {
+            for (let e: HTMLElement | null = scroller; e; e = e.parentElement) { const bg = win.getComputedStyle(e).backgroundColor; if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) { bar.style.setProperty("--vls-bg", bg); break; } }
+            let fixed = false;
+            const onScroll = () => {
+                const st = scroller.scrollTop > 2;
+                bar.toggleClass("is-stuck", st);
+                if (fixed || scroller.scrollTop < bar.offsetTop + 40) return;
+                const gap = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientTop;
+                if (Math.abs(gap) > 0.5) bar.style.top = `${(parseFloat(bar.style.top) || 0) - gap}px`;
+                fixed = true;
+            };
+            scroller.addEventListener("scroll", onScroll, { passive: true });
+            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); this.tabScroll = null; };
+            onScroll();
+        }
         const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };
         TABS.forEach(([k, name], i) => {
             const b = bar.createEl("button", { cls: "vls-tab" + (k === on ? " is-on" : ""), text: name, attr: { role: "tab", "aria-selected": String(k === on), tabindex: k === on ? "0" : "-1" } });
@@ -155,7 +175,7 @@ class VellumSettings extends PluginSettingTab {
     // saved and shown a moment after the last change (a drag in the colour picker makes many)
     lookT = 0;
     queueLook() { window.clearTimeout(this.lookT); this.lookT = window.setTimeout(() => { this.save(); refreshLook(); }, 120); }
-    hide() { this.pickerOff?.(); super.hide(); }
+    hide() { this.pickerOff?.(); this.tabScroll?.(); super.hide(); }
     syncs: (() => void)[] = [];
     // a list of colours: a tile (Vellum's picker), the name, the value ("Obsidian" while it follows), a way back. Follow Obsidian
     // sets the list back, with an undo; rules: pairs [text, background, least contrast, name] that warn on the text's row
@@ -376,6 +396,7 @@ class VellumSettings extends PluginSettingTab {
     appData: { dir: string; meta: Record<string, unknown> } | null = null;
     appPart: string | undefined;        // the palette shown: a theme's name, "" the app's colours for every theme
     appT = 0;
+    chipHid = 0;   // when a theme chip's menu last closed
     // Screen colours, in one view that fits the window: a bar (the app; its themes, the one it opens in), then its colours.
     // Every app: the settings' colours (what Obsidian's chip shows in every app). An app: its themes, in its _doc.json
     screenColours(c: HTMLElement) {
@@ -485,10 +506,13 @@ class VellumSettings extends PluginSettingTab {
             const b = chip(n, n);
             if (part !== n) continue;
             // the theme shown: a click on it again opens its menu
-            setIcon(b.createSpan({ cls: "vls-pillx" }), "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            const chev = b.createSpan({ cls: "vls-pillx" }); setIcon(chev, "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
             b.addEventListener("click", (e) => {
                 e.stopPropagation();
+                if (Date.now() - this.chipHid < 300) return;   // the press that closed it: a toggle, not open again
                 const m = new Menu();
+                setIcon(chev, "chevron-up"); b.addClass("is-open");
+                m.onHide(() => { this.chipHid = Date.now(); setIcon(chev, "chevron-down"); b.removeClass("is-open"); });
                 m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
                     d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v]));
                     if (d.theme === n) d.theme = to;
@@ -501,7 +525,8 @@ class VellumSettings extends PluginSettingTab {
                     if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
                     this.appPart = undefined; save();
                 }));
-                m.showAtMouseEvent(e);
+                const r = b.getBoundingClientRect();
+                m.showAtPosition({ x: r.left, y: r.bottom + 4 }, b.doc);
             });
         }
         const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");

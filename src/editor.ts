@@ -1051,11 +1051,12 @@ class Editor {
             const b = chip(n, n);
             if (part !== n) continue;
             // the theme shown: a click on it again opens its menu
-            setIcon(b.createSpan({ cls: "vl-chipx" }), "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            const chev = b.createSpan({ cls: "vl-chipx" }); setIcon(chev, "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
             b.addEventListener("click", (e) => {
                 e.stopPropagation();
-                if (this.themeChips) { this.themeChips.hide(); return; }
+                if (this.themeChips) { this.themeChips.hide(); return; }   // open: a click on it again closes it
                 const m = (this.themeChips = new Menu()), doc = b.doc;
+                setIcon(chev, "chevron-up"); b.addClass("is-open");
                 m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
                     this.edit(() => { d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v])); if (d.theme === n) d.theme = to; });
                     if (this.v.look === n) this.setView({ look: to });
@@ -1075,9 +1076,9 @@ class Editor {
                     this.setView({ look: undefined }); this.draw();
                 }));
                 // the editor keeps its clicks to itself: a press anywhere but the menu closes it
-                const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu")) m.hide(); };
+                const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu") && !b.contains(t)) m.hide(); };
                 doc.addEventListener("pointerdown", out, true);
-                m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeChips === m) this.themeChips = null; });
+                m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.themeChips === m) this.themeChips = null; if (chev.isConnected) { setIcon(chev, "chevron-down"); b.removeClass("is-open"); } });
                 const r = b.getBoundingClientRect();
                 m.showAtPosition({ x: r.left, y: r.bottom + 4 }, doc);
             });
