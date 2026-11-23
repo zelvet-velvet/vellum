@@ -181,7 +181,7 @@ Vellum/
 
 | 層級 | 欄位 |
 | :--- | :--- |
-| **Doc** | `device`；`safe`、`safeLand`（`top bottom left right`，皆可省略）；`radius`（螢幕圓角，`0` 為直角；省略則用裝置的）；`bar`（狀態列：`style` 為 `ios`、`android` 或 `none`，`fill`、`ink`、`time`；設了 `safe.top` 時高度與其相同） |
+| **Doc** | `device`（手機的 id，或自訂尺寸 `custom-<w>x<h>`，結尾加 `-tablet`、`-window` 或 `-web` 表示平板、視窗或網頁：視窗與網頁為直角，無狀態列與安全區域）；`safe`、`safeLand`（`top bottom left right`，皆可省略）；`radius`（螢幕圓角，`0` 為直角；省略則用裝置的）；`bar`（狀態列：`style` 為 `ios`、`android` 或 `none`，`fill`、`ink`、`time`；設了 `safe.top` 時高度與其相同） |
 | **Page** | `name`、`note`、`parent`、`link`（進入方式）、`inherit`（`true`：以上層畫面為版型）、`device`、`bg`、`mock`、`blocks`、`land`（橫向排版）、`marks` |
 | **Block** | `name`、`kind`、`note`、`x y w h`（螢幕 pt）、`bleed`（`true`：可延伸至安全區域；整個在螢幕外的 block 為**草稿**，只在編輯器中顯示於螢幕旁，不實作）、本身外觀：`fill stroke sw r` 與 `sides`（僅部分邊的外框：`"b"`、`"tb"`…）、`lock`（`true`：照常繪製，但在螢幕上點擊會穿透至下層；由 Blocks 清單選取）、`items` |
 | **所有 item** | `g`（錨點：`tl t tr l c r bl b br`）、`dx dy`、`w h`（數字、`"hug"` 或 `"fill"`）、`op`、`note`、`lock`（同 block） |
@@ -243,7 +243,7 @@ Vellum/
 <details>
 <summary><b>可否用於桌面 app 或網頁？</b></summary>
 
-可以。將資料夾設為視窗本身的自訂尺寸（`"device": "custom-1280x800"`），再設 `"bar": { "style": "none" }` 與 `"radius": 0`，即為無圓角的矩形。單一畫面可另設尺寸，用於對話框或較小的視窗。每個 app 各自一個資料夾，手機 app 與其桌面端可並存於同一儲存庫。
+可以。將資料夾設為視窗本身的自訂尺寸並選「視窗」（`"device": "custom-1280x800-window"`，或 Device → Custom → Window），即為無圓角、無狀態列與安全區域的矩形。單一畫面可另設尺寸，用於對話框或較小的視窗。每個 app 各自一個資料夾，手機 app 與其桌面端可並存於同一儲存庫。
 </details>
 
 <details>

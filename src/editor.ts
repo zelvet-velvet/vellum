@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
-import { customDevice, deviceOf, DEVICES, framed, screenOf } from "./devices";
+import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, drawnBlocks, findItem, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
 import { getLocal, setLocal } from "./local";
@@ -975,8 +975,12 @@ class Editor {
     }
     // the screens rail: every page as a row, sub pages indented under the page they open from (with how you get there);
     // a tap opens it, + beside a row adds a page opened from it; the device for the whole note at the foot
+    // a number in the rail's foot held or dragged: the rail is not drawn again until it is let go (drawn again, the box
+    // would move and lose the pointer, leaving its bubble behind)
+    railHold = false;
     drawRail() {
         const r = this.rail; if (!r?.isConnected) return;
+        if (this.railHold && r.querySelector(".vl-rfoot")) return;
         this.unpeek();   // its row is about to go: a peek left from it would never hear the pointer leave
         const keepFoot = r.querySelector<HTMLElement>(".vl-rfoot");
         r.empty(); r.toggleClass("is-on", this.v.rail);
@@ -1073,31 +1077,116 @@ class Editor {
             m.createDiv({ cls: "vl-menuh", text: "Custom" });
             const cu = m.createDiv({ cls: "vl-custom" });
             const now = deviceOf(this.doc.device);
-            const wi = cu.createEl("input", { attr: { type: "number", min: "240", max: "1600", placeholder: "W", value: devc.brand === "Custom" ? String(now.w) : "" } });
+            const wi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "W", value: devc.brand === "Custom" ? String(now.w) : "" } });
             cu.createSpan({ text: "×" });
-            const hi = cu.createEl("input", { attr: { type: "number", min: "320", max: "2400", placeholder: "H", value: devc.brand === "Custom" ? String(now.h) : "" } });
+            const hi = cu.createEl("input", { attr: { type: "number", min: "240", max: "2560", placeholder: "H", value: devc.brand === "Custom" ? String(now.h) : "" } });
+            // what the size is: a window or a web page starts square, with no bar and no safe areas
+            const ki = cu.createEl("select", { cls: "dropdown vl-kindsel", attr: { "aria-label": "What it is" } });
+            for (const [v, name] of KINDS) ki.createEl("option", { value: v, text: name });
+            ki.value = devc.brand === "Custom" ? devc.kind : "phone";
             const ok = cu.createEl("button", { cls: "vl-act", text: "Use" });
             ok.addEventListener("click", () => {
                 const w = Math.round(Number(wi.value)), h = Math.round(Number(hi.value));
-                if (!(w >= 240 && w <= 1600 && h >= 320 && h <= 2400)) { new Notice("Vellum: a width of 240–1600 and a height of 320–2400 points"); return; }
-                m.remove(); this.edit(() => { this.doc.device = customDevice(w, h).id; });
+                if (!(w >= 240 && w <= 2560 && h >= 240 && h <= 2560)) { new Notice("Vellum: a width and a height of 240–2560 points"); return; }
+                m.remove(); this.edit(() => { this.toDevice(customDevice(w, h, ki.value as DeviceKind)); });
             });
             const off = (e: Event) => { if (!m.isConnected) return R.doc.removeEventListener("pointerdown", off, true); if (!m.contains(e.target as Node) && !dev.contains(e.target as Node)) { m.remove(); R.doc.removeEventListener("pointerdown", off, true); } };
             window.setTimeout(() => R.doc.addEventListener("pointerdown", off, true));
         });
+        // a custom size says what it is; a change keeps the size and drops what is now the device's own anyway
+        if (devc.brand === "Custom") this.seg(foot, KINDS, devc.kind, (v) => this.toDevice(customDevice(devc.w, devc.h, v as DeviceKind)));
         const on = this.current();
         if (on) this.deviceFrame(foot, on);
         box.scrollTop = this.railTop;   // the list stays where it was scrolled (a tap opens a screen, the rail is drawn again)
     }
-    // the device's frame for every screen, under the device: the corner, the status bar, the safe areas
+    // the doc on another device: a corner, safe areas or a bar set to what the new device has anyway are let go
+    toDevice(d: Device) {
+        this.doc.device = d.id;
+        if (this.doc.radius === d.radius) delete this.doc.radius;
+        for (const [key, side] of [["safe", false], ["safeLand", true]] as const) {
+            const o = this.doc[key]; if (!o) continue;
+            const own = screenOf(d, side).safe;
+            for (const k of ["top", "bottom", "left", "right"] as const) if (o[k] === own[k]) delete o[k];
+            if (!Object.keys(o).length) delete this.doc[key];
+        }
+        // a window or a web page has no status bar (its title bar is a block); a phone or a tablet keeps the one set
+        if (this.doc.bar?.style === barOf(d) || (this.doc.bar?.style && d.kind !== "phone" && d.kind !== "tablet")) { const b = { ...this.doc.bar }; delete b.style; if (Object.keys(b).length) this.doc.bar = b; else delete this.doc.bar; }
+    }
+    // the device's frame for every screen, under the device: the corner and the safe areas on one small outline of the
+    // screen (a number on each side, one at the corner), and the status bar for a phone or a tablet. A value set away from
+    // the device's own turns accent with a ↺ beside it; the ↺ keeps its room, so nothing moves when a value changes
     deviceFrame(foot: HTMLElement, p: Page) {
-        const dv = deviceOf(p.device ?? this.doc.device), ownR = dv.radius, bar = this.doc.bar ?? {}, bs = bar.style ?? "ios", cur = this.screen(p).safe;
-        const fb = this.section(foot, "Corner, bar, safe areas", true, { shut: true, hint: `${this.doc.radius ?? ownR} pt · ${bs === "ios" ? "iOS" : bs === "android" ? "Android" : "no bar"}` });
-        fb.createDiv({ cls: "vl-frameinfo", text: "Every screen." });
-        this.num(fb.createDiv({ cls: "vl-nums" }), "Corner", () => this.doc.radius ?? ownR, (v) => { if (v === ownR) delete this.doc.radius; else this.doc.radius = v; }, { min: 0, max: 200, unit: "pt" });
-        if (this.doc.radius !== undefined) this.actions(fb, [["rotate-ccw", `The device's own corner (${ownR} pt)`, () => this.edit(() => { delete this.doc.radius; })]]);
+        const dv = deviceOf(p.device ?? this.doc.device), ownR = dv.radius, bar = this.doc.bar ?? {}, defBar = barOf(dv), bs = bar.style ?? defBar;
+        const phoneish = dv.kind === "phone" || dv.kind === "tablet";
+        const own = screenOf(dv, this.land).safe, key = this.land ? "safeLand" : "safe";
+        const barName = bs === "ios" ? "iOS" : bs === "android" ? "Android" : "no bar";
+        // the folded heading: the device's own, or what is set
+        const r0 = this.doc.radius ?? ownR, cur0 = this.screen(p).safe;
+        const custom = dv.brand === "Custom", changed = this.doc.radius !== undefined || !!this.doc[key] || bar.style !== undefined;
+        const hint = !changed && !custom ? `${dv.name}'s own` : [
+            custom ? KINDS.find((x) => x[0] === dv.kind)?.[1] ?? "" : "", r0 ? `${r0} pt` : "square", barName,
+            cur0.top || cur0.bottom || cur0.left || cur0.right ? `${cur0.top} ${cur0.bottom} ${cur0.left} ${cur0.right}` : "",
+        ].filter(Boolean).join(" · ");
+        const fb = this.section(foot, "Corner, bar, safe areas", true, { shut: true, hint });
+        fb.createDiv({ cls: "vl-frameinfo", text: `Every screen of this app · ${this.land ? "landscape" : "portrait"}` });
+        // a picture of the screen: its corner and its safe areas shaded; pointing at a number lights its side here and on
+        // the phone
+        const { W, H } = screenOf(dv, this.land), k = Math.min(200 / W, 96 / H);
+        const pic = fb.createDiv({ cls: "vl-fopic" });
+        const scr = pic.createDiv({ cls: "vl-fos" });
+        Object.assign(scr.style, { width: `${Math.round(W * k)}px`, height: `${Math.round(H * k)}px` });
+        const shade: Record<string, HTMLElement> = {};
+        for (const s of ["top", "bottom", "left", "right"]) shade[s] = scr.createDiv({ cls: `vl-fosafe is-${s}` });
+        const paint = () => {
+            const c = this.screen(p).safe;
+            scr.style.borderRadius = `${Math.round((this.doc.radius ?? ownR) * k)}px`;
+            for (const s of ["top", "bottom"] as const) shade[s].style.height = `${Math.round(c[s] * k)}px`;
+            for (const s of ["left", "right"] as const) shade[s].style.width = `${Math.round(c[s] * k)}px`;
+        };
+        paint();
+        const lit = (side?: string) => {
+            for (const [s, el] of Object.entries(shade)) el.toggleClass("is-lit", side === "all" || side === s);
+            scr.toggleClass("is-lit", side === "corner");
+            const w = this.wall; if (!w || side === "corner") return;
+            if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side;
+        };
+        scr.addEventListener("mouseenter", () => lit("all")); scr.addEventListener("mouseleave", () => lit());
+        // the numbers, as Place's tiles; a held number keeps the rail as it is until it is let go
+        const nums = fb.createDiv({ cls: "vl-nums vl-fonums" });
+        nums.addEventListener("pointerdown", () => {
+            this.railHold = true;
+            const win = nums.win;   // the editor's own window (it may be a pop-out)
+            const off = () => { this.railHold = false; win.removeEventListener("pointerup", off, true); win.removeEventListener("pointercancel", off, true); };
+            win.addEventListener("pointerup", off, true); win.addEventListener("pointercancel", off, true);
+        });
+        const tile = (name: string, get: () => number, set: (v: number) => void, ownV: number, max: number, side: string) => {
+            let n: HTMLElement | null = null;
+            const mark = () => n?.toggleClass("is-changed", get() !== ownV);
+            n = this.num(nums, name, get, (v) => { set(v); mark(); paint(); }, { min: 0, max });
+            const back = n.createEl("button", { cls: "vl-foback", attr: { "aria-label": `Back to the device's own: ${ownV} pt` } });
+            setIcon(back, "rotate-ccw");
+            back.addEventListener("pointerdown", (e) => e.stopPropagation());
+            back.addEventListener("click", (e) => { e.stopPropagation(); this.edit(() => set(ownV)); });
+            mark();
+            n.addEventListener("mouseenter", () => lit(side)); n.addEventListener("mouseleave", () => lit());
+        };
+        tile("Corner", () => this.doc.radius ?? ownR, (v) => { if (v === ownR) delete this.doc.radius; else this.doc.radius = v; }, ownR, 200, "corner");
+        // the safe areas: the device's, or set for this doc (every screen, this orientation)
+        for (const [s, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
+            tile(name, () => this.screen(p).safe[s], (v) => {
+                const o = { ...this.doc[key] };
+                if (v === own[s]) delete o[s]; else o[s] = v;
+                if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
+            }, own[s], 400, s);
+        }
+        // the status bar: a phone's or a tablet's only (a window or a web page draws its title bar as a block)
+        if (!phoneish) return;
         const setBar = (k: keyof Bar, v?: string) => { const o: Bar = { ...this.doc.bar }; if (v && v !== "none") o[k] = v as never; else delete o[k]; if (Object.keys(o).length) this.doc.bar = o; else delete this.doc.bar; };
-        this.seg(this.frow(fb, "Status bar"), [["ios", "iOS"], ["android", "Android"], ["none", "None"]], bs, (v) => setBar("style", v === "ios" ? undefined : v));
+        this.seg(this.frow(fb, "Status bar"), [["ios", "iOS"], ["android", "Android"], ["none", "None"]], bs, (v) => {
+            const o: Bar = { ...this.doc.bar };
+            if (v === defBar) delete o.style; else o.style = v as Bar["style"];
+            if (Object.keys(o).length) this.doc.bar = o; else delete this.doc.bar;
+        });
         if (bs === "android") {
             this.text(this.frow(fb, "Clock"), () => bar.time ?? "12:00", (v) => setBar("time", v.trim() && v.trim() !== "12:00" ? v.trim() : undefined), { title: "The time on the bar" });
             fb.createDiv({ cls: "vl-frameinfo", text: "Bar colour" });
@@ -1105,21 +1194,6 @@ class Editor {
             fb.createDiv({ cls: "vl-frameinfo", text: "Clock and icons" });
             this.colors(fb, bar.ink, (v) => setBar("ink", v), true);
         }
-        // the safe areas: the device's, or set for this doc (every screen, this orientation); hovering lights them on the phone
-        fb.createDiv({ cls: "vl-frameinfo", text: `Safe areas, ${this.land ? "landscape" : "portrait"}: ${cur.top} · ${cur.bottom} · ${cur.left} · ${cur.right}` });
-        const own = screenOf(dv, this.land).safe, key = this.land ? "safeLand" : "safe";
-        const nums = fb.createDiv({ cls: "vl-nums" });
-        const lit = (side?: string) => { const w = this.wall; if (!w) return; if (side === undefined) delete w.dataset.safe; else w.dataset.safe = side; };
-        nums.addEventListener("mouseenter", () => lit("all")); nums.addEventListener("mouseleave", () => lit());
-        for (const [k, name] of [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]] as const) {
-            const nw = this.num(nums, name, () => this.screen(p).safe[k], (v) => {
-                const o = { ...this.doc[key] };
-                if (v === own[k]) delete o[k]; else o[k] = v;
-                if (Object.keys(o).length) this.doc[key] = o; else delete this.doc[key];
-            }, { min: 0, max: 400, unit: "pt" });
-            nw.addEventListener("mouseenter", () => lit(k)); nw.addEventListener("mouseleave", () => lit("all"));
-        }
-        if (this.doc[key]) this.actions(fb, [["rotate-ccw", `The device's own safe areas (${own.top} · ${own.bottom} · ${own.left} · ${own.right})`, () => this.edit(() => { delete this.doc[key]; })]]);
     }
     // a large look at a screen without opening it: the pointer resting on its row (computer), a long press (phone)
     peekOn(row: HTMLElement, p: Page) {
@@ -1257,7 +1331,7 @@ class Editor {
         scr.style.setProperty("--vl-iz", String(1 / z));   // handles, outlines and labels keep their size on the monitor at any zoom
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
         // the bar is as high as the doc's top safe area when that is set, else the device's
-        const bar = this.doc.bar ?? {}, style = bar.style ?? "ios", barH = this.doc.safe?.top ?? dev.top;
+        const bar = this.doc.bar ?? {}, style = bar.style ?? barOf(dev), barH = this.doc.safe?.top ?? dev.top;
         if (!this.land && style === "android" && barH) {
             // Android: the clock on the left, signal and battery on the right, on the bar's own colours
             const sb = scr.createDiv({ cls: "vl-status is-android" }); sb.style.height = `${barH}px`;

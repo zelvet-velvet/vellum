@@ -15,7 +15,7 @@ Vellum/
 │  ├─ Home.json           one JSON file per screen
 │  └─ Settings.json
 └─ Console/               another app: the desktop companion
-   ├─ _doc.json           "device": "custom-1280x800", "radius": 0, "bar": {"style": "none"}
+   ├─ _doc.json           "device": "custom-1280x800-window"
    └─ Main window.json
 ```
 
@@ -51,11 +51,12 @@ Ask the user which device or window size they target if you can't tell.
 | :--- | :--- |
 | An iPhone app | `"device": "iphone-16"` (or `iphone-16-pro`, `iphone-16-pro-max`, `iphone-air`, `iphone-14`, `iphone-se`…): its own corner, notch or island and safe areas. Nothing else needed |
 | An Android app | `"device": "pixel-8"` (or `galaxy-s24`, `galaxy-s25-ultra`), and `"bar": {"style": "android"}` |
-| A desktop window, a web page, a panel | `"device": "custom-1280x800"` (its size in points), `"radius": 0`, `"bar": {"style": "none"}`, `"safe": {"top": 0, "bottom": 0, "left": 0, "right": 0}` |
-| A tablet | `"device": "custom-820x1180"`, `"radius": 18`, `"safe": {"top": 24, "bottom": 20}` |
+| A desktop window, a panel | `"device": "custom-1280x800-window"` (its size in points): square, no bar, no safe areas |
+| A web page | `"device": "custom-1440x900-web"`: the same, for a browser's page |
+| A tablet | `"device": "custom-820x1180-tablet"`: an 18 pt corner, an iOS bar, 24 / 20 safe areas |
 
-- A custom size starts with a phone's frame (a 40 pt corner, 44 / 24 safe areas): **always** set `radius`, `bar` and
-  `safe` for one.
+- A custom size says what it is with its end: `-window`, `-web`, `-tablet`, or nothing for a phone (`custom-400x860`: a
+  40 pt corner, an iOS bar, 44 / 24 safe areas). Set `radius`, `bar` or `safe` only to differ from that.
 - `safeLand` is the same for landscape, if the app turns.
 - A window's own title bar, a browser's address bar or a tab bar are **blocks** on the screen, not the device's bar.
 

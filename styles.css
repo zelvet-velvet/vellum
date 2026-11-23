@@ -917,3 +917,24 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-namerow > :first-child { flex: 1; min-width: 0; }
 .vl-namerow > .vl-seg, .vl-namerow > :last-child { flex: none; width: 124px; }
 .vl .vl-addblock { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; --icon-size: 14px; margin-bottom: 4px; }
+
+/* Device: a picture of the screen (its corner, its safe areas shaded) over five number tiles; a value set away from the
+   device's own turns accent with a ↺ in its tile's bottom right corner (clear of the label), so nothing moves */
+.vl-fopic { display: flex; justify-content: center; padding: 8px 0 2px; }
+.vl-fos { position: relative; overflow: hidden; box-sizing: border-box; border: 1.5px solid var(--text-muted); background: var(--background-primary); transition: border-color 0.12s; }
+.vl-fos.is-lit { border-color: var(--interactive-accent); }
+.vl-fosafe { position: absolute; pointer-events: none; background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); transition: background-color 0.12s; }
+.vl-fosafe.is-lit { background: color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
+.vl-fosafe.is-top { top: 0; left: 0; right: 0; }
+.vl-fosafe.is-bottom { bottom: 0; left: 0; right: 0; }
+.vl-fosafe.is-left { top: 0; bottom: 0; left: 0; }
+.vl-fosafe.is-right { top: 0; bottom: 0; right: 0; }
+.vl .vl-nums.vl-fonums { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.vl .vl-fonums .vl-num { padding: 4px 6px 2px; }
+.vl .vl-fonums .vl-numv { justify-content: center; }
+.vl .vl-fonums .vl-num.is-changed { border-color: var(--interactive-accent); }
+.vl .vl-fonums .vl-num.is-changed .vl-numt { color: var(--interactive-accent); }
+.vl .vl-foback { display: none; position: absolute; bottom: 3px; right: 3px; width: 14px; height: 14px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--interactive-accent); cursor: pointer; }
+.vl .vl-foback svg { width: 11px; height: 11px; }
+.vl .vl-num.is-changed .vl-foback { display: grid; place-items: center; }
+.vl .vl-custom .vl-kindsel { height: 28px; font-size: var(--font-ui-smaller); }

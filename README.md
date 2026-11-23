@@ -179,7 +179,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 | Level | Fields |
 | :--- | :--- |
-| **Doc** | `device`; `safe`, `safeLand` (`top bottom left right`, each optional); `radius` (the screen's corner, `0` for a square screen; else the device's); `bar` (the status bar: `style` `ios`, `android` or `none`, `fill`, `ink`, `time`; as high as `safe.top` when that is set) |
+| **Doc** | `device` (a phone's id, or a custom size `custom-<w>x<h>`, ending `-tablet`, `-window` or `-web` for those: a window and a web page are square, with no bar and no safe areas); `safe`, `safeLand` (`top bottom left right`, each optional); `radius` (the screen's corner, `0` for a square screen; else the device's); `bar` (the status bar: `style` `ios`, `android` or `none`, `fill`, `ink`, `time`; as high as `safe.top` when that is set) |
 | **Page** | `name`, `note`, `parent`, `link` (how you get there), `inherit` (`true`: the parent is its frame), `device`, `bg`, `mock`, `blocks`, `land` (the landscape layout), `marks` |
 | **Block** | `name`, `kind`, `note`, `x y w h` (screen points), `bleed` (`true`: may go into the safe areas; a block wholly outside the screen is a **draft**, kept beside it in the editor and not built), its own look: `fill stroke sw r` and `sides` (the outline on some sides only: `"b"`, `"tb"`…), `lock` (`true`: drawn, but a click on the screen goes through it; chosen from the Blocks list), `items` |
 | **Any item** | `g` (anchor: `tl t tr l c r bl b br`), `dx dy`, `w h` (a number, `"hug"` or `"fill"`), `op`, `note`, `lock` (as on a block) |
@@ -241,7 +241,7 @@ Blocks themselves sit at fixed positions on the screen, so the agent turns those
 <details>
 <summary><b>Can I use it for a desktop app or a web page?</b></summary>
 
-Yes. Give the folder a custom size, the window's own (`"device": "custom-1280x800"`), with `"bar": { "style": "none" }` and `"radius": 0` for a plain rectangle. A screen can take another size of its own, for a dialog or a smaller window. Each app is its own folder, so a phone app and its desktop companion sit side by side in one vault.
+Yes. Give the folder a custom size, the window's own, as a window (`"device": "custom-1280x800-window"`, or Device → Custom → Window): a plain rectangle, with no bar and no safe areas. A screen can take another size of its own, for a dialog or a smaller window. Each app is its own folder, so a phone app and its desktop companion sit side by side in one vault.
 </details>
 
 <details>
