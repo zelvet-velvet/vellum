@@ -328,6 +328,11 @@ class VellumSettings extends PluginSettingTab {
         const rail = div(body, "vlsd-rail is-area", "", "panels border");
         div(rail, "vlsd-h", "Screens · 5", "faint");
         div(rail, "vlsd-r", "Home", "text"); div(rail, "vlsd-r is-sub", "Search", "muted"); div(rail, "vlsd-r is-on", "Plans", "accent"); div(rail, "vlsd-r", "Detail", "hover text").setAttr("data-state", "hover"); div(rail, "vlsd-r", "Settings", "text");
+        // the device, at the rail's foot: a side area with a button in the panels' colour
+        const foot = div(rail, "vlsd-rfoot is-area", "", "device border");
+        div(foot, "vlsd-h", "Device", "faint");
+        const dv = div(foot, "vlsd-dev", "", "panels border");
+        dv.createSpan({ text: "iPhone 16", attr: { "data-use": "text" } }); dv.createSpan({ text: "Phone", attr: { "data-use": "muted" } });
         const stage = div(body, "vlsd-stage is-area", "", "side");
         this.phoneArt(div(stage, "vlsd-phone"), true);
         const side = div(body, "vlsd-side is-area", "", "panels border");

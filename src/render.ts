@@ -17,6 +17,7 @@ export const UI_COLORS: { id: string; name: string; group: string; vars: string[
     { id: "panels", name: "Panels", group: "Surfaces", vars: ["--background-primary"] },
     { id: "side", name: "Side areas", group: "Surfaces", vars: ["--background-secondary"] },
     { id: "hover", name: "Hover", group: "Surfaces", vars: ["--background-modifier-hover"] },
+    { id: "device", name: "Device area", group: "Surfaces", vars: ["--vlu-device"], follow: "var(--background-secondary)" },   // under the screens list; side areas until set
     { id: "field", name: "Input boxes", group: "Surfaces", vars: ["--background-modifier-form-field"] },
     { id: "border", name: "Borders", group: "Lines", vars: ["--background-modifier-border"] },
     { id: "borderh", name: "Borders on hover", group: "Lines", vars: ["--background-modifier-border-hover"] },

@@ -211,7 +211,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-padd { width: 26px; height: 26px; opacity: 0; }
 .vl-prow:hover .vl-padd, .vl-ws.is-phone .vl-padd { opacity: 1; }
 .vl-rfoot { margin-top: auto; padding: 16px 8px 4px; }
-.vl-rfoot .vl-dev { width: 100%; justify-content: space-between; }
 /* the pill at the foot of the stage */
 .vl-zbar { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; pointer-events: none; z-index: 6; }
 .vl-zpill { pointer-events: auto; display: inline-flex; align-items: center; gap: 2px; padding: 4px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14); }
@@ -423,9 +422,32 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-stage[data-safe="top"] .vl-safe.is-top, .vl-stage[data-safe="bottom"] .vl-safe.is-bottom,
 .vl-stage[data-safe="left"] .vl-safe.is-left, .vl-stage[data-safe="right"] .vl-safe.is-right { z-index: 9; background-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent); box-shadow: inset 0 0 0 1px var(--interactive-accent); }
 /* the device stays at the foot of the screens list (it scrolls above it) */
-.vl-rfoot { position: sticky; bottom: -12px; z-index: 2; margin: auto -8px -12px; padding: 12px 16px; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); }
-.vl-rfoot .vl-sec { margin-top: 10px; }
-.vl-rfoot .vl-secb { max-height: 50vh; overflow-y: auto; }   /* the frame settings open under the device and scroll, the list stays in sight */
+.vl-rfoot { position: sticky; bottom: -12px; z-index: 2; margin: auto -8px -12px; padding: 10px 12px 14px; background: var(--vlu-device, var(--background-secondary)); border-top: 1px solid var(--background-modifier-border); }
+.vl-rfoot > .vl-sech { padding: 0 4px 8px; }
+/* a computer: the rail is the list (it scrolls) over the device (it stays) */
+.vl-rail.is-on:has(> .vl-rfoot) { display: flex; flex-direction: column; }
+.vl-rail > .vl-railbox { flex: 1 1 auto; height: auto; min-height: 0; }
+.vl-rail > .vl-rfoot { position: static; flex: none; margin: 0; padding: 12px 12px 14px; background: var(--vlu-device, var(--background-secondary)); border-top: 1px solid var(--background-modifier-border); }
+/* the device: one button at the foot of the screens list; its settings open in the right panel */
+.vl .vl-devbtn { display: flex; align-items: center; gap: 10px; width: 100%; height: auto; padding: 8px 8px 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-primary); box-shadow: none; text-align: left; cursor: pointer; }
+.vl .vl-devbtn:hover { background: var(--background-modifier-hover); }
+.vl .vl-devbtn.is-on { border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+.vl-devi { display: flex; color: var(--text-muted); }
+.vl-devbtn.is-on .vl-devi { color: var(--interactive-accent); }
+.vl-devt { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.3; }
+.vl-devn { font-size: var(--font-ui-small); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-devk { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl-devbtn .vl-chev { display: flex; color: var(--text-faint); }
+.vl-devmenu { overflow-y: auto; }
+.vl-devwin .vl-dev { width: 100%; justify-content: space-between; }
+/* the device's own window: beside the screens list, over the stage */
+.vl-devwin { position: absolute; z-index: 15; width: 300px; display: flex; flex-direction: column; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 12px; box-shadow: var(--shadow-l); outline: none; }
+.vl-devwin.is-sheet { left: 0; right: 0; bottom: 0; width: auto; max-height: 70%; border-radius: 14px 14px 0 0; }
+.vl-devwinh { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 14px; border-bottom: 1px solid var(--background-modifier-border); font-weight: 600; }
+.vl-devwinh.is-grab { cursor: grab; user-select: none; touch-action: none; }
+.vl-devwinh.is-grab:active { cursor: grabbing; }
+.vl-devwinsub { flex: 1; font-weight: normal; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vl-devwinb { overflow-y: auto; padding: 4px 14px 14px; min-height: 0; }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
 /* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
 .vl .vl-newp { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; margin: 10px 0 14px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--interactive-accent); border-radius: 6px; box-shadow: none; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-small); line-height: 1; cursor: pointer; }
@@ -568,6 +590,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-seg2 > button.is-on { background: var(--background-modifier-hover); color: var(--text-normal); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
 .vl .vl-seg2 > button:hover:not(.is-on) { color: var(--text-normal); }
 .vl-seg2i { display: flex; flex: none; --icon-size: 13px; }
+/* tiles: an icon over its word, the whole width (a device's kind, its status bar) */
+.vl-seg2.is-stack { flex: none; width: 100%; box-sizing: border-box; margin: 2px 0 8px; }
+.vl .vl-seg2.is-stack > button { flex-direction: column; height: auto; padding: 7px 2px 6px; gap: 4px; }
+.vl-seg2.is-stack .vl-seg2i { --icon-size: 18px; }
+.vl-frameinfo + .vl-seg2.is-stack { margin-top: 4px; }
 /* rows: a label at the left, the control at the right */
 .vl .vl-frow { grid-template-columns: 64px minmax(0, 1fr); min-height: 32px; }
 .vl .vl-frowc > .vl-text, .vl .vl-frowc > input.vl-text { flex: 1; min-width: 0; }
@@ -710,6 +737,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vlsd-h { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); padding: 2px 6px 6px; }
 .vlsd-r { padding: 5px 8px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vlsd-r.is-sub { margin-left: 14px; color: var(--text-muted); }
+.vlsd-rfoot { margin: auto -8px -10px; padding: 8px 8px 10px; background: var(--vlu-device, var(--background-secondary)); border-top: 1px solid var(--background-modifier-border); }
+.vlsd-rfoot .vlsd-h { padding: 0 2px 6px; }
+.vlsd-dev { display: flex; flex-direction: column; padding: 5px 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); }
+.vlsd-dev span:last-child { font-size: 10px; color: var(--text-muted); }
 .vlsd-r.is-on { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); font-weight: 600; }
 .vlsd-r.is-state { background: var(--background-modifier-hover); }
 .vlsd-stage { display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: var(--background-secondary); min-width: 0; }
