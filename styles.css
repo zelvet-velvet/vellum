@@ -137,7 +137,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-maplines path { fill: none; stroke: var(--text-faint); stroke-width: 1.5; stroke-linejoin: round; }
 .vl-maplink { position: absolute; transform: translateX(-50%); font-size: 10px; line-height: 1.3; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; background: var(--background-primary); border-radius: 3px; pointer-events: none; }
 .vl-thumb { position: absolute; cursor: pointer; }
-.vl-tphone { position: relative; overflow: hidden; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); transition: box-shadow 0.15s; }
+.vl-tphone { position: relative; overflow: hidden; contain: strict; content-visibility: auto; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); transition: box-shadow 0.15s; }
 .vl-thumb:hover .vl-tphone { box-shadow: 0 0 0 2px var(--text-faint); }
 .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
 .vl-thumb.is-mock .vl-tphone { outline: 1px dashed var(--text-muted); outline-offset: 2px; }
@@ -845,20 +845,17 @@ body.is-mobile .vl-chead { align-items: flex-start; }
    what it opens and where it is in the list below */
 .vl-stage.is-show { background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary)), var(--background-primary) 70%); }
 .vl-stage > .vl-page.is-showing { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 20px 24px 84px; }
-.vl-showhead { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; max-width: 520px; }
 .vl-showfrom { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vl .vl-showlink { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; box-shadow: none; background: var(--background-modifier-hover); border-radius: 11px; font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
 .vl .vl-showlink:hover { color: var(--text-normal); }
 .vl-showlink svg { width: 12px; height: 12px; }
 .vl-showhow { color: var(--text-faint); font-style: italic; }
-.vl-showtitle { display: flex; align-items: center; gap: 8px; font-size: 1.35em; font-weight: 700; letter-spacing: -0.01em; color: var(--text-normal); }
 .vl-shownote { font-size: var(--font-ui-small); color: var(--text-muted); }
 .vl-showrow { display: flex; align-items: center; gap: 24px; }
 .vl .vl-shownav { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--background-modifier-border); background: var(--background-primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); color: var(--text-muted); flex: none; }
 .vl .vl-shownav:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
 .vl .vl-shownav.is-off { opacity: 0.25; box-shadow: none; pointer-events: none; }
 .vl-shownav svg { width: 20px; height: 20px; }
-.vl-showfoot { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 560px; }
 .vl-showkids { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
 .vl-showlabel { font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-right: 4px; }
 .vl .vl-showkid { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 12px; border: 1px solid var(--background-modifier-border); box-shadow: none; background: var(--background-primary); border-radius: 15px; font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -885,3 +882,22 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* a block drawn out of sight to measure its items (Ungroup) */
 .vl-measure { position: fixed; left: -100000px; top: 0; visibility: hidden; pointer-events: none; contain: layout; }
 .vl-measure > .vl-block { left: 0; top: 0; }
+
+/* Show: the screen's card under its name in the top bar (the pointer resting on the name) */
+.vl-pgname.has-info { cursor: default; text-decoration: underline dotted var(--text-faint); text-underline-offset: 4px; }
+.vl-showinfo { position: absolute; z-index: 30; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: max-content; max-width: min(440px, calc(100% - 16px)); box-sizing: border-box; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28); }
+.vl-showinfo .vl-showfrom { width: 100%; flex-wrap: wrap; }
+.vl-showinfo .vl-showcount { margin-left: auto; padding-left: 12px; white-space: nowrap; }
+.vl-showinfo .vl-shownote { white-space: pre-wrap; font-size: var(--font-ui-small); line-height: 1.45; }
+.vl-showinfo .vl-showkids { justify-content: flex-start; }
+/* the bars hidden: the stage takes their room; one button in the corner brings them back */
+.vl-ws.is-bare > .vl-top, .vl-ws.is-bare .vl-zbar { display: none; }
+.vl-ws.is-bare .vl-stage > .vl-page { padding-bottom: 24px; }
+.vl .vl-unbare, .vl .vl-bareside { position: absolute; z-index: 7; width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7; color: var(--text-muted); background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); }
+.vl .vl-unbare { bottom: 14px; right: 14px; }
+.vl .vl-bareside { top: 14px; left: 14px; }
+.vl .vl-bareside.is-r { left: auto; right: 14px; }
+.vl .vl-unbare:hover, .vl .vl-bareside:hover { opacity: 1; color: var(--text-normal); }
+.vl-unbare svg, .vl-bareside svg { width: 22px; height: 22px; }
+/* the Map: a drag on the empty stage moves it */
+.vl-stage:has(> .vl-stagemap) { cursor: grab; }

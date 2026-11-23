@@ -57,7 +57,7 @@ const near = (pts: number[], lines: number[], reach: number) => {
 };
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
-type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean };   // map: the whole tree in the stage   // panel: false = folded (computer)
+type View = { zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // the colours a mark can take (or any CSS colour)
@@ -179,7 +179,7 @@ class Editor {
     // ---- state, undo, drafts, save
     // the editor opens in the Map (when there are screens); an app's folder remembers its last screen on the device, so
     // switching back (or reopening Obsidian) has it chosen
-    get v(): View { return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: !Platform.isMobile && window.innerWidth >= 1000, map: this.doc.pages.length > 0, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
+    get v(): View { const wide = !Platform.isMobile && window.innerWidth >= 1000, map = this.doc.pages.length > 0; return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: wide && !map, railShow: map ? wide : undefined, map, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
     setView(p: Partial<View>) {
         view.set(this.doc.id, { ...this.v, ...p });
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
@@ -537,9 +537,9 @@ class Editor {
         this.paint(R);
         // keys: on the editor itself (it may be in another window); capture so Obsidian's own keys do not take them first
         // (the window's own capture phase: Obsidian takes Ctrl+S there before it reaches the editor)
-        const onKey = (e: KeyboardEvent) => { if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true); const a = R.doc.activeElement; if (a && (R === a || R.contains(a))) this.key(e); };
+        const onKey = (e: KeyboardEvent) => { if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true); const a = R.doc.activeElement; if (this.full() || (a && (R === a || R.contains(a)))) this.key(e); };
         R.win.addEventListener("keydown", onKey, true);
-        if (pop) {
+        {   // the editor resized (its window, full screen, a side folded): Fit fits again
             let raf = 0;
             new ResizeObserver(() => {
                 if (!R.isConnected) return;
@@ -560,7 +560,7 @@ class Editor {
         // the camera: a rebuild (undo, redo, a change from outside, a side folded) keeps the stage scrolled where it was,
         // as long as it still shows the same thing (the same screen and layout, or the map)
         const was = this.wall?.isConnected ? { key: this.camKey(), l: this.wall.scrollLeft, t: this.wall.scrollTop } : null;
-        R.empty(); this.panel = null;
+        this.unInfo(); R.empty(); this.panel = null;
         this.bar = R.createDiv({ cls: "vl-top" });
         this.drawStale();
         const body = R.createDiv({ cls: "vl-body" });
@@ -579,11 +579,58 @@ class Editor {
             const p = this.current(), scr = this.wall.querySelector<HTMLElement>(".vl-screen");
             if (p && scr) this.marquee(e, p, scr, true);
         });
+        this.wall.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0 || !this.v.map || (e.target as HTMLElement).closest(".vl-thumb, button")) return;
+            e.preventDefault(); this.pan(e);
+        });
         this.wall.addEventListener("click", (e) => { if ((this.v.show || this.v.map) && e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
+        const bare = this.bare();
+        R.toggleClass("is-bare", bare);
+        if (this.full() && bare) this.btn(mid, "minimize", "Leave full screen (Ctrl+. or Esc)", () => { void R.doc.exitFullscreen(); }).addClass("vl-unbare");
+        else if (bare) this.btn(mid, "minimize-2", "Show the bars (Ctrl+.)", () => this.setBars(true)).addClass("vl-unbare");
+        if (bare && !Platform.isMobile) {
+            // the top bar's side toggles, in the stage's top corners while it is hidden
+            this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
+            if (!this.v.show && !this.v.map) this.btn(mid, this.v.panel === false ? "vellum-side-right" : "sidebar-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-bareside", "is-r");
+        }
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
         if (was && was.key === this.camKey()) { this.wall.scrollLeft = was.l; this.wall.scrollTop = was.t; }
+        const a = R.doc.activeElement; if (!a || a === R.doc.body) R.focus({ preventScroll: true });
+    }
+    // Edit, Show or Map. Show and Map fold the screens list away (a computer: Show is the screen alone, the Map is every
+    // screen already); back in Edit it comes back as it was
+    setMode(m: "edit" | "show" | "map") {
+        const wasEdit = !this.v.show && !this.v.map;
+        if (m !== "edit" && wasEdit && !Platform.isMobile) this.setView({ railShow: this.v.rail, rail: false });
+        if (m === "edit" && !wasEdit && this.v.railShow !== undefined) this.setView({ rail: this.v.railShow, railShow: undefined });
+        this.setView({ show: m === "show", map: m === "map" });
+        if (m !== "edit") this.sel = null;
+        this.draw();
+    }
+    // full screen: the editor alone on the monitor; Esc (with nothing chosen) or the button leaves, and the sides come back
+    // as they were
+    full() { return !!this.root && this.root.doc.fullscreenElement === this.root; }
+    fullOn() {
+        const R = this.root; if (!R || this.full()) return;
+        const { rail, panel } = this.v, d = R.doc;
+        const off = () => { if (this.full()) return; d.removeEventListener("fullscreenchange", off); this.setView({ rail, panel }); if (this.root === R) this.draw(); };
+        // the sides fold and Fit is on: the screen grows to the monitor (fitted again once the window has its size)
+        R.requestFullscreen().then(() => { d.addEventListener("fullscreenchange", off); this.setView({ rail: false, panel: false, fit: true }); this.draw(); }, () => new Notice("Vellum: full screen is not available here"));
+    }
+    // the bars hidden: by the button, or in full screen in Show (the screen alone); Edit and Map keep their tools
+    bare() { return this.v.bars === false || (this.full() && this.v.show && !this.v.map);
+    }
+    // the bars (the top one and the pill) hidden: the stage takes their room; a small button in the corner brings them back
+    // hiding them folds the sides too (a computer) and fits the screen to the room; showing them brings the sides and the
+    // zoom back as they were
+    setBars(on: boolean) {
+        if (on === (this.v.bars !== false)) return;
+        const { rail, panel, fit, zoom } = this.v;
+        if (!on) this.setView({ bars: false, sides: { rail, panel, fit, zoom }, fit: true, ...(Platform.isMobile ? {} : { rail: false, panel: false }) });
+        else { const sd = this.v.sides; this.setView({ bars: true, sides: undefined, ...(sd ?? {}) }); }
+        this.draw();
     }
     camKey() { const v = this.v; return v.map ? "map" : `${this.current()?.id}|${v.land ? 1 : 0}|${v.show ? 1 : 0}`; }
     zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement; railTop = 0;
@@ -620,7 +667,8 @@ class Editor {
             if (this.store) this.drawAppBtn(l);
             if (!this.store || (cur && !this.v.map)) {
                 if (this.store) l.createSpan({ cls: "vl-pgsep", text: "·" });
-                l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+                const nm = l.createSpan({ cls: "vl-pg vl-pgname", text: cur?.name ?? "No screens" });
+                if (cur && this.v.show) this.infoOn(nm, cur);
             }
         }
         const r = b.createDiv({ cls: "vl-tr" });
@@ -653,7 +701,7 @@ class Editor {
         const mode = this.v.map ? "map" : this.v.show ? "show" : "edit";
         for (const [label, m] of [["Edit", "edit"], ["Show", "show"], ["Map", "map"]] as const) {
             const x = seg.createEl("button", { text: label, cls: mode === m ? "is-on" : "", attr: { "aria-label": m === "map" ? "Every screen as a tree" : m === "show" ? "The screen alone" : "Frames and safe areas" } });
-            x.addEventListener("click", () => { if (mode === m) return; this.setView({ show: m === "show", map: m === "map" }); if (m !== "edit") this.sel = null; this.draw(); });
+            x.addEventListener("click", () => { if (mode !== m) this.setMode(m); });
         }
         pill.createSpan({ cls: "vl-zsep" });
         const ori = pill.createDiv({ cls: "vl-seg is-ori" });
@@ -704,6 +752,12 @@ class Editor {
         const fitOn = this.v.map ? this.v.mapFit !== false : this.v.fit;
         const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
         fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
+        pill.createSpan({ cls: "vl-zsep" });
+        this.btn(pill, "maximize-2", "Hide the bars (Ctrl+.)", () => this.setBars(false));
+        if (!Platform.isMobile && this.root?.requestFullscreen) {
+            if (this.full()) this.btn(pill, "minimize", "Leave full screen (Ctrl+. or Esc)", () => { void this.root?.doc.exitFullscreen(); }).addClass("is-on");
+            else this.btn(pill, "maximize", "Full screen: the editor alone on the monitor (Ctrl+. leaves)", () => this.fullOn());
+        }
         // the pill is at the foot: its tooltips open above it, never over its own buttons
         z.querySelectorAll<HTMLElement>("[aria-label]").forEach((e) => e.setAttr("data-tooltip-position", "top"));
     }
@@ -802,7 +856,8 @@ class Editor {
     pan(e: PointerEvent) {
         const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
         w.setPointerCapture(e.pointerId); w.addClass("is-panning");
-        const move = (m: PointerEvent) => { w.scrollLeft = l0 - (m.clientX - x0); w.scrollTop = t0 - (m.clientY - y0); };
+        let raf = 0, mx = x0, my = y0;
+        const move = (m: PointerEvent) => { mx = m.clientX; my = m.clientY; if (!raf) raf = w.win.requestAnimationFrame(() => { raf = 0; w.scrollLeft = l0 - (mx - x0); w.scrollTop = t0 - (my - y0); }); };
         const up = () => { w.removeEventListener("pointermove", move); w.removeEventListener("pointerup", up); w.removeEventListener("pointercancel", up); w.removeClass("is-panning"); };
         w.addEventListener("pointermove", move); w.addEventListener("pointerup", up); w.addEventListener("pointercancel", up);
     }
@@ -832,7 +887,7 @@ class Editor {
         if (this.v.map && this.doc.pages.length) {
             // Map: every screen in the stage as a tree; a click opens it for editing. Fit: the tree as wide as the stage
             const box = this.wall.createDiv({ cls: "vl-stagemap" });
-            const pick = (p: Page) => { this.setView({ map: false, page: p.id }); this.sel = null; this.draw(); };
+            const pick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
             const BASE = 110, room = this.wall.clientWidth - 64;
             let tw = BASE * (this.v.mapZoom ?? 1);
             if (this.v.mapFit !== false) {
@@ -851,8 +906,8 @@ class Editor {
             // fit: the whole phone in the stage, the pill and a margin kept clear
             if (this.v.fit) {
                 const dev = deviceOf(cur.device ?? this.doc.device), { W, H } = screenOf(dev, this.land);
-                const ph = Platform.isMobile, show = this.v.show;   // Show: room for the name above, the arrows beside, what it opens below
-                const sw = this.wall.clientWidth - (ph ? 44 : 64) - (show ? (ph ? 72 : 112) : 0), sh = this.wall.clientHeight - (ph ? 100 : 120) - (show ? (ph ? 100 : 130) : 0);
+                const ph = Platform.isMobile, show = this.v.show, bare = this.bare();   // Show: room for the arrows beside it
+                const sw = this.wall.clientWidth - (ph ? 44 : 64) - (show ? (ph ? 72 : 112) : 0), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
             this.drawPage(cur);
@@ -1185,12 +1240,12 @@ class Editor {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
         fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
-        // Show: the screen as a preview: its name and the way to it above, the next / previous screen beside it, the
-        // screens it opens under it
-        if (show) { fig.addClass("is-showing"); this.showHead(fig, p); }
+        // Show: the screen alone, the previous / next screen beside it; its name, the way to it and what it opens are on
+        // the screen's name in the top bar (showInfo)
+        if (show) fig.addClass("is-showing");
         const row = show ? fig.createDiv({ cls: "vl-showrow" }) : fig;
         const phone = row.createDiv({ cls: "vl-phone" });
-        if (show) this.showAround(fig, row, phone, p);
+        if (show) this.showAround(row, phone, p);
         phone.style.width = `${W * z}px`; phone.style.height = `${H * z}px`; phone.style.borderRadius = `${dev.radius * z}px`;
         const scr = phone.createDiv({ cls: "vl-screen" + (show ? " is-show" : "") });
         const bg = bgOf(this.doc.pages, p);
@@ -1319,22 +1374,58 @@ class Editor {
         return out;
     }
     showGo(step: number) { const o = this.order(), i = o.findIndex((x) => x.id === this.current()?.id), n = o[i + step]; if (n) this.openPage(n); }
-    showHead(fig: HTMLElement, p: Page) {
-        const h = fig.createDiv({ cls: "vl-showhead" });
+    // the screen's name, the way to it, its note and the screens it opens: in a card under the screen's name in the top bar
+    showInfo(box: HTMLElement, p: Page) {
+        const o = this.order(), i = o.findIndex((x) => x.id === p.id);
+        // one line: where it opens from (and how), mock, its place in the order; the name is in the top bar right above
         const par = p.parent ? this.page(p.parent) : undefined;
+        const c = box.createDiv({ cls: "vl-showfrom" });
         if (par) {
-            const c = h.createDiv({ cls: "vl-showfrom" });
             const back = c.createEl("button", { cls: "vl-showlink", attr: { "aria-label": `Back to ${par.name}` } });
             setIcon(back.createSpan(), "corner-left-up"); back.appendText(par.name);
-            back.addEventListener("click", () => this.openPage(par));
+            back.addEventListener("click", () => { this.unInfo(); this.openPage(par); });
             if (p.link) c.createSpan({ cls: "vl-showhow", text: p.link });
         }
-        const t = h.createDiv({ cls: "vl-showtitle" });
-        t.createSpan({ text: p.name });
-        if (p.mock) t.createSpan({ cls: "vl-mocktag", text: "mock" });
-        if (p.note) h.createDiv({ cls: "vl-shownote", text: p.note.split("\n")[0] });
+        if (p.mock) c.createSpan({ cls: "vl-mocktag", text: "mock" });
+        c.createSpan({ cls: "vl-showcount", text: `${i + 1} / ${o.length}` });
+        if (p.note) box.createDiv({ cls: "vl-shownote", text: p.note });
+        const kids = childrenOf(this.doc.pages, p.id);
+        if (kids.length) {
+            const g = box.createDiv({ cls: "vl-showkids" });
+            g.createSpan({ cls: "vl-showlabel", text: "Opens" });
+            for (const k of kids) {
+                const c = g.createEl("button", { cls: "vl-showkid" });
+                c.createSpan({ cls: "vl-showkn", text: k.name });
+                if (k.link) c.createSpan({ cls: "vl-showhow", text: k.link });
+                setIcon(c.createSpan({ cls: "vl-showki" }), "arrow-right");
+                c.addEventListener("click", () => { this.unInfo(); this.openPage(k); });
+            }
+        }
     }
-    showAround(fig: HTMLElement, row: HTMLElement, phone: HTMLElement, p: Page) {
+    info: HTMLElement | null = null; infoT = 0;
+    unInfo() { window.clearTimeout(this.infoT); this.info?.remove(); this.info = null; }
+    // Show: the pointer resting on the screen's name opens its card (a tap, on a phone); it stays while the pointer is on
+    // either, so its buttons can be pressed
+    infoOn(name: HTMLElement, p: Page) {
+        name.addClass("has-info");
+        const open = () => {
+            window.clearTimeout(this.infoT);
+            if (this.info?.isConnected) return;
+            const R = this.root; if (!R) return;
+            const card = (this.info = R.createDiv({ cls: "vl-showinfo" }));
+            this.showInfo(card, p);
+            const r = name.getBoundingClientRect(), rr = R.getBoundingClientRect();
+            card.style.left = `${Math.max(8, Math.min(r.left - rr.left, rr.width - card.offsetWidth - 8))}px`;
+            card.style.top = `${r.bottom - rr.top + 6}px`;
+            card.addEventListener("mouseenter", () => window.clearTimeout(this.infoT));
+            card.addEventListener("mouseleave", later);
+        };
+        const later = () => { window.clearTimeout(this.infoT); this.infoT = window.setTimeout(() => this.unInfo(), 220); };
+        name.addEventListener("mouseenter", () => { window.clearTimeout(this.infoT); this.infoT = window.setTimeout(open, 120); });
+        name.addEventListener("mouseleave", later);
+        name.addEventListener("click", () => { if (this.info?.isConnected) this.unInfo(); else open(); });
+    }
+    showAround(row: HTMLElement, phone: HTMLElement, p: Page) {
         const o = this.order(), i = o.findIndex((x) => x.id === p.id);
         const arrow = (step: number, icon: string) => {
             const n = o[i + step], b = createEl("button", { cls: "vl-shownav" + (n ? "" : " is-off"), attr: { "aria-label": n ? `${step < 0 ? "Previous" : "Next"}: ${n.name} (${step < 0 ? "←" : "→"})` : "" } });
@@ -1344,20 +1435,6 @@ class Editor {
         };
         row.insertBefore(arrow(-1, "chevron-left"), phone);
         row.appendChild(arrow(1, "chevron-right"));
-        const f = fig.createDiv({ cls: "vl-showfoot" });
-        const kids = childrenOf(this.doc.pages, p.id);
-        if (kids.length) {
-            const g = f.createDiv({ cls: "vl-showkids" });
-            g.createSpan({ cls: "vl-showlabel", text: "Opens" });
-            for (const k of kids) {
-                const c = g.createEl("button", { cls: "vl-showkid" });
-                c.createSpan({ cls: "vl-showkn", text: k.name });
-                if (k.link) c.createSpan({ cls: "vl-showhow", text: k.link });
-                setIcon(c.createSpan({ cls: "vl-showki" }), "arrow-right");
-                c.addEventListener("click", () => this.openPage(k));
-            }
-        }
-        f.createDiv({ cls: "vl-showcount", text: `${i + 1} / ${o.length}` });
     }
     // one block again, in its place (a drag keeps its screen element, which holds the pointer)
     redrawBlock(scr: HTMLElement, p: Page, b: Block) {
@@ -1870,7 +1947,7 @@ class Editor {
 
     // ---- keys (only when not typing in a field)
     key(e: KeyboardEvent) {
-        if (this.handle(e)) { e.preventDefault(); e.stopPropagation(); }
+        if (this.handle(e)) { e.preventDefault(); if (e.key === "Escape") e.stopImmediatePropagation(); else e.stopPropagation(); }
     }
     handle(e: KeyboardEvent): boolean {
         const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable]");
@@ -1887,6 +1964,10 @@ class Editor {
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (mod && k === "g" && !this.v.show && !this.v.map) { if (e.shiftKey) this.ungroup(); else this.groupSel(); return true; }
         if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
+        if (mod && e.key === "." && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
+        if (mod && e.key === ".") { this.setBars(this.v.bars === false); return true; }
+        if (e.key === "Escape" && !this.sel && this.full()) { void this.root?.doc.exitFullscreen(); return true; }
+        if (e.key === "Escape" && !this.sel && this.v.bars === false) { this.setBars(true); return true; }
         if (mod && e.key === "'") { this.ov.show = !this.ov.show; this.keepOv(); this.drawPages(); return true; }
         if (mod && k === "a" && !this.v.show && !this.v.map) { const p = this.current(); if (p) this.chooseMany(p, this.blocks(p).map((b) => b.id)); return true; }
         if (e.key === "Escape" && !this.sel) return true;   // never closes the editor: a stray Esc would lose your place
@@ -3236,7 +3317,7 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
     return [f, line].filter(Boolean).join(" · ") || "none";
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
-const ZOOMMAX = 16, MAPMAX = 6;   // 1600 % for a screen, 600 % for the map
+const ZOOMMAX = 16, MAPMAX = 10;   // 1600 % for a screen, 1000 % for the map
 const label = (it: Item) => (it.type === "text" ? (it.v ?? "").split("\n")[0].slice(0, 24) || "(empty text)" : it.type === "row" || it.type === "col" || it.type === "group" ? `${it.items?.length ?? 0} items`
     : it.type === "img" ? (it.src ?? "").split(/[/?#]/).filter(Boolean).pop()?.slice(0, 24) || "picture" : it.type === "icon" ? it.name || "icon" : it.type === "ellipse" ? "circle" : it.type);
 // Obsidian's icon names (Lucide without its prefix, and any an app added), for the icon item's suggestions
