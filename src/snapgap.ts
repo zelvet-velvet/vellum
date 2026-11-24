@@ -13,7 +13,12 @@ const order = (axis: "x" | "y") => (a: Box, b: Box) => lo(a, axis) - lo(b, axis)
 // the frame's two edges as boxes of no size
 function rowOf(me: Box, others: Box[], axis: "x" | "y", edges?: Edges): Box[] {
     const across = (b: Box) => (axis === "x" ? b.T < me.T + me.H && me.T < b.T + b.H : b.L < me.L + me.W && me.L < b.L + b.W);
-    const row = others.filter(across);
+    // neighbours only: not what the box overlaps (a card under it, its own content), not what sits inside another one
+    // (a card's text and icon: the card is the neighbour)
+    const hit = (a: Box, b: Box) => a.L < b.L + b.W && b.L < a.L + a.W && a.T < b.T + b.H && b.T < a.T + a.H;
+    const inside = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L + a.W && a.T <= b.T && b.T + b.H <= a.T + a.H && (a.W > b.W || a.H > b.H);
+    const free = others.filter((b) => !hit(b, me));
+    const row = free.filter((b) => across(b) && !free.some((a) => inside(b, a)));
     if (edges) for (const e of edges) row.push(axis === "x" ? { L: e, T: me.T, W: 0, H: me.H } : { L: me.L, T: e, W: me.W, H: 0 });
     return row.sort(order(axis));
 }

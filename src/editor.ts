@@ -2229,17 +2229,18 @@ class Editor {
             const on = snap.on && !m.altKey, reach = snap.dist / z, gx: number[] = [], gy: number[] = [];
             const pick = (pts: number[], ls: number[], out: number[]) => { const g = on ? near(pts, ls, reach) : null; if (g) out.push(g.at); return g; };
             const gm: GapMark[] = [];
-            // equal gaps: a stop nearer than the line snapped to wins (that line's guide goes, the gaps are marked)
-            const gap = (me: Box, axis: "x" | "y", lineD: number | null, out: number[]): GapStop | null => {
+            // equal gaps, after the lines: a line in reach (an edge or a middle) always wins, and its gaps are marked when it
+            // happens to make equal ones; with no line in reach the box snaps to the nearest equal gap
+            const gap = (me: Box, axis: "x" | "y", lineD: number | null): GapStop | null => {
                 if (!on || !snap.others) return null;
-                const at = axis === "x" ? me.L : me.T, s = nearStop(gapStops(me, near0, axis, axis === "x" ? ex : ey), at, reach);
-                if (!s || (lineD !== null && Math.abs(lineD) <= Math.abs(s.at - at))) return null;
-                if (lineD !== null) out.pop();
+                const edges = axis === "x" ? ex : ey, at = axis === "x" ? me.L : me.T, stops = gapStops(me, near0, axis, edges);
+                const s = lineD !== null ? stops.find((o) => Math.abs(o.at - (at + lineD)) < 0.5) ?? null : nearStop(stops, at, reach);
+                if (!s) return null;
                 const a = axis === "x" ? me.T : me.L, z2 = axis === "x" ? me.T + me.H : me.L + me.W;
                 // every gap of that width in the row, with the box in its new place
                 const placed: Box = axis === "x" ? { ...me, L: s.at } : { ...me, T: s.at };
-                for (const [f, t] of sameGaps(placed, near0, axis, s.gap, axis === "x" ? ex : ey)) gm.push({ axis, from: f, to: t, at: z2, a, b: z2, text: String(s.gap) });
-                return s;
+                for (const [f, t] of sameGaps(placed, near0, axis, s.gap, edges)) gm.push({ axis, from: f, to: t, at: z2, a, b: z2, text: String(s.gap) });
+                return lineD !== null ? null : s;
             };
             let ox = 0, oy = 0;   // guides in screen points: an item's are in its block
             if (dragItem && istart) {
@@ -2248,12 +2249,12 @@ class Editor {
                 const me: Box | null = ib ? { L: ib.L + dx, T: ib.T + dy, W: ib.W, H: ib.H } : null;
                 if (dragItem.w !== "fill") {
                     const L = (ib?.L ?? 0) + dx, W = ib?.W ?? 0, g = ib ? pick([L, L + W / 2, L + W], lines.x, gx) : null;
-                    const s = me ? gap(me, "x", g ? g.d : null, gx) : null;
+                    const s = me ? gap(me, "x", g ? g.d : null) : null;
                     dragItem.dx = s ? toD(ax, s.at, W, b.w) : g ? toD(ax, L + g.d, W, b.w) : sn(istart.dx + (ax > 0 ? -dx : dx));
                 }
                 if (dragItem.h !== "fill") {
                     const T = (ib?.T ?? 0) + dy, H = ib?.H ?? 0, g = ib ? pick([T, T + H / 2, T + H], lines.y, gy) : null;
-                    const s = me ? gap(me, "y", g ? g.d : null, gy) : null;
+                    const s = me ? gap(me, "y", g ? g.d : null) : null;
                     dragItem.dy = s ? toD(ay, s.at, H, b.h) : g ? toD(ay, T + g.d, H, b.h) : sn(istart.dy + (ay > 0 ? -dy : dy));
                 }
             } else if (grip) {
@@ -2272,7 +2273,7 @@ class Editor {
             } else {
                 const L = start.x + dx, T = start.y + dy, me: Box = { L, T, W: b.w, H: b.h };
                 const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
-                const s1 = gap(me, "x", g1 ? g1.d : null, gx), s2 = gap(me, "y", g2 ? g2.d : null, gy);
+                const s1 = gap(me, "x", g1 ? g1.d : null), s2 = gap(me, "y", g2 ? g2.d : null);
                 b.x = s1 ? Math.round(s1.at) : g1 ? Math.round(L + g1.d) : sn(L); b.y = s2 ? Math.round(s2.at) : g2 ? Math.round(T + g2.d) : sn(T);
             }
             // pushed wholly off the screen, a block leaves it (a draft); short of that it keeps to its room
