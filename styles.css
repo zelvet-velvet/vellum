@@ -108,6 +108,9 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-acts { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
 .vl-act { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); box-shadow: none; background: transparent; border-radius: 6px; }
 .vl-act svg { width: 14px; height: 14px; }
+/* an action in a panel stays inside it: a long one wraps onto a second line instead of running past the panel's edge */
+.vl .vl-acts > .vl-act { max-width: 100%; height: auto; min-height: 28px; padding: 4px 8px; white-space: normal; text-align: left; line-height: 1.3; }
+.vl .vl-acts > .vl-act > span:first-child { flex: none; display: inline-flex; }
 /* gravity: a 3 × 3 grid of dots, the chosen one filled */
 .vl-gwrap { display: flex; gap: 12px; align-items: flex-start; }
 .vl-grav { display: grid; grid-template-columns: repeat(3, 28px); grid-template-rows: repeat(3, 28px); border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 4px; flex: none; }
