@@ -5,7 +5,7 @@ import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl,
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 import { canUngroup, ungroupBlock } from "./flatten";
-import { Box, gapStops, GapStop, nearStop, sameSize } from "./snapgap";
+import { Box, Edges, gapStops, GapStop, nearStop, sameGaps, sameSize } from "./snapgap";
 import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ratioText } from "./overlay";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
@@ -91,7 +91,12 @@ function selInk(blockEl: HTMLElement, itemEl: HTMLElement) {
 }
 type Lines = { x: number[]; y: number[] };
 // the nearest line within reach of any of the points: how far to shift, and the line
-type GapMark = { axis: "x" | "y"; from: number; to: number; at: number; text: string };   // a bar with a number: an equal gap or size
+type GapMark = { axis: "x" | "y"; from: number; to: number; at: number; text: string; a?: number; b?: number };   // an equal gap (a band from a to b across) or size (a bar at `at`), with its number
+// marks from a block's points to the screen's: along the axis by one offset, across it (at, a band's a and b) by the other
+const shiftMarks = (gm: GapMark[], ox: number, oy: number): GapMark[] => gm.map((g) => {
+    const along = g.axis === "x" ? ox : oy, across = g.axis === "x" ? oy : ox;
+    return { ...g, from: g.from + along, to: g.to + along, at: g.at + across, a: g.a === undefined ? undefined : g.a + across, b: g.b === undefined ? undefined : g.b + across };
+});
 const near = (pts: number[], lines: number[], reach: number) => {
     let best: { d: number; at: number } | null = null;
     for (const q of pts) for (const l of lines) { const d = l - q; if (Math.abs(d) <= reach && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: l }; }
@@ -2012,7 +2017,7 @@ class Editor {
                 // the gravity point the item keeps, on the block
                 if (it && b.items.includes(it)) { const [ax, ay] = axes(it.g); const d = el.createDiv({ cls: "vl-anchor" }); d.style.left = `${(ax + 1) * 50}%`; d.style.top = `${(ay + 1) * 50}%`; }
                 if (it && b.items.includes(it) && RESIZE.includes(it.type)) this.itemGrips(el, b, it);
-                if (it && this.ov.ratio && this.ov.show) { const bx = this.itemBox(el, b, it); if (bx) { const r = el.createDiv({ cls: "vl-ratio", text: ratioText(bx.W, bx.H) }); r.addClass("is-under"); r.setCssStyles({ left: `${Math.max(0, bx.L)}px` }); } }   // under the block: never over its content
+                if (it && this.ov.ratio && this.ov.show) { const bx = this.itemBox(el, b, it); if (bx) { const r = el.createDiv({ cls: "vl-ratio is-item", text: ratioText(bx.W, bx.H) }); r.setCssStyles({ left: `${bx.L + bx.W / 2}px`, top: `${bx.T + bx.H}px` }); } }   // right under the item, centred on it
             } else {
                 el.createDiv({ cls: "vl-grip", attr: { "data-grip": "1" } });
                 if (this.ov.ratio && this.ov.show) { const r = el.createDiv({ cls: "vl-ratio", text: ratioText(b.w, b.h) }); r.addClass("is-under"); }
@@ -2078,8 +2083,8 @@ class Editor {
     }
     // equal sizes: a bar along the box being resized and along each neighbour of that size, with the size
     sizeMarks(gm: GapMark[], others: Box[], me: Box, axis: "x" | "y") {
-        const S = axis === "x" ? me.W : me.H, t = String(Math.round(S));
-        const bar = (o: Box) => gm.push(axis === "x" ? { axis, from: o.L, to: o.L + o.W, at: o.T + o.H + 6, text: t } : { axis, from: o.T, to: o.T + o.H, at: o.L + o.W + 6, text: t });
+        const k = 6 / this.v.zoom, S = axis === "x" ? me.W : me.H, t = String(Math.round(S));
+        const bar = (o: Box) => gm.push(axis === "x" ? { axis, from: o.L, to: o.L + o.W, at: o.T + o.H + k, text: t } : { axis, from: o.T, to: o.T + o.H, at: o.L + o.W + k, text: t });
         bar(me);
         for (const o of others) if (Math.round(axis === "x" ? o.W : o.H) === Math.round(S)) bar(o);
     }
@@ -2090,9 +2095,12 @@ class Editor {
         for (const v of xs) { const g = scr.createDiv({ cls: "vl-guide is-v" }); g.style.left = `${v}px`; }
         for (const v of ys) { const g = scr.createDiv({ cls: "vl-guide is-h" }); g.style.top = `${v}px`; }
         for (const m of marks) {
-            const g = scr.createDiv({ cls: `vl-gapm is-${m.axis}` });
-            if (m.axis === "x") Object.assign(g.style, { left: `${m.from}px`, width: `${Math.max(0, m.to - m.from)}px`, top: `${m.at}px` });
-            else Object.assign(g.style, { top: `${m.from}px`, height: `${Math.max(0, m.to - m.from)}px`, left: `${m.at}px` });
+            // a gap: a band filling it, its number past the row's edge; a size: a bar with end ticks, its number past it
+            const band = m.a !== undefined && m.b !== undefined;
+            const g = scr.createDiv({ cls: `vl-gapm is-${m.axis}${band ? " is-band" : ""}` });
+            const len = `${Math.max(0, m.to - m.from)}px`, w = band ? `${Math.max(0, m.b! - m.a!)}px` : "";
+            if (m.axis === "x") g.setCssStyles({ left: `${m.from}px`, width: len, top: `${band ? m.a : m.at}px`, ...(band ? { height: w } : {}) });
+            else g.setCssStyles({ top: `${m.from}px`, height: len, left: `${band ? m.a : m.at}px`, ...(band ? { width: w } : {}) });
             g.createSpan({ text: m.text });
         }
     }
@@ -2131,7 +2139,7 @@ class Editor {
             it.dx = ax < 0 ? L : ax > 0 ? b.w - L - W : Math.round(L + W / 2 - b.w / 2);
             it.dy = ay < 0 ? T0 : ay > 0 ? b.h - T0 - H : Math.round(T0 + H / 2 - b.h / 2);
             this.redrawBlock(scr, p, b);
-            this.guides(scr, gx.map((v) => v + b.x), gy.map((v) => v + b.y), gm.map((g) => ({ ...g, from: g.from + (g.axis === "x" ? b.x : b.y), to: g.to + (g.axis === "x" ? b.x : b.y), at: g.at + (g.axis === "x" ? b.y : b.x) })));
+            this.guides(scr, gx.map((v) => v + b.x), gy.map((v) => v + b.y), shiftMarks(gm, b.x, b.y));
             this.livePanel();
         };
         const up = () => { scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); this.guides(scr); if (moved) { this.end(); this.drawPanel(); } };
@@ -2198,6 +2206,7 @@ class Editor {
         // or the block's lines on the screen
         let ib: { L: number; T: number; W: number; H: number } | null = null, lines: Lines = { x: [], y: [] };
         let near0: Box[] = [];   // the neighbours, for equal gaps and sizes: the block's other items, or the screen's other blocks
+        let ex: Edges | undefined, ey: Edges | undefined;   // the frame's edges, neighbours for equal gaps: the block's sides, or the screen's room
         const R = this.room(p, b), keep = !b.bleed && inRoom(b, R);
         scr.setPointerCapture(e.pointerId);
         // held still a moment (not on a handle or the name tag): a drag then draws an area that picks this block's items
@@ -2212,8 +2221,8 @@ class Editor {
             if (!moved) {
                 moved = true; this.begin(); window.clearTimeout(hold);
                 const be = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
-                if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); near0 = this.itemBoxes(be, b, new Set([dragItem.id])); }
-                else if (!dragItem) { lines = this.blockLines(p, b); near0 = this.blockBoxes(p, b); }
+                if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); near0 = this.itemBoxes(be, b, new Set([dragItem.id])); ex = [0, b.w]; ey = [0, b.h]; }
+                else if (!dragItem) { lines = this.blockLines(p, b); near0 = this.blockBoxes(p, b); ex = [R.l, R.r]; ey = [R.t, R.b]; }
                 if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); }
             }
             const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
@@ -2223,11 +2232,13 @@ class Editor {
             // equal gaps: a stop nearer than the line snapped to wins (that line's guide goes, the gaps are marked)
             const gap = (me: Box, axis: "x" | "y", lineD: number | null, out: number[]): GapStop | null => {
                 if (!on || !snap.others) return null;
-                const at = axis === "x" ? me.L : me.T, s = nearStop(gapStops(me, near0, axis), at, reach);
+                const at = axis === "x" ? me.L : me.T, s = nearStop(gapStops(me, near0, axis, axis === "x" ? ex : ey), at, reach);
                 if (!s || (lineD !== null && Math.abs(lineD) <= Math.abs(s.at - at))) return null;
                 if (lineD !== null) out.pop();
-                const mid = axis === "x" ? me.T + me.H / 2 : me.L + me.W / 2;
-                for (const [f, t] of s.spans) gm.push({ axis, from: f, to: t, at: mid, text: String(s.gap) });
+                const a = axis === "x" ? me.T : me.L, z2 = axis === "x" ? me.T + me.H : me.L + me.W;
+                // every gap of that width in the row, with the box in its new place
+                const placed: Box = axis === "x" ? { ...me, L: s.at } : { ...me, T: s.at };
+                for (const [f, t] of sameGaps(placed, near0, axis, s.gap, axis === "x" ? ex : ey)) gm.push({ axis, from: f, to: t, at: z2, a, b: z2, text: String(s.gap) });
                 return s;
             };
             let ox = 0, oy = 0;   // guides in screen points: an item's are in its block
@@ -2267,7 +2278,7 @@ class Editor {
             // pushed wholly off the screen, a block leaves it (a draft); short of that it keeps to its room
             if (!dragItem && keep && (grip || !isDraft(b, this.screen(p).W, this.screen(p).H))) clampTo(b, R, grip);
             this.redrawBlock(scr, p, b);
-            this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy), gm.map((g) => ({ ...g, from: g.from + (g.axis === "x" ? ox : oy), to: g.to + (g.axis === "x" ? ox : oy), at: g.at + (g.axis === "x" ? oy : ox) })));
+            this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy), shiftMarks(gm, ox, oy));
             this.livePanel();
         };
         const up = () => {

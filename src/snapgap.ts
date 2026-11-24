@@ -4,11 +4,22 @@ export type Box = { L: number; T: number; W: number; H: number };
 // at: the box's left (x) or top (y) there; gap: the gap it makes; spans: the gaps to mark, each [from, to] along the axis
 export type GapStop = { at: number; gap: number; spans: [number, number][] };
 
-// the neighbours along an axis: the boxes that share some of the other axis with it (a row for x, a column for y)
-export function gapStops(me: Box, others: Box[], axis: "x" | "y"): GapStop[] {
-    const lo = (b: Box) => (axis === "x" ? b.L : b.T), size = (b: Box) => (axis === "x" ? b.W : b.H);
+// edges: the two ends of the frame along the axis (the block's sides, or the screen's room), each a neighbour too
+export type Edges = [number, number];
+const lo = (b: Box, axis: "x" | "y") => (axis === "x" ? b.L : b.T), size = (b: Box, axis: "x" | "y") => (axis === "x" ? b.W : b.H);
+// along the axis; at the same start the smaller first (an edge before the box that starts on it)
+const order = (axis: "x" | "y") => (a: Box, b: Box) => lo(a, axis) - lo(b, axis) || size(a, axis) - size(b, axis);
+// the neighbours along an axis: the boxes that share some of the other axis with it (a row for x, a column for y), and
+// the frame's two edges as boxes of no size
+function rowOf(me: Box, others: Box[], axis: "x" | "y", edges?: Edges): Box[] {
     const across = (b: Box) => (axis === "x" ? b.T < me.T + me.H && me.T < b.T + b.H : b.L < me.L + me.W && me.L < b.L + b.W);
-    const row = others.filter(across).sort((a, b) => lo(a) - lo(b));
+    const row = others.filter(across);
+    if (edges) for (const e of edges) row.push(axis === "x" ? { L: e, T: me.T, W: 0, H: me.H } : { L: me.L, T: e, W: me.W, H: 0 });
+    return row.sort(order(axis));
+}
+export function gapStops(me: Box, others: Box[], axis: "x" | "y", edges?: Edges): GapStop[] {
+    const lo = (b: Box) => (axis === "x" ? b.L : b.T), size = (b: Box) => (axis === "x" ? b.W : b.H);
+    const row = rowOf(me, others, axis, edges);
     if (!row.length) return [];
     const mid = lo(me) + size(me) / 2, S = size(me);
     let before: Box | null = null, after: Box | null = null;
@@ -49,4 +60,14 @@ export function sameSize(v: number, sizes: number[], reach: number): number | nu
     let best: number | null = null;
     for (const s of sizes) if (Math.abs(s - v) <= reach && (best === null || Math.abs(s - v) < Math.abs(best - v))) best = s;
     return best;
+}
+
+// every gap in the row (me in its place) as wide as g (to the point): all of them are marked, not only the one snapped to
+export function sameGaps(me: Box, others: Box[], axis: "x" | "y", g: number, edges?: Edges): [number, number][] {
+    const row = rowOf(me, others, axis, edges).concat(me).sort(order(axis)), out: [number, number][] = [];
+    for (let i = 0; i + 1 < row.length; i++) {
+        const f = lo(row[i], axis) + size(row[i], axis), t = lo(row[i + 1], axis);
+        if (t - f > 0 && Math.round(t - f) === g) out.push([f, t]);
+    }
+    return out;
 }
