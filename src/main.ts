@@ -136,7 +136,7 @@ class VellumSettings extends PluginSettingTab {
         const row = c.createDiv({ cls: "vls-subtabs", attr: { role: "tablist" } });
         for (const [k, name, icon] of list) {
             const b = row.createEl("button", { cls: "vls-subtab" + (k === cur ? " is-on" : ""), attr: { role: "tab", "aria-selected": String(k === cur) } });
-            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ text: name });
+            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ cls: "vls-tabt", text: name, attr: { "data-t": name } });
             b.addEventListener("click", () => { if (k === cur) return; try { setLocal(key, k); } catch { /* */ } this.display(); });
         }
         return cur;
@@ -158,7 +158,7 @@ class VellumSettings extends PluginSettingTab {
         const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };
         TABS.forEach(([k, name, icon], i) => {
             const b = bar.createEl("button", { cls: "vls-tab" + (k === on ? " is-on" : ""), attr: { role: "tab", "aria-selected": String(k === on), tabindex: k === on ? "0" : "-1" } });
-            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ text: name });
+            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ cls: "vls-tabt", text: name, attr: { "data-t": name } });
             b.addEventListener("click", () => { if (k !== on) pick(k); });
             b.addEventListener("keydown", (e) => {
                 // across the row; up and down a row (three tiles to a row)
