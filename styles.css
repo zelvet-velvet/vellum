@@ -386,6 +386,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-gapm.is-y span { top: 50%; left: calc(100% + 4px * var(--u)); transform: scale(var(--u)) translateY(-50%); }
 .vl-gapm.is-x:not(.is-band) span { top: calc(3px * var(--u)); }
 .vl-gapm.is-y:not(.is-band) span { left: calc(3px * var(--u)); }
+/* while dragging: every item's frame, faint and dashed, so the edges to line up with can be seen */
+.vl-screen.is-dragging .vl-block .vl-it:not(.is-sel) { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--vlu-guide, var(--color-pink, #e93147)) 45%, transparent); outline-offset: calc(-0.5px * var(--vl-iz, 1)); }
 .vl-screen:has(> .vl-gapm) .vl-ratio { visibility: hidden; }   /* while gaps or sizes are marked, the size label would sit on their numbers */
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
 .vl .vl-zpill button.vl-btn.is-off { pointer-events: auto; cursor: default; background: transparent; }   /* not in this mode: faded, its place kept, its tooltip says where it works */

@@ -2089,9 +2089,11 @@ class Editor {
         for (const o of others) if (Math.round(axis === "x" ? o.W : o.H) === Math.round(S)) bar(o);
     }
     // marks: equal gaps or sizes, each a short bar with its number; axis x: from..to across, at its height (screen points)
-    guides(scr: HTMLElement, xs: number[] = [], ys: number[] = [], marks: GapMark[] = []) {
+    // while a drag runs (xs given) every item's frame shows, the edges there are to snap to; guides(scr) alone ends it
+    guides(scr: HTMLElement, xs?: number[], ys: number[] = [], marks: GapMark[] = []) {
         scr.querySelectorAll(".vl-guide, .vl-gapm").forEach((g) => g.remove());
-        if (!snap.guides) return;
+        scr.toggleClass("is-dragging", xs !== undefined);
+        if (!snap.guides || !xs) return;
         for (const v of xs) { const g = scr.createDiv({ cls: "vl-guide is-v" }); g.style.left = `${v}px`; }
         for (const v of ys) { const g = scr.createDiv({ cls: "vl-guide is-h" }); g.style.top = `${v}px`; }
         for (const m of marks) {
@@ -2452,7 +2454,7 @@ class Editor {
                 blocks.add(s.b);
             }
             for (const b of blocks) this.redrawBlock(scr, p, b);
-            if (one) this.guides(scr, g1 ? [g1.at + one.x] : [], g2 ? [g2.at + one.y] : []);
+            this.guides(scr, g1 && one ? [g1.at + one.x] : [], g2 && one ? [g2.at + one.y] : []);
         };
         const up = () => {
             scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
