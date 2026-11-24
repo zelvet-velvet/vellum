@@ -1863,7 +1863,10 @@ class Editor {
         if (!phone?.hasClass("vl-phone")) return;
         phone.querySelector(":scope > .vl-spill")?.remove();
         const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
-        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H);
+        // a chosen block, or one holding chosen items, shows its items past its own edge: those past the screen's count too
+        const sr = scr.getBoundingClientRect();
+        const itemsOut = (el: HTMLElement) => (el.hasClass("is-sel") || el.hasClass("is-holds")) && Array.from(el.querySelectorAll<HTMLElement>(".vl-it")).some((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && (r.left < sr.left || r.top < sr.top || r.right > sr.right || r.bottom > sr.bottom); });
+        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
         if (!out.length) return;
         const g = createDiv({ cls: "vl-spill" });
         Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
@@ -1881,7 +1884,9 @@ class Editor {
         const sel = this.sel?.page === p.id && this.sel.block === b.id;
         const inh = !!l?.from && !l.over;
         const inGroup = !show && this.sel?.page === p.id && this.many.includes(b);
-        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
+        // holds some of several chosen items: they show past its edge while they move, as one chosen item does
+        const holds = !show && this.sel?.page === p.id && this.manyItems.some((x) => x.b === b);
+        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (holds ? " is-holds" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
