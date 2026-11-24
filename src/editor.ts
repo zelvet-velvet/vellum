@@ -2412,7 +2412,7 @@ class Editor {
         if (f) { head.createSpan({ text: "›" }); crumb(label(f.item), this.sel, true); }
         // the header's actions (always in reach): copy for the agent, duplicate, delete, let go
         const acts = head.createDiv({ cls: "vl-hacts" });
-        const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it (Ctrl+Shift+C)", () => this.copyReference(refB));
+        const refB: HTMLElement = this.btn(acts, "link", "Copy reference: one line that points at it, or at everything chosen (Ctrl+Shift+C)", () => this.copyReference(refB));
         const agB: HTMLElement = this.btn(acts, "clipboard-copy", "Copy for the agent: the reference, its JSON now, and a line for what to change", () => this.copyForAgent(agB));
         const one = !many.length && !mi.length && !this.sel?.mark ? (f?.item ?? b) : undefined;
         if (one) {   // one block or item: its lock (a click on the screen then goes through it)
@@ -2441,31 +2441,49 @@ class Editor {
     keepTop = 0;
     // what is chosen, written for a coding agent: where it lives (the folder, the file, the screen, the block, the item),
     // what it is now (its JSON), and a line for what to change. Pasted to the agent, no need to describe which thing it is
-    // where the chosen thing is, in one line: the file, the block, the item (ids to search for)
-    reference(): string {
-        const p = this.page() ?? this.current(); if (!p) return "";
+    // one line per block: the file, the block, the item (ids to search for); several chosen give several lines
+    // (several blocks: one line naming them all; items from several blocks: one line per block)
+    references(): string[] {
+        const p = this.page() ?? this.current(); if (!p) return [];
+        const file = (this.store ? (this.store.files.get(p.id) ?? `${this.store.dir}/${p.name}.json`) : `${this.ctx?.sourcePath ?? "the note"} › ${p.name}`) + (this.land ? " (landscape)" : "");
+        const many = this.many, mi = this.manyItems;
+        if (many.length) return [`${file} › ${many.map((b) => `${b.name} (${b.id})`).join(", ")}`];
+        if (mi.length) {
+            const by = new Map<Block, Item[]>();
+            for (const x of mi) { const l = by.get(x.b); if (l) l.push(x.it); else by.set(x.b, [x.it]); }
+            return [...by].map(([b, its]) => `${file} › ${b.name} (${b.id}) › ${its.map((it) => this.itemRef(it, 30)).join(", ")}`);
+        }
         const b = this.block() ?? this.layer()?.block, f = this.item();
-        const file = this.store ? (this.store.files.get(p.id) ?? `${this.store.dir}/${p.name}.json`) : `${this.ctx?.sourcePath ?? "the note"} › ${p.name}`;
-        const parts = [file + (this.land ? " (landscape)" : "")];
+        const parts = [file];
         if (b) parts.push(`${b.name} (${b.id})`);
-        if (f) parts.push(`${f.item.type}${f.item.type === "text" ? ` "${(f.item.v ?? "").split("\n")[0].slice(0, 30)}"` : f.item.type === "icon" ? ` ${f.item.name ?? ""}` : ""} ${f.item.id}`);
-        return parts.join(" › ");
+        if (f) parts.push(this.itemRef(f.item, 30));
+        return [parts.join(" › ")];
+    }
+    // an item in a reference: its type, its words or icon, its id
+    itemRef(it: Item, n: number): string {
+        return `${it.type}${it.type === "text" ? ` "${(it.v ?? "").split("\n")[0].slice(0, n)}"` : it.type === "icon" ? ` ${it.name ?? ""}` : ""} ${it.id}`;
     }
     copyReference(at?: HTMLElement) {
         // in square brackets: pasted into a message, it reads apart from the words around it
-        const r = this.reference(); if (!r) return;
-        const t = `[${r}]`;
-        (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint("Reference copied", at), () => this.writer("Copy this reference", t, () => { /* */ }));
+        const r = this.references(); if (!r.length) return;
+        const t = r.map((x) => `[${x}]`).join("\n");
+        (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint(r.length > 1 || this.many.length || this.manyItems.length ? "References copied" : "Reference copied", at), () => this.writer("Copy this reference", t, () => { /* */ }));
     }
     copyForAgent(at?: HTMLElement) {
         const p = this.page() ?? this.current(); if (!p) return;
-        const b = this.block() ?? this.layer()?.block, f = this.item();
+        const b = this.block() ?? this.layer()?.block, f = this.item(), many = this.many, mi = this.manyItems;
         const file = this.store ? `${this.store.files.get(p.id) ?? `${this.store.dir}/${p.name}.json`}` : `${this.ctx?.sourcePath ?? "the note"} (a vellum block)`;
         const where = [`Vellum screen "${p.name}" (id ${p.id}) in ${file}`];
         if (this.land) where.push("its landscape layout (land)");
-        if (b) where.push(`block "${b.name}" (id ${b.id}, kind ${b.kind}, x ${b.x} y ${b.y} w ${b.w} h ${b.h})`);
-        if (f) where.push(`item ${f.item.type}${f.item.type === "text" ? ` "${(f.item.v ?? "").split("\n")[0].slice(0, 40)}"` : ""} (id ${f.item.id})`);
-        const now = f ? f.item : b ?? { id: p.id, name: p.name, parent: p.parent, link: p.link, bg: p.bg, blocks: this.blocks(p).map((x) => `${x.name} (${x.id})`) };
+        const blockAt = (x: Block) => `block "${x.name}" (id ${x.id}, kind ${x.kind}, x ${x.x} y ${x.y} w ${x.w} h ${x.h})`;
+        let now: unknown;
+        if (many.length) { where.push(`${many.length} blocks:\n${many.map((x) => `- ${blockAt(x)}`).join("\n")}`); now = many; }
+        else if (mi.length) { where.push(`${mi.length} items:\n${mi.map((x) => `- ${this.itemRef(x.it, 40)} in block "${x.b.name}" (${x.b.id})`).join("\n")}`); now = mi.map((x) => x.it); }
+        else {
+            if (b) where.push(blockAt(b));
+            if (f) where.push(`item ${this.itemRef(f.item, 40).replace(/ (\S+)$/, " (id $1)")}`);
+            now = f ? f.item : b ?? { id: p.id, name: p.name, parent: p.parent, link: p.link, bg: p.bg, blocks: this.blocks(p).map((x) => `${x.name} (${x.id})`) };
+        }
         const text = `${where.join(" · ")}\n\nNow:\n${JSON.stringify(now, null, 1)}\n\nWhat I want changed:\n`;
         const done = () => this.hint("Copied for the agent", at);
         const nav = (this.root?.win ?? window).navigator;
