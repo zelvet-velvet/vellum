@@ -136,7 +136,7 @@ class VellumSettings extends PluginSettingTab {
         const row = c.createDiv({ cls: "vls-subtabs", attr: { role: "tablist" } });
         for (const [k, name, icon] of list) {
             const b = row.createEl("button", { cls: "vls-subtab" + (k === cur ? " is-on" : ""), attr: { role: "tab", "aria-selected": String(k === cur) } });
-            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ text: name });
+            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ cls: "vls-tabt", text: name, attr: { "data-t": name } });
             b.addEventListener("click", () => { if (k === cur) return; try { setLocal(key, k); } catch { /* */ } this.display(); });
         }
         return cur;
@@ -152,16 +152,19 @@ class VellumSettings extends PluginSettingTab {
             for (let e: HTMLElement | null = scroller; e; e = e.parentElement) { const bg = win.getComputedStyle(e).backgroundColor; if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) { bar.style.setProperty("--vls-bg", bg); break; } }
             const onScroll = () => { bar.toggleClass("is-stuck", scroller.scrollTop > 2); };
             scroller.addEventListener("scroll", onScroll, { passive: true });
-            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); this.tabScroll = null; };
+            // room for the scrollbar kept on every tab: a long tab's scrollbar doesn't narrow the page and shift it
+            scroller.addClass("vls-scroller");
+            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); scroller.removeClass("vls-scroller"); this.tabScroll = null; };
             onScroll();
         }
         const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };
         TABS.forEach(([k, name, icon], i) => {
             const b = bar.createEl("button", { cls: "vls-tab" + (k === on ? " is-on" : ""), attr: { role: "tab", "aria-selected": String(k === on), tabindex: k === on ? "0" : "-1" } });
-            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ text: name });
+            setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ cls: "vls-tabt", text: name, attr: { "data-t": name } });
             b.addEventListener("click", () => { if (k !== on) pick(k); });
             b.addEventListener("keydown", (e) => {
-                const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                // across the row; up and down a row (three tiles to a row)
+                const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : e.key === "ArrowDown" ? 3 : e.key === "ArrowUp" ? -3 : 0;
                 if (d) { e.preventDefault(); pick(TABS[(i + d + TABS.length) % TABS.length][0]); }
             });
         });
