@@ -374,17 +374,23 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
 /* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
-.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin: 0 0 16px; padding: 4px 0 0; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); overflow-x: auto; scrollbar-width: none; box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+/* the tabs as tiles, three to a row: every tab in view at any width, nothing to scroll */
+.vls-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px 0 12px; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+.vls-scroller { scrollbar-gutter: stable; }
 .vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
 /* a second row of tabs inside one (General: Screens, Editing, Updates) */
-.vls-subtabs { display: inline-flex; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
-.vl-settings button.vls-subtab { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
+.vls-subtabs { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
+.vl-settings button.vls-subtab { justify-content: center; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
 .vl-settings button.vls-subtab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .vl-settings button.vls-subtab.is-on { color: var(--text-normal); font-weight: 600; background: var(--background-primary); box-shadow: 0 0 0 1px var(--background-modifier-border); }
 .vls-body.is-bare { border-top: 0; }
-.vl-settings button.vls-tab { flex: none; height: 36px; margin-bottom: -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-tab { width: 100%; min-width: 0; height: 36px; padding: 0 10px; justify-content: flex-start; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-tab > .vls-tabt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* every tab keeps its width: each row's tabs are equal, and a name holds room for its bold self (a hidden bold copy) */
+.vls-tabt { display: inline-flex; flex-direction: column; }
+.vls-tabt::after { content: attr(data-t); height: 0; overflow: hidden; visibility: hidden; font-weight: 600; pointer-events: none; user-select: none; }
 .vl-settings button.vls-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-bottom-color: var(--interactive-accent); background: transparent; }
+.vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .vl-settings button.vls-tab:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .vls-title { font-size: var(--font-ui-medium); font-weight: 600; color: var(--text-normal); }
 .vls-sum { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; }
@@ -1063,7 +1069,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-tab.is-on .vls-tabi { color: var(--interactive-accent); }
 .vls-ricon { flex: none; width: 32px; height: 32px; margin-right: -8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--background-secondary); color: var(--text-muted); --icon-size: 16px; }
 .vls-label[aria-label] { cursor: help; }
-@media (max-width: 640px) { .vl-settings button.vls-tab > span:last-child { display: none; } .vl-settings button.vls-tab { padding: 0 12px; } }
+@media (max-width: 420px) { .vls-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* a block's or item's title: the name (a click renames a block), its kind as a chip */
 .vl-phead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 2px 2px 10px; min-width: 0; }
