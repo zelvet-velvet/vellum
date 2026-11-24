@@ -858,6 +858,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
 .vl-mark { position: absolute; --u: var(--vl-iz, 1); }
 .vl-mark.is-note { width: 0; height: 0; }
+.vl-mleads { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .vl-mpin { position: absolute; left: calc(-7px * var(--u)); top: calc(-7px * var(--u)); width: calc(14px * var(--u)); height: calc(14px * var(--u)); border-radius: 50% 50% 50% 0; background: var(--mc); box-shadow: 0 0 0 calc(1.5px * var(--u)) var(--background-primary), 0 calc(2px * var(--u)) calc(6px * var(--u)) rgba(0, 0, 0, 0.3); pointer-events: auto; cursor: move; }
 .vl-mbub { position: absolute; left: calc(12px * var(--u)); top: calc(-8px * var(--u)); width: max-content; max-width: calc(200px * var(--u)); padding: calc(4px * var(--u)) calc(7px * var(--u)); border-radius: calc(6px * var(--u)); background: color-mix(in srgb, var(--mc) 22%, var(--background-primary)); border: calc(1px * var(--u)) solid var(--mc); color: var(--text-normal); font: 500 calc(var(--ms, 11) * 1px * var(--u))/1.35 var(--font-interface); white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: move; box-shadow: 0 calc(2px * var(--u)) calc(8px * var(--u)) rgba(0, 0, 0, 0.2); }
 .vl-mbub.is-wide { width: calc(var(--mw) * 1px * var(--u)); max-width: none; box-sizing: border-box; }
