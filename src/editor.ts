@@ -883,10 +883,10 @@ class Editor {
         pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
         if (this.v.map) {
-            // the Map: one button named for what it does. Full: every screen in the window. Fit (while the whole map
-            // shows): the chosen screen's row, centred
+            // the Map: one button named for what it does. Full: the chosen screen's whole tree in the window. Fit (while
+            // that shows): the chosen screen's row, centred
             const full = this.v.mapFit !== false, none = full && !this.current();
-            const fit = pill.createEl("button", { cls: "vl-zfit", text: full ? "Fit" : "Full", attr: { "aria-label": full ? "Fit the chosen screen" : "Show the whole map" } });
+            const fit = pill.createEl("button", { cls: "vl-zfit", text: full ? "Fit" : "Full", attr: { "aria-label": full ? "Fit the chosen screen" : "Show the chosen screen's whole tree" } });
             fit.disabled = none;
             fit.addEventListener("click", () => {
                 if (full) this.mapToCurrent();
@@ -1045,17 +1045,24 @@ class Editor {
             const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
             const { lay, size } = c;
             const BASE = 110;
-            if (this.v.mapFit !== false) {
-                // Full: every screen in the window (inside the map's padding, clear of the pill), up to 200 px a screen
-                const rw = this.wall.clientWidth - 66, rh = this.wall.clientHeight - 130;
+            const full = this.v.mapFit !== false;
+            if (full) {
+                // Full: the chosen screen's whole tree (every screen with no screen chosen) in the window, inside the
+                // map's padding and clear of the pill, up to 200 px a screen
+                const rw = this.wall.clientWidth - 66, rh = this.wall.clientHeight - 130, fits = (t: number) => { const z = size(t, cur?.id); return z.w <= rw && z.h <= rh; };
                 let lo = 2, hi = 200;
-                if (size(hi).w <= rw && size(hi).h <= rh) lo = hi;
-                else for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2, z = size(mid); if (z.w <= rw && z.h <= rh) lo = mid; else hi = mid; }
+                if (fits(hi)) lo = hi;
+                else for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
                 this.setView({ mapZoom: Math.floor((lo / BASE) * 1000) / 1000 });
             }
             lay(BASE * (this.v.mapZoom ?? 1));
             this.mapLay = (z) => lay(BASE * z);
             this.drawZoom(); keep();
+            if (full && cur) {
+                // the tree centred (as far as the map's edges let it)
+                const b = c.el.querySelector<HTMLElement>(".vl-mapbox")?.getBoundingClientRect(), s = this.wall.getBoundingClientRect(), z = size(BASE * (this.v.mapZoom ?? 1), cur.id);
+                if (b) { this.wall.scrollLeft += b.left + z.x + z.w / 2 - (s.left + s.width / 2); this.wall.scrollTop += b.top + z.h / 2 - (s.top + (s.height - 64) / 2); }
+            }
             this.fillMap(c, false);
             return;
         }
@@ -1649,9 +1656,9 @@ class Editor {
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
     // the tree is built once; lay(TW) sizes and places it for a thumbnail width (the wheel zoom calls it again)
     // lazy: the thumbnails are left empty, for fillMap to draw a few at a time (the stage's Map); otherwise all at once
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), lazy = false): { slots: number; rows: number; lay: (TW: number) => void; size: (TW: number) => { w: number; h: number }; thumbs: Thumb[] } {
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), lazy = false): { slots: number; rows: number; lay: (TW: number) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } {
         m.empty();
-        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, size: () => ({ w: 0, h: 0 }), thumbs: [] }; }
+        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, size: () => ({ x: 0, w: 0, h: 0 }), thumbs: [] }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
         const GAP = 40, LABEL = 46;
         const devs = new Map(pages.map((p) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius); return [p.id, { d, sc: screenOf(d, this.land) }]; }));
@@ -1669,9 +1676,17 @@ class Editor {
             pos.set(p.id, { x: x0 + (w - 1) / 2, y: depth });
             return w;
         };
+        // each main screen's tree: its slots across and its rows down, and the screens in it
+        const trees: { x0: number; n: number; rows: number; ids: Set<string> }[] = [];
         let x = 0; const seen = new Set<string>();
-        for (const r of childrenOf(pages)) x += place(r, 0, x, seen);
-        for (const p of pages) if (!pos.has(p.id)) x += place(p, 0, x, seen);   // anything left (a loop) as a main page
+        const tree = (r: Page) => {
+            const before = new Set(seen), d0 = depthMax; depthMax = 0;
+            const n = place(r, 0, x, seen);
+            if (n) trees.push({ x0: x, n, rows: depthMax + 1, ids: new Set([...seen].filter((id) => !before.has(id))) });
+            depthMax = Math.max(d0, depthMax); x += n;
+        };
+        for (const r of childrenOf(pages)) tree(r);
+        for (const p of pages) if (!pos.has(p.id)) tree(p);   // anything left (a loop) as a main page
         const box = m.createDiv({ cls: "vl-mapbox" });
         const NS = "http://www.w3.org/2000/svg";
         const svg = m.doc.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines");
@@ -1705,7 +1720,12 @@ class Editor {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             return { slotW, rowH, W: x * slotW, H: (depthMax + 1) * rowH - GAP + 4 };
         };
-        const size = (TW0: number) => { const k = Math.min(1, TW0 / FLOOR), n = natural(Math.max(TW0, FLOOR)); return { w: n.W * k, h: n.H * k }; };
+        // the map's size at a screen width; with an id, that screen's tree only (x: where it starts in the map)
+        const size = (TW0: number, id?: string) => {
+            const k = Math.min(1, TW0 / FLOOR), n = natural(Math.max(TW0, FLOOR)), t = id ? trees.find((r) => r.ids.has(id)) : undefined;
+            if (!t) return { x: 0, w: n.W * k, h: n.H * k };
+            return { x: t.x0 * n.slotW * k, w: t.n * n.slotW * k, h: (t.rows * n.rowH - GAP + 4) * k };
+        };
         const lay = (TW0: number) => {
             const TW = Math.max(TW0, FLOOR), { slotW, rowH, W, H } = natural(TW), k = TW0 / TW;
             box.style.zoom = k < 1 ? String(k) : "";
@@ -1743,7 +1763,7 @@ class Editor {
     }
     // the stage's Map, kept while the screens' tree, the device, the orientation and the colours stay the same: built
     // ahead in Edit and Show, so pressing Map only shows it. A thumbnail whose screen changed is drawn again (fillMap)
-    mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number) => void; size: (TW: number) => { w: number; h: number }; thumbs: Thumb[] } | null = null;
+    mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } | null = null;
     mapRun = 0; mapAhead = 0;
     mapPick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
     getMap() {
