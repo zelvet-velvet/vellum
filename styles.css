@@ -59,6 +59,7 @@
 .vl-block { position: absolute; box-sizing: border-box; overflow: hidden; z-index: 1; }
 .vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
 .vl-screen:not(.is-show) .vl-block.is-sel { outline: calc(2px * var(--vl-iz, 1)) solid var(--k); overflow: visible; z-index: 2; }
+.vl-screen:not(.is-show) .vl-block.is-holds { overflow: visible; z-index: 2; }   /* some of several chosen items: they show past its edge */
 .vl-tag { position: absolute; left: 0; top: 0; transform: translateY(-100%); font: 600 calc(10px * var(--vl-iz, 1))/1 var(--font-interface); color: var(--k); padding: 0 calc(2px * var(--vl-iz, 1)) calc(2px * var(--vl-iz, 1)); white-space: nowrap; pointer-events: none; opacity: 0; }
 .vl-block.is-sel > .vl-tag, .vl-screen:not(.is-show) .vl-block:hover > .vl-tag { opacity: 1; }
 .vl-grip { position: absolute; right: calc(-6px * var(--vl-iz, 1)); bottom: calc(-6px * var(--vl-iz, 1)); width: calc(12px * var(--vl-iz, 1)); height: calc(12px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--k); cursor: nwse-resize; z-index: 5; }
@@ -107,6 +108,9 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-acts { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
 .vl-act { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); box-shadow: none; background: transparent; border-radius: 6px; }
 .vl-act svg { width: 14px; height: 14px; }
+/* an action in a panel stays inside it: a long one wraps onto a second line instead of running past the panel's edge */
+.vl .vl-acts > .vl-act { max-width: 100%; height: auto; min-height: 28px; padding: 4px 8px; white-space: normal; text-align: left; line-height: 1.3; }
+.vl .vl-acts > .vl-act > span:first-child { flex: none; display: inline-flex; }
 /* gravity: a 3 × 3 grid of dots, the chosen one filled */
 .vl-gwrap { display: flex; gap: 12px; align-items: flex-start; }
 .vl-grav { display: grid; grid-template-columns: repeat(3, 28px); grid-template-rows: repeat(3, 28px); border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 4px; flex: none; }
@@ -375,6 +379,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-gapm.is-y::before { top: 0; } .vl-gapm.is-y::after { bottom: 0; }
 .vl-gapm span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 0 calc(3px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--g); color: #fff; font: 600 calc(10px * var(--vl-iz, 1))/1.4 var(--font-interface); white-space: nowrap; }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
+.vl .vl-zpill button.vl-btn.is-off { pointer-events: auto; cursor: default; background: transparent; }   /* not in this mode: faded, its place kept, its tooltip says where it works */
 
 /* ---- the plugin's settings: folding cards of compact rows, everything centred on its line */
 .vl-settings { --vls-pad: 16px; --vls-line: color-mix(in srgb, var(--background-modifier-border) 70%, transparent); }
@@ -382,17 +387,23 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-card { margin-bottom: 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); overflow: clip; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
 /* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
-.vls-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin: 0 0 16px; padding: 4px 0 0; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); overflow-x: auto; scrollbar-width: none; box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+/* the tabs as tiles, three to a row: every tab in view at any width, nothing to scroll */
+.vls-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px 0 12px; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+.vls-scroller { scrollbar-gutter: stable; }
 .vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
 /* a second row of tabs inside one (General: Screens, Editing, Updates) */
-.vls-subtabs { display: inline-flex; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
-.vl-settings button.vls-subtab { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
+.vls-subtabs { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
+.vl-settings button.vls-subtab { justify-content: center; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
 .vl-settings button.vls-subtab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .vl-settings button.vls-subtab.is-on { color: var(--text-normal); font-weight: 600; background: var(--background-primary); box-shadow: 0 0 0 1px var(--background-modifier-border); }
 .vls-body.is-bare { border-top: 0; }
-.vl-settings button.vls-tab { flex: none; height: 36px; margin-bottom: -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-tab { width: 100%; min-width: 0; height: 36px; padding: 0 10px; justify-content: flex-start; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); box-shadow: none; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
+.vl-settings button.vls-tab > .vls-tabt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* every tab keeps its width: each row's tabs are equal, and a name holds room for its bold self (a hidden bold copy) */
+.vls-tabt { display: inline-flex; flex-direction: column; }
+.vls-tabt::after { content: attr(data-t); height: 0; overflow: hidden; visibility: hidden; font-weight: 600; pointer-events: none; user-select: none; }
 .vl-settings button.vls-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-bottom-color: var(--interactive-accent); background: transparent; }
+.vl-settings button.vls-tab.is-on { color: var(--text-normal); font-weight: 600; border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .vl-settings button.vls-tab:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .vls-title { font-size: var(--font-ui-medium); font-weight: 600; color: var(--text-normal); }
 .vls-sum { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; }
@@ -825,6 +836,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .vl-block.is-hit { outline: calc(2px * var(--vl-iz, 1)) solid color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block.is-many { overflow: hidden; }
 .vl-marq.is-deep { border-style: dashed; }
+.vl.is-holding, .vl.is-holding * { cursor: crosshair !important; }
 .vl-screen:not(.is-show) .vl-it.is-hit { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
 /* the middle button drags the view */
 .vl-stage.is-panning, .vl-stage.is-panning * { cursor: grabbing !important; }
@@ -863,10 +875,12 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); }
 .vl-spill > .vl-block.is-draft { opacity: 0.6; }   /* a draft: beside the screen, never part of it */
 .vl-spill > .vl-block.is-sel { opacity: 0.75; outline: calc(2px * var(--vl-iz, 1)) solid var(--k); }
+.vl-spill > .vl-block:is(.is-sel, .is-holds):not(.is-inh) { overflow: visible; }   /* its chosen items past the screen show faded, as inside it */
 .vl-spill > .vl-block:hover > .vl-tag, .vl-spill > .vl-block.is-sel > .vl-tag, .vl-spill > .vl-block.is-draft > .vl-tag { opacity: 1; }
 .vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
 .vl-mark { position: absolute; --u: var(--vl-iz, 1); }
 .vl-mark.is-note { width: 0; height: 0; }
+.vl-mleads { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .vl-mpin { position: absolute; left: calc(-7px * var(--u)); top: calc(-7px * var(--u)); width: calc(14px * var(--u)); height: calc(14px * var(--u)); border-radius: 50% 50% 50% 0; background: var(--mc); box-shadow: 0 0 0 calc(1.5px * var(--u)) var(--background-primary), 0 calc(2px * var(--u)) calc(6px * var(--u)) rgba(0, 0, 0, 0.3); pointer-events: auto; cursor: move; }
 .vl-mbub { position: absolute; left: calc(12px * var(--u)); top: calc(-8px * var(--u)); width: max-content; max-width: calc(200px * var(--u)); padding: calc(4px * var(--u)) calc(7px * var(--u)); border-radius: calc(6px * var(--u)); background: color-mix(in srgb, var(--mc) 22%, var(--background-primary)); border: calc(1px * var(--u)) solid var(--mc); color: var(--text-normal); font: 500 calc(var(--ms, 11) * 1px * var(--u))/1.35 var(--font-interface); white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: move; box-shadow: 0 calc(2px * var(--u)) calc(8px * var(--u)) rgba(0, 0, 0, 0.2); }
 .vl-mbub.is-wide { width: calc(var(--mw) * 1px * var(--u)); max-width: none; box-sizing: border-box; }
@@ -911,7 +925,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* Show: the screen as a preview. A quiet stage; the way here and the name above; the previous / next screen beside;
    what it opens and where it is in the list below */
 .vl-stage.is-show { background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary)), var(--background-primary) 70%); }
-.vl-stage > .vl-page.is-showing { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 20px 24px 84px; }
+.vl-stage > .vl-page.is-showing { display: flex; flex-direction: column; align-items: center; gap: 18px; }   /* the same padding as Edit: the screen stays put */
 .vl-showfrom { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vl .vl-showlink { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; box-shadow: none; background: var(--background-modifier-hover); border-radius: 11px; font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
 .vl .vl-showlink:hover { color: var(--text-normal); }
@@ -1068,7 +1082,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-tab.is-on .vls-tabi { color: var(--interactive-accent); }
 .vls-ricon { flex: none; width: 32px; height: 32px; margin-right: -8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--background-secondary); color: var(--text-muted); --icon-size: 16px; }
 .vls-label[aria-label] { cursor: help; }
-@media (max-width: 640px) { .vl-settings button.vls-tab > span:last-child { display: none; } .vl-settings button.vls-tab { padding: 0 12px; } }
+@media (max-width: 420px) { .vls-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* a block's or item's title: the name (a click renames a block), its kind as a chip */
 .vl-phead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 2px 2px 10px; min-width: 0; }
@@ -1086,3 +1100,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-num.is-tog { cursor: pointer; }
 .vl .vl-num.is-tog:hover { border-color: var(--background-modifier-border-hover); }
 .vl .vl-num.is-tog.is-on .vl-numt { color: var(--interactive-accent); }
+/* Settings → Keys: a key as a key cap; a click records the next one */
+.vl-settings .vls-key { min-width: 64px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); border-bottom-width: 2px; background: var(--background-primary); box-shadow: none; color: var(--text-normal); font: 500 var(--font-ui-smaller) var(--font-monospace); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.vl-settings .vls-key.is-rec { border-color: var(--interactive-accent); color: var(--interactive-accent); font-family: var(--font-interface); }
+.vl-settings .vls-key.is-fixed { cursor: default; color: var(--text-muted); }
+.vl-settings .vls-keyback { width: 28px; height: 28px; padding: 0; margin-left: 6px; box-shadow: none; background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
