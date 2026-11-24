@@ -221,7 +221,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-zpill .vl-seg { border: 0; background: var(--background-secondary); border-radius: 8px; padding: 2px; }
 .vl-zpill .vl-seg > button { height: 26px; border-radius: 6px; padding: 0 12px; }
 .vl-zsep { width: 1px; height: 20px; margin: 0 4px; background: var(--background-modifier-border); }
-.vl .vl-zfit { height: 28px; padding: 0 10px; border: 0; box-shadow: none; background: transparent; border-radius: 8px; font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
+.vl .vl-zfit { min-width: 46px; height: 28px; padding: 0 10px; border: 0; box-shadow: none; background: transparent; border-radius: 8px; font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); }
 .vl .vl-zfit:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .vl .vl-zfit.is-on { color: var(--interactive-accent); }
 /* phone: the rail is a list over the stage, the panel a sheet under it */

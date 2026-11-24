@@ -104,7 +104,7 @@ const near = (pts: number[], lines: number[], reach: number) => {
 };
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
-type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
+type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; mapFocus?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage; mapFit: Full (the whole tree fitted); mapFocus: Fit (the chosen screen fitted)   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // a thumbnail in the Map; key: what its screen looked like when it was drawn (none: not drawn yet)
@@ -715,18 +715,18 @@ class Editor {
         const toMap = m === "map" && !this.v.map;
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
-        if (toMap) this.setView({ mapFit: true });
+        if (toMap) this.setView({ mapFit: true, mapFocus: false });
         this.draw();
         if (toMap) this.mapToCurrent();
     }
-    // from Edit or Show to the Map: the screen you were on, centred and big enough to read (the tree fitted first; Fit on
-    // the pill brings the whole tree back)
-    mapToCurrent() {
+    // Fit in the Map: the chosen screen, centred and big enough to read. From Edit or Show (the tree fitted first) it only
+    // zooms in, so a small tree stays Full; Fit on the pill (always) zooms in or out. Full on the pill: the whole tree
+    mapToCurrent(always = false) {
         const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
         if (!w || !t0) return;
         const want = (w.clientHeight - 150) * 0.45, h0 = t0.getBoundingClientRect().height;
-        if (h0 > 0 && want > h0 * 1.1) {
-            this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.round((this.v.mapZoom ?? 1) * (want / h0) * 100) / 100) });
+        if (h0 > 0 && (want > h0 * 1.1 || (always && Math.abs(want - h0) > 2))) {
+            this.setView({ mapFit: false, mapFocus: true, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * (want / h0) * 100) / 100)) });
             // the thumbnails just drawn, laid out at the new zoom (not built again)
             if (this.mapLay) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); } else this.drawPages();
         }
@@ -879,9 +879,20 @@ class Editor {
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
         pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
-        const fitOn = this.v.map ? this.v.mapFit !== false : this.v.fit;
-        const fit = pill.createEl("button", { cls: "vl-zfit" + (fitOn ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
-        fit.addEventListener("click", () => { this.setView(this.v.map ? { mapFit: true } : { fit: true }); this.drawPages(); });
+        if (this.v.map) {
+            // the Map: Fit (the chosen screen) and Full (the whole tree), one button that switches between them; zoomed by
+            // hand it reads Fit again
+            const full = this.v.mapFit !== false, on = full || !!this.v.mapFocus;
+            const fit = pill.createEl("button", { cls: "vl-zfit" + (on ? " is-on" : ""), text: full ? "Full" : "Fit", attr: { "aria-label": full ? "Showing the whole map: press to fit the chosen screen" : on ? "Fitting the chosen screen: press to show the whole map" : "Fit the chosen screen" } });
+            fit.addEventListener("click", () => {
+                if (on && !full) { this.setView({ mapFit: true, mapFocus: false }); this.drawPages(); return; }
+                if (!this.wall.querySelector(".vl-thumb.is-on")) return;   // no screen chosen: the whole map stays
+                this.setView({ mapFit: false, mapFocus: true }); this.mapToCurrent(true); this.drawZoom();
+            });
+        } else {
+            const fit = pill.createEl("button", { cls: "vl-zfit" + (this.v.fit ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
+            fit.addEventListener("click", () => { this.setView({ fit: true }); this.drawPages(); });
+        }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "maximize-2", `Hide the bars (${keyText(keyOf("bars"))})`, () => this.setBars(false));
         if (!Platform.isMobile && this.root?.requestFullscreen) {
@@ -975,7 +986,7 @@ class Editor {
         // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
         const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
         const r0 = at ? (under ?? this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
-        if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
+        if (this.v.map) this.setView({ mapFit: false, mapFocus: false, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
         // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
         // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
