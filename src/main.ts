@@ -161,7 +161,8 @@ class VellumSettings extends PluginSettingTab {
             setIcon(b.createSpan({ cls: "vls-tabi" }), icon); b.createSpan({ text: name });
             b.addEventListener("click", () => { if (k !== on) pick(k); });
             b.addEventListener("keydown", (e) => {
-                const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                // across the row; up and down a row (three tiles to a row)
+                const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : e.key === "ArrowDown" ? 3 : e.key === "ArrowUp" ? -3 : 0;
                 if (d) { e.preventDefault(); pick(TABS[(i + d + TABS.length) % TABS.length][0]); }
             });
         });
