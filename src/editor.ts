@@ -1679,6 +1679,7 @@ class Editor {
             const scr = ph.createDiv({ cls: "vl-screen is-show" });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
+            if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             const th: Thumb = { id: p.id, t, ph, scr };
