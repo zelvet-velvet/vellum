@@ -5,6 +5,7 @@ import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl,
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 import { canUngroup, ungroupBlock } from "./flatten";
+import { Box, Edges, gapStops, GapStop, nearStop, sameGaps, sameSize } from "./snapgap";
 import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ratioText } from "./overlay";
 
 // The Vellum editor in a ```vellum block. Desktop first (the phone checks): the pages as phones side by side; a tap on the
@@ -90,6 +91,12 @@ function selInk(blockEl: HTMLElement, itemEl: HTMLElement) {
 }
 type Lines = { x: number[]; y: number[] };
 // the nearest line within reach of any of the points: how far to shift, and the line
+type GapMark = { axis: "x" | "y"; from: number; to: number; at: number; text: string; a?: number; b?: number };   // an equal gap (a band from a to b across) or size (a bar at `at`), with its number
+// marks from a block's points to the screen's: along the axis by one offset, across it (at, a band's a and b) by the other
+const shiftMarks = (gm: GapMark[], ox: number, oy: number): GapMark[] => gm.map((g) => {
+    const along = g.axis === "x" ? ox : oy, across = g.axis === "x" ? oy : ox;
+    return { ...g, from: g.from + along, to: g.to + along, at: g.at + across, a: g.a === undefined ? undefined : g.a + across, b: g.b === undefined ? undefined : g.b + across };
+});
 const near = (pts: number[], lines: number[], reach: number) => {
     let best: { d: number; at: number } | null = null;
     for (const q of pts) for (const l of lines) { const d = l - q; if (Math.abs(d) <= reach && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: l }; }
@@ -2010,7 +2017,7 @@ class Editor {
                 // the gravity point the item keeps, on the block
                 if (it && b.items.includes(it)) { const [ax, ay] = axes(it.g); const d = el.createDiv({ cls: "vl-anchor" }); d.style.left = `${(ax + 1) * 50}%`; d.style.top = `${(ay + 1) * 50}%`; }
                 if (it && b.items.includes(it) && RESIZE.includes(it.type)) this.itemGrips(el, b, it);
-                if (it && this.ov.ratio && this.ov.show) { const bx = this.itemBox(el, b, it); if (bx) { const r = el.createDiv({ cls: "vl-ratio", text: ratioText(bx.W, bx.H) }); r.addClass("is-under"); r.setCssStyles({ left: `${Math.max(0, bx.L)}px` }); } }   // under the block: never over its content
+                if (it && this.ov.ratio && this.ov.show) { const bx = this.itemBox(el, b, it); if (bx) { const r = el.createDiv({ cls: "vl-ratio is-item", text: ratioText(bx.W, bx.H) }); r.setCssStyles({ left: `${bx.L + bx.W / 2}px`, top: `${bx.T + bx.H}px` }); } }   // right under the item, centred on it
             } else {
                 el.createDiv({ cls: "vl-grip", attr: { "data-grip": "1" } });
                 if (this.ov.ratio && this.ov.show) { const r = el.createDiv({ cls: "vl-ratio", text: ratioText(b.w, b.h) }); r.addClass("is-under"); }
@@ -2035,7 +2042,7 @@ class Editor {
         return { L: (ir.left - br.left) / k, T: (ir.top - br.top) / k, W: ir.width / k, H: ir.height / k };
     }
     // the lines a box snaps to: an item's in its block (block points), a block's on the screen
-    itemLines(bEl: HTMLElement, b: Block, it: Item): Lines {
+    itemLines(bEl: HTMLElement, b: Block, it: Item, skip?: Set<string>): Lines {
         const x: number[] = [], y: number[] = [], p = this.page();
         // the overlay lines, in the block's points
         if (p) { const { W, H } = this.screen(p), o = overlayLines(this.ov, W, H, this.room(p)), ml = this.markLines(p); x.push(...[...o.x, ...ml.x].map((v) => v - b.x)); y.push(...[...o.y, ...ml.y].map((v) => v - b.y)); }
@@ -2044,7 +2051,7 @@ class Editor {
             for (const m of snap.margins) { x.push(m, b.w - m); y.push(m, b.h - m); }
         }
         if (snap.others) for (const o of b.items) {
-            if (o === it) continue;
+            if (o === it || skip?.has(o.id)) continue;
             const r = this.itemBox(bEl, b, o); if (!r) continue;
             x.push(r.L, r.L + r.W / 2, r.L + r.W); y.push(r.T, r.T + r.H / 2, r.T + r.H);
         }
@@ -2064,11 +2071,40 @@ class Editor {
         return { x, y };
     }
     // the lines a drag snapped to, across the screen (screen points); none = cleared
-    guides(scr: HTMLElement, xs: number[] = [], ys: number[] = []) {
-        scr.querySelectorAll(".vl-guide").forEach((g) => g.remove());
-        if (!snap.guides) return;
+    // the boxes of a block's top-level items (skip: those moving), in the block's points
+    itemBoxes(bEl: HTMLElement, b: Block, skip: Set<string>): Box[] {
+        const out: Box[] = [];
+        for (const o of b.items) { if (skip.has(o.id)) continue; const r = this.itemBox(bEl, b, o); if (r) out.push(r); }
+        return out;
+    }
+    // the other blocks drawn on a screen, in screen points
+    blockBoxes(p: Page, b: Block, skip?: Set<string>): Box[] {
+        return this.layers(p).map((l) => l.block).filter((o) => o !== b && !skip?.has(o.id)).map((o) => ({ L: o.x, T: o.y, W: o.w, H: o.h }));
+    }
+    // equal sizes: a bar along the box being resized and along each neighbour of that size, with the size
+    sizeMarks(gm: GapMark[], others: Box[], me: Box, axis: "x" | "y") {
+        const k = 6 / this.v.zoom, S = axis === "x" ? me.W : me.H, t = String(Math.round(S));
+        const bar = (o: Box) => gm.push(axis === "x" ? { axis, from: o.L, to: o.L + o.W, at: o.T + o.H + k, text: t } : { axis, from: o.T, to: o.T + o.H, at: o.L + o.W + k, text: t });
+        bar(me);
+        for (const o of others) if (Math.round(axis === "x" ? o.W : o.H) === Math.round(S)) bar(o);
+    }
+    // marks: equal gaps or sizes, each a short bar with its number; axis x: from..to across, at its height (screen points)
+    // while a drag runs (xs given) every item's frame shows, the edges there are to snap to; guides(scr) alone ends it
+    guides(scr: HTMLElement, xs?: number[], ys: number[] = [], marks: GapMark[] = []) {
+        scr.querySelectorAll(".vl-guide, .vl-gapm").forEach((g) => g.remove());
+        scr.toggleClass("is-dragging", xs !== undefined);
+        if (!snap.guides || !xs) return;
         for (const v of xs) { const g = scr.createDiv({ cls: "vl-guide is-v" }); g.style.left = `${v}px`; }
         for (const v of ys) { const g = scr.createDiv({ cls: "vl-guide is-h" }); g.style.top = `${v}px`; }
+        for (const m of marks) {
+            // a gap: a band filling it, its number past the row's edge; a size: a bar with end ticks, its number past it
+            const band = m.a !== undefined && m.b !== undefined;
+            const g = scr.createDiv({ cls: `vl-gapm is-${m.axis}${band ? " is-band" : ""}` });
+            const len = `${Math.max(0, m.to - m.from)}px`, w = band ? `${Math.max(0, m.b! - m.a!)}px` : "";
+            if (m.axis === "x") g.setCssStyles({ left: `${m.from}px`, width: len, top: `${band ? m.a : m.at}px`, ...(band ? { height: w } : {}) });
+            else g.setCssStyles({ top: `${m.from}px`, height: len, left: `${band ? m.a : m.at}px`, ...(band ? { width: w } : {}) });
+            g.createSpan({ text: m.text });
+        }
     }
     // drag a corner: w / h change live (snapped like blocks, Alt 1 px, Shift keeps the shape); the opposite edge stays put,
     // whatever the item's gravity (its offset follows); a "fill" size becomes a number
@@ -2079,7 +2115,7 @@ class Editor {
         const L0 = Math.round(box0.L), T0 = Math.round(box0.T), W0 = Math.round(box0.W), H0 = Math.round(box0.H);
         const [ax, ay] = axes(it.g), x0 = e.clientX, y0 = e.clientY, z = this.v.zoom;
         let moved = false;
-        const lines = this.itemLines(bEl!, b, it);
+        const lines = this.itemLines(bEl!, b, it), near0 = this.itemBoxes(bEl!, b, new Set([it.id]));
         scr.setPointerCapture(e.pointerId);
         const move = (m: PointerEvent) => {
             const dx = (m.clientX - x0) / z, dy = (m.clientY - y0) / z;
@@ -2090,16 +2126,22 @@ class Editor {
             // the moving edges snap to a line in reach, else the size to the grid
             const gX = on ? near([corner === "br" ? L0 + W0 + dx : L0 + dx], lines.x, reach) : null;
             if (gX) gx.push(gX.at);
-            const W = gX ? Math.max(4, Math.round(corner === "br" ? gX.at - L0 : L0 + W0 - gX.at)) : sn(corner === "br" ? W0 + dx : W0 - dx);
+            // no line in reach: the same width or height as another item, else the grid
+            const sw = on && !gX && snap.others ? sameSize(corner === "br" ? W0 + dx : W0 - dx, near0.map((o) => o.W), reach) : null;
+            const W = gX ? Math.max(4, Math.round(corner === "br" ? gX.at - L0 : L0 + W0 - gX.at)) : sw !== null ? Math.round(sw) : sn(corner === "br" ? W0 + dx : W0 - dx);
             const gY = on && !m.shiftKey ? near([T0 + H0 + dy], lines.y, reach) : null;
             if (gY) gy.push(gY.at);
-            const H = m.shiftKey && W0 && H0 ? Math.max(4, Math.round((W * H0) / W0)) : gY ? Math.max(4, Math.round(gY.at - T0)) : sn(H0 + dy);
+            const sh = on && !gY && !m.shiftKey && snap.others ? sameSize(H0 + dy, near0.map((o) => o.H), reach) : null;
+            const H = m.shiftKey && W0 && H0 ? Math.max(4, Math.round((W * H0) / W0)) : gY ? Math.max(4, Math.round(gY.at - T0)) : sh !== null ? Math.round(sh) : sn(H0 + dy);
+            const gm: GapMark[] = [], me: Box = { L: corner === "br" ? L0 : L0 + W0 - W, T: T0, W, H };
+            if (sw !== null) this.sizeMarks(gm, near0, me, "x");
+            if (sh !== null) this.sizeMarks(gm, near0, me, "y");
             const L = corner === "br" ? L0 : L0 + W0 - W;
             it.w = W; it.h = H;
             it.dx = ax < 0 ? L : ax > 0 ? b.w - L - W : Math.round(L + W / 2 - b.w / 2);
             it.dy = ay < 0 ? T0 : ay > 0 ? b.h - T0 - H : Math.round(T0 + H / 2 - b.h / 2);
             this.redrawBlock(scr, p, b);
-            this.guides(scr, gx.map((v) => v + b.x), gy.map((v) => v + b.y));
+            this.guides(scr, gx.map((v) => v + b.x), gy.map((v) => v + b.y), shiftMarks(gm, b.x, b.y));
             this.livePanel();
         };
         const up = () => { scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up); this.guides(scr); if (moved) { this.end(); this.drawPanel(); } };
@@ -2165,6 +2207,8 @@ class Editor {
         // what the drag snaps to, measured once as it starts (the rest stays put): the item's box and its block's lines,
         // or the block's lines on the screen
         let ib: { L: number; T: number; W: number; H: number } | null = null, lines: Lines = { x: [], y: [] };
+        let near0: Box[] = [];   // the neighbours, for equal gaps and sizes: the block's other items, or the screen's other blocks
+        let ex: Edges | undefined, ey: Edges | undefined;   // the frame's edges, neighbours for equal gaps: the block's sides, or the screen's room
         const R = this.room(p, b), keep = !b.bleed && inRoom(b, R);
         scr.setPointerCapture(e.pointerId);
         // held still a moment (not on a handle or the name tag): a drag then draws an area that picks this block's items
@@ -2179,37 +2223,65 @@ class Editor {
             if (!moved) {
                 moved = true; this.begin(); window.clearTimeout(hold);
                 const be = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`);
-                if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); } else if (!dragItem) lines = this.blockLines(p, b);
+                if (dragItem && be && !inGroup) { ib = this.itemBox(be, b, dragItem); lines = this.itemLines(be, b, dragItem); near0 = this.itemBoxes(be, b, new Set([dragItem.id])); ex = [0, b.w]; ey = [0, b.h]; }
+                else if (!dragItem) { lines = this.blockLines(p, b); near0 = this.blockBoxes(p, b); ex = [R.l, R.r]; ey = [R.t, R.b]; }
                 if (!blockChosen || target?.item !== this.sel?.item) { this.sel = target; this.drawPanel(); }
             }
             const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
             const on = snap.on && !m.altKey, reach = snap.dist / z, gx: number[] = [], gy: number[] = [];
             const pick = (pts: number[], ls: number[], out: number[]) => { const g = on ? near(pts, ls, reach) : null; if (g) out.push(g.at); return g; };
+            const gm: GapMark[] = [];
+            // equal gaps, after the lines: a line in reach (an edge or a middle) always wins, and its gaps are marked when it
+            // happens to make equal ones; with no line in reach the box snaps to the nearest equal gap
+            const gap = (me: Box, axis: "x" | "y", lineD: number | null): GapStop | null => {
+                if (!on || !snap.others) return null;
+                const edges = axis === "x" ? ex : ey, at = axis === "x" ? me.L : me.T, stops = gapStops(me, near0, axis, edges);
+                const s = lineD !== null ? stops.find((o) => Math.abs(o.at - (at + lineD)) < 0.5) ?? null : nearStop(stops, at, reach);
+                if (!s) return null;
+                const a = axis === "x" ? me.T : me.L, z2 = axis === "x" ? me.T + me.H : me.L + me.W;
+                // every gap of that width in the row, with the box in its new place
+                const placed: Box = axis === "x" ? { ...me, L: s.at } : { ...me, T: s.at };
+                for (const [f, t] of sameGaps(placed, near0, axis, s.gap, edges)) gm.push({ axis, from: f, to: t, at: z2, a, b: z2, text: String(s.gap) });
+                return lineD !== null ? null : s;
+            };
             let ox = 0, oy = 0;   // guides in screen points: an item's are in its block
             if (dragItem && istart) {
                 const [ax, ay] = axes(dragItem.g);
                 ox = b.x; oy = b.y;
+                const me: Box | null = ib ? { L: ib.L + dx, T: ib.T + dy, W: ib.W, H: ib.H } : null;
                 if (dragItem.w !== "fill") {
                     const L = (ib?.L ?? 0) + dx, W = ib?.W ?? 0, g = ib ? pick([L, L + W / 2, L + W], lines.x, gx) : null;
-                    dragItem.dx = g ? toD(ax, L + g.d, W, b.w) : sn(istart.dx + (ax > 0 ? -dx : dx));
+                    const s = me ? gap(me, "x", g ? g.d : null) : null;
+                    dragItem.dx = s ? toD(ax, s.at, W, b.w) : g ? toD(ax, L + g.d, W, b.w) : sn(istart.dx + (ax > 0 ? -dx : dx));
                 }
                 if (dragItem.h !== "fill") {
                     const T = (ib?.T ?? 0) + dy, H = ib?.H ?? 0, g = ib ? pick([T, T + H / 2, T + H], lines.y, gy) : null;
-                    dragItem.dy = g ? toD(ay, T + g.d, H, b.h) : sn(istart.dy + (ay > 0 ? -dy : dy));
+                    const s = me ? gap(me, "y", g ? g.d : null) : null;
+                    dragItem.dy = s ? toD(ay, s.at, H, b.h) : g ? toD(ay, T + g.d, H, b.h) : sn(istart.dy + (ay > 0 ? -dy : dy));
                 }
             } else if (grip) {
                 const gR = pick([start.x + start.w + dx], lines.x, gx), gB = pick([start.y + start.h + dy], lines.y, gy);
                 b.w = Math.max(8, gR ? Math.round(gR.at - start.x) : sn(start.w + dx));
                 b.h = Math.max(8, gB ? Math.round(gB.at - start.y) : sn(start.h + dy));
+                // the same width or height as another block (when no line is snapped on that side)
+                if (on && snap.others) {
+                    const sw = gR ? null : sameSize(start.w + dx, near0.map((o) => o.W), reach), sh = gB ? null : sameSize(start.h + dy, near0.map((o) => o.H), reach);
+                    if (sw !== null) b.w = Math.round(sw);
+                    if (sh !== null) b.h = Math.round(sh);
+                    const me: Box = { L: b.x, T: b.y, W: b.w, H: b.h };
+                    if (sw !== null) this.sizeMarks(gm, near0, me, "x");
+                    if (sh !== null) this.sizeMarks(gm, near0, me, "y");
+                }
             } else {
-                const L = start.x + dx, T = start.y + dy;
+                const L = start.x + dx, T = start.y + dy, me: Box = { L, T, W: b.w, H: b.h };
                 const g1 = pick([L, L + b.w / 2, L + b.w], lines.x, gx), g2 = pick([T, T + b.h / 2, T + b.h], lines.y, gy);
-                b.x = g1 ? Math.round(L + g1.d) : sn(L); b.y = g2 ? Math.round(T + g2.d) : sn(T);
+                const s1 = gap(me, "x", g1 ? g1.d : null), s2 = gap(me, "y", g2 ? g2.d : null);
+                b.x = s1 ? Math.round(s1.at) : g1 ? Math.round(L + g1.d) : sn(L); b.y = s2 ? Math.round(s2.at) : g2 ? Math.round(T + g2.d) : sn(T);
             }
             // pushed wholly off the screen, a block leaves it (a draft); short of that it keeps to its room
             if (!dragItem && keep && (grip || !isDraft(b, this.screen(p).W, this.screen(p).H))) clampTo(b, R, grip);
             this.redrawBlock(scr, p, b);
-            this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy));
+            this.guides(scr, gx.map((v) => v + ox), gy.map((v) => v + oy), shiftMarks(gm, ox, oy));
             this.livePanel();
         };
         const up = () => {
@@ -2360,6 +2432,11 @@ class Editor {
     dragItems(e: PointerEvent, p: Page, scr: HTMLElement, hitB: Block, hitId: string) {
         const list = this.manyItems, z = this.v.zoom, x0 = e.clientX, y0 = e.clientY;
         const start = list.map((x) => ({ ...x, dx: x.it.dx ?? 0, dy: x.it.dy ?? 0 }));
+        // all in one block: the outline around them snaps as one box, to that block's lines and its other items
+        const one = list.every((x) => x.b === hitB) ? hitB : null, bEl = one ? scr.querySelector<HTMLElement>(`[data-block="${one.id}"]`) : null;
+        const ids = new Set(list.map((x) => x.it.id)), boxes = one && bEl ? list.map((x) => this.itemBox(bEl, one, x.it)).filter((r): r is Box => !!r) : [];
+        const U: Box | null = boxes.length ? (() => { const L = Math.min(...boxes.map((r) => r.L)), T = Math.min(...boxes.map((r) => r.T)); return { L, T, W: Math.max(...boxes.map((r) => r.L + r.W)) - L, H: Math.max(...boxes.map((r) => r.T + r.H)) - T }; })() : null;
+        const lines: Lines = one && bEl && U ? this.itemLines(bEl, one, list[0].it, ids) : { x: [], y: [] };
         let moved = false;
         scr.setPointerCapture(e.pointerId);
         const move = (m: PointerEvent) => {
@@ -2367,7 +2444,9 @@ class Editor {
             if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
             if (!moved) { moved = true; this.begin(); }
             const sn = (v: number) => (m.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
-            const mx = sn(dx), my = sn(dy), blocks = new Set<Block>();
+            const on = snap.on && !m.altKey && !!U, reach = snap.dist / z;
+            const g1 = on && U ? near([U.L + dx, U.L + U.W / 2 + dx, U.L + U.W + dx], lines.x, reach) : null, g2 = on && U ? near([U.T + dy, U.T + U.H / 2 + dy, U.T + U.H + dy], lines.y, reach) : null;
+            const mx = g1 ? Math.round(dx + g1.d) : sn(dx), my = g2 ? Math.round(dy + g2.d) : sn(dy), blocks = new Set<Block>();
             for (const s of start) {
                 const [ax, ay] = axes(s.it.g);
                 if (s.it.w !== "fill") s.it.dx = s.dx + (ax > 0 ? -mx : mx);
@@ -2375,9 +2454,11 @@ class Editor {
                 blocks.add(s.b);
             }
             for (const b of blocks) this.redrawBlock(scr, p, b);
+            this.guides(scr, g1 && one ? [g1.at + one.x] : [], g2 && one ? [g2.at + one.y] : []);
         };
         const up = () => {
             scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            this.guides(scr);
             if (moved) this.end(); else this.choose({ page: p.id, block: hitB.id, item: hitId });
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
