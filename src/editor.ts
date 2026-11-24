@@ -635,9 +635,24 @@ class Editor {
         const wasEdit = !this.v.show && !this.v.map;
         if (m !== "edit" && wasEdit && !Platform.isMobile) this.setView({ railShow: this.v.rail, rail: false });
         if (m === "edit" && !wasEdit && this.v.railShow !== undefined) this.setView({ rail: this.v.railShow, railShow: undefined });
+        const toMap = m === "map" && !this.v.map;
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
+        if (toMap) this.setView({ mapFit: true });
         this.draw();
+        if (toMap) this.mapToCurrent();
+    }
+    // from Edit or Show to the Map: the screen you were on, centred and big enough to read (the tree fitted first; Fit on
+    // the pill brings the whole tree back)
+    mapToCurrent() {
+        const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
+        if (!w || !t0) return;
+        const want = (w.clientHeight - 150) * 0.45, h0 = t0.getBoundingClientRect().height;
+        if (h0 > 0 && want > h0 * 1.1) { this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.round((this.v.mapZoom ?? 1) * (want / h0) * 100) / 100) }); this.drawPages(); }
+        const t = w.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone"); if (!t) return;
+        const r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
+        w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
+        w.scrollTop += r.top + r.height / 2 - (s.top + s.height / 2);
     }
     // full screen: the editor alone on the monitor; Esc (with nothing chosen) or the button leaves, and the sides come back
     // as they were
