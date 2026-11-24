@@ -367,6 +367,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-guide.is-v { top: 0; bottom: 0; width: calc(1px * var(--vl-iz, 1)); margin-left: calc(-0.5px * var(--vl-iz, 1)); }
 .vl-guide.is-h { left: 0; right: 0; height: calc(1px * var(--vl-iz, 1)); margin-top: calc(-0.5px * var(--vl-iz, 1)); }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
+.vl .vl-zpill button.vl-btn.is-off { pointer-events: auto; cursor: default; background: transparent; }   /* not in this mode: faded, its place kept, its tooltip says where it works */
 
 /* ---- the plugin's settings: folding cards of compact rows, everything centred on its line */
 .vl-settings { --vls-pad: 16px; --vls-line: color-mix(in srgb, var(--background-modifier-border) 70%, transparent); }

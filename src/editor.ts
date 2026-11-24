@@ -831,14 +831,16 @@ class Editor {
             setIcon(x, icon); if (!x.querySelector("svg")) x.setText(label);
             x.addEventListener("click", () => { if (this.land === land) return; this.setView({ land }); this.sel = null; this.thumbs.clear(); this.draw(); });
         }
-        if (!this.v.map && !this.v.show) {
-            this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }), snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", snap.on);
-        }
-        if (!this.v.map && !this.v.show) {
+        // every button is in the pill in every mode, so Edit / Show / Map never move: one that does nothing here is faded,
+        // its tooltip says where it works
+        const editing = !this.v.map && !this.v.show;
+        this.tip(this.btn(pill, "magnet", "", () => { snap.on = !snap.on; keepSnap(); this.drawZoom(); }, !editing), !editing ? "Snapping\nin Edit" : snap.on ? "Snapping on\nAlt while dragging: off" : "Snapping off\nthe grid only").toggleClass("is-on", editing && snap.on);
+        {
             // Mark: a menu to add a mark or show / hide them (they are never in Show); with the tool on, a press puts it away
-            const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ });
+            const mt = this.btn(pill, this.ov.notes ? "message-square-plus" : "message-square-off", "", () => { /* the menu below */ }, !editing);
             mt.dataset.markbtn = "1";
             mt.addEventListener("click", () => {
+                if (!editing) return;
                 if (this.marking) { this.markTool(); return; }
                 const R = this.root!, open = R.querySelector(".vl-markmenu");
                 if (open) { open.remove(); return; }
@@ -859,12 +861,12 @@ class Editor {
                 line("eye", "", (b) => { this.toggleMarks(); vis(b); });
                 vis(m.lastElementChild as HTMLElement);
             });
-            this.tip(mt, this.marking ? "Mark: on\nclick: a note · drag: an area · press to stop" : `Mark\n${this.ov.notes ? "marks shown" : "marks hidden"}`).toggleClass("is-on", this.marking);
+            this.tip(mt, !editing ? "Mark\nin Edit" : this.marking ? "Mark: on\nclick: a note · drag: an area · press to stop" : `Mark\n${this.ov.notes ? "marks shown" : "marks hidden"}`).toggleClass("is-on", this.marking);
         }
-        if (!this.v.map) {
-            const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob)), "Overlays\nCtrl+' shows / hides");
+        {
+            const ob = this.tip(this.btn(pill, "layout-grid", "", () => this.ovMenu(ob), !!this.v.map), this.v.map ? "Overlays\nin Edit and Show" : `Overlays\n${keyText(keyOf("overlay"))} shows / hides`);
             if (!ob.querySelector("svg")) ob.setText("#");   // an icon set without it: still a button you can see
-            ob.addClass("vl-ovbtn"); ob.toggleClass("is-on", this.ov.show && anyOn(this.ov));
+            ob.addClass("vl-ovbtn"); ob.toggleClass("is-on", !this.v.map && this.ov.show && anyOn(this.ov));
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
