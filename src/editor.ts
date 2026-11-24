@@ -1863,7 +1863,10 @@ class Editor {
         if (!phone?.hasClass("vl-phone")) return;
         phone.querySelector(":scope > .vl-spill")?.remove();
         const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
-        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H);
+        // a chosen block, or one holding chosen items, shows its items past its own edge: those past the screen's count too
+        const sr = scr.getBoundingClientRect();
+        const itemsOut = (el: HTMLElement) => (el.hasClass("is-sel") || el.hasClass("is-holds")) && Array.from(el.querySelectorAll<HTMLElement>(".vl-it")).some((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && (r.left < sr.left || r.top < sr.top || r.right > sr.right || r.bottom > sr.bottom); });
+        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
         if (!out.length) return;
         const g = createDiv({ cls: "vl-spill" });
         Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
