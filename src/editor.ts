@@ -977,7 +977,7 @@ class Editor {
             const BASE = 110, room = this.wall.clientWidth - 64;
             let tw = BASE * (this.v.mapZoom ?? 1);
             // the thumbnails are built once (each draws every block of its screen: the slow part); Fit only lays them out
-            const { slots, rows, lay } = this.drawMap(box, tw, pick);
+            const { slots, rows, lay } = this.drawMap(box, tw, pick, true);
             if (this.v.mapFit !== false) {
                 // as big as both the width (screens across) and the height (rows of screens) allow
                 const d = deviceOf(this.doc.device), ratio = d.h / d.w;
@@ -1577,7 +1577,9 @@ class Editor {
     // joined by lines (with how you get there); a click opens the editor on that page
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
     // the tree is built once; lay(TW) sizes and places it for a thumbnail width (the wheel zoom calls it again)
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): { slots: number; rows: number; lay: (TW: number) => void } {
+    // later: the thumbnails' blocks are drawn over the next frames (the current screen at once, then the nearest first),
+    // so the Map shows straight away
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), later = false): { slots: number; rows: number; lay: (TW: number) => void } {
         m.empty();
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {} }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
@@ -1612,7 +1614,8 @@ class Editor {
             svg.appendChild(path);
             links.push({ par, p, path, label: p.link ? box.createDiv({ cls: "vl-maplink", text: p.link }) : undefined });
         }
-        const keep = this.sel; this.sel = null;   // the small screens show the page as it is (no frames, no choice)
+        // the small screens show the page as it is (no frames, no choice)
+        const fill = (p: Page, scr: HTMLElement) => { const keep = this.sel; this.sel = null; for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true); this.sel = keep; };
         const thumbs: { p: Page; t: HTMLElement; ph: HTMLElement; scr: HTMLElement }[] = [];
         for (const p of pages) {
             const { sc } = devs.get(p.id)!;
@@ -1622,13 +1625,24 @@ class Editor {
             const bg = bgOf(pages, p);
             if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
-            for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true);
+            if (!later || p.id === cur?.id) fill(p, scr);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             thumbs.push({ p, t, ph, scr });
         }
-        this.sel = keep;
+        if (later) {
+            // the rest, nearest to the current screen first, about 8 ms a frame; stops if the Map is drawn again or closed
+            const left = thumbs.filter((x) => x.p.id !== cur?.id), win = box.win, at = pos.get(cur?.id ?? "") ?? { x: 0, y: 0 };
+            left.sort((a, b) => { const pa = pos.get(a.p.id)!, pb = pos.get(b.p.id)!; return Math.hypot(pa.x - at.x, pa.y - at.y) - Math.hypot(pb.x - at.x, pb.y - at.y); });
+            const step = () => {
+                if (!box.isConnected) return;
+                const t0 = win.performance.now();
+                while (left.length && win.performance.now() - t0 < 8) { const x = left.shift()!; fill(x.p, x.scr); }
+                if (left.length) win.requestAnimationFrame(step);
+            };
+            win.requestAnimationFrame(step);
+        }
         const lay = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             const W = x * slotW, H = (depthMax + 1) * rowH - GAP + 4;
