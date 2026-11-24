@@ -1045,8 +1045,9 @@ class Editor {
             // fit: the whole phone in the stage, the pill and a margin kept clear
             if (this.v.fit) {
                 const dev = deviceOf(cur.device ?? this.doc.device), { W, H } = screenOf(dev, this.land);
-                const ph = Platform.isMobile, show = this.v.show, bare = this.bare();   // Show: room for the arrows beside it
-                const sw = this.wall.clientWidth - (ph ? 44 : 64) - (show ? (ph ? 72 : 112) : 0), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
+                // room for Show's arrows beside it in Edit too: the screen keeps its size and place when the mode changes
+                const ph = Platform.isMobile, bare = this.bare();
+                const sw = this.wall.clientWidth - (ph ? 44 : 64) - (ph ? 72 : 112), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
             this.drawPage(cur);
