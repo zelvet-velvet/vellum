@@ -29,9 +29,9 @@
 .vl-page { flex: none; }
 .vl-pname { font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 6px; }
 .vl-page.is-sel .vl-pname { color: var(--text-normal); font-weight: 600; }
-.vl-page.is-mock .vl-pname { color: var(--text-muted); font-style: italic; }
+.vl-page.is-mock .vl-pname { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
 .vl-phone { position: relative; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
-.vl-page.is-mock .vl-phone { outline: 1.5px dashed var(--text-muted); outline-offset: 7px; }   /* a mock (a proposal): dashed, in the theme's muted colour */
+.vl-page.is-mock .vl-phone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 7px; }   /* a mock (a proposal): dashed (not real yet), in the Mock screens colour */
 .vl-screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; background: var(--vl-paper); color: var(--vl-text); touch-action: none; }
 .vl-screen.is-show { touch-action: auto; }
 .vl-status { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: center; color: var(--vl-text); pointer-events: none; z-index: 3; }
@@ -144,7 +144,9 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-tphone { position: relative; overflow: hidden; contain: strict; content-visibility: auto; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); transition: box-shadow 0.15s; }
 .vl-thumb:hover .vl-tphone { box-shadow: 0 0 0 2px var(--text-faint); }
 .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
-.vl-thumb.is-mock .vl-tphone { outline: 1px dashed var(--text-muted); outline-offset: 2px; }
+.vl-thumb.is-mock .vl-tphone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 3px; }
+.vl-thumb.is-mock .vl-tname { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
+.vl-ttag { position: absolute; top: -9px; right: -9px; z-index: 1; padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 600; line-height: 16px; color: #fff; background: var(--vlu-mock, var(--color-orange, #ec7500)); box-shadow: 0 0 0 2px var(--background-primary); pointer-events: none; }
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 5px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
 .vl-thumb.is-main .vl-tname { color: var(--text-normal); font-weight: 600; }
@@ -207,8 +209,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-prow:hover { background: var(--background-modifier-hover); }
 .vl-prow.is-on { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 .vl-prow.is-on .vl-pn { color: var(--interactive-accent); font-weight: 600; }
-.vl-prow.is-mock .vl-pn { color: var(--text-muted); font-style: italic; }
-.vl-mocktag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--background-modifier-border); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--text-faint); vertical-align: 1px; }
+.vl-prow.is-mock .vl-pn { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
+.vl-mocktag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--vlu-mock, var(--color-orange, #ec7500)); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--vlu-mock, var(--color-orange, #ec7500)); vertical-align: 1px; }
 .vl-ptext { flex: 1; min-width: 0; padding: 5px 0; }
 .vl-pn { font-size: var(--font-ui-small); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl-pl { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -735,7 +737,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-pptag { flex: none; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vl-ppc { display: flex; flex: none; color: var(--interactive-accent); --icon-size: 14px; }
 .vl-ppr.is-on .vl-ppn { color: var(--interactive-accent); font-weight: 600; }
-.vl-ppr.is-mock .vl-ppn { color: var(--text-muted); font-style: italic; }
+.vl-ppr.is-mock .vl-ppn { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
 .vl-ppr.is-ctx .vl-ppn, .vl-ppr.is-off .vl-ppn { color: var(--text-faint); }
 .vl-ppr.is-off { cursor: default; }
 .vl-ppnone { padding: 12px 8px; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
@@ -799,6 +801,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vlsd-rfoot .vlsd-h { padding: 0 2px 6px; }
 .vlsd-dev { display: flex; flex-direction: column; padding: 5px 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); }
 .vlsd-dev span:last-child { font-size: 10px; color: var(--text-muted); }
+.vlsd-r.is-mock { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
 .vlsd-r.is-on { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); font-weight: 600; }
 .vlsd-r.is-state { background: var(--background-modifier-hover); }
 .vlsd-stage { display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: var(--background-secondary); min-width: 0; }
