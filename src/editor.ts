@@ -874,35 +874,22 @@ class Editor {
     // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
     zoomBy(f: number, at?: { x: number; y: number }) {
         const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
-        const r0 = at ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
+        // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
+        const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
+        const r0 = at ? (under ?? this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.max(0.3, Math.round((this.v.mapZoom ?? 1) * f * 100) / 100)) });
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
-        // the Map with the wheel: the tree drawn last is scaled as it is (redrawing every thumbnail took ~150 ms a step
-        // with 40 screens), and drawn again at the new size once the wheel stops
-        const box = this.v.map && at ? this.wall?.querySelector<HTMLElement>(".vl-mapbox") : null;
-        if (box && this.mapDrawn) {
-            box.style.zoom = String((this.v.mapZoom ?? 1) / this.mapDrawn);
-            this.drawZoom();
-            window.clearTimeout(this.mapIdle);
-            this.mapIdle = window.setTimeout(() => {
-                const b = this.wall?.querySelector<HTMLElement>(".vl-mapbox"), w = this.wall;
-                if (!b || !w || !this.v.map) return;
-                // the same spot stays in the middle of the stage through the redraw
-                const s = w.getBoundingClientRect(), r = b.getBoundingClientRect(), cx = s.left + s.width / 2, cy = s.top + s.height / 2;
-                const u = (cx - r.left) / r.width, v = (cy - r.top) / r.height;
-                this.drawPages();
-                const r1 = w.querySelector<HTMLElement>(".vl-mapbox")?.getBoundingClientRect();
-                if (r1?.width) { w.scrollLeft += r1.left + u * r1.width - cx; w.scrollTop += r1.top + v * r1.height - cy; }
-            }, 200);
-        } else this.drawPages();
-        const r1 = r0 ? this.wall?.querySelector<HTMLElement>(sel)?.getBoundingClientRect() : undefined;
+        // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
+        // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
+        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); }
+        else this.drawPages();
+        const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
         const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
         this.wall.scrollLeft += r1.left + u * r1.width - at.x;
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
-    mapDrawn = 0;   // the Map's zoom when its thumbnails were last drawn
-    mapIdle = 0;
+    mapLay: ((zoom: number) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom
     // the middle button held: the stage scrolls with the pointer
     pan(e: PointerEvent) {
         const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
@@ -932,7 +919,7 @@ class Editor {
         this.lookCheck();   // the app's colours changed (the picker in the Colours window): the screens take them
         // a redraw keeps where the stage was scrolled (choosing a block or an item does not jump to the top)
         const sx = this.wall.scrollLeft, sy = this.wall.scrollTop, keep = () => { this.wall.scrollLeft = sx; this.wall.scrollTop = sy; };
-        this.wall.empty();
+        this.wall.empty(); this.mapLay = null;
         this.wall.toggleClass("is-show", !!this.v.show && !this.v.map);
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
         this.drawRail();   // first: its width is part of the room the phone fits in
@@ -949,8 +936,8 @@ class Editor {
                 tw = Math.max(48, Math.min(200, Math.floor(Math.min(byW, byH))));
                 this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
             }
-            this.drawMap(box, tw, pick);
-            this.mapDrawn = tw / BASE;
+            const { lay } = this.drawMap(box, tw, pick);
+            this.mapLay = (z) => lay(BASE * z);
             this.drawZoom(); keep();
             return;
         }
@@ -1540,13 +1527,14 @@ class Editor {
     // the map in the note's card: every page as a small screen; main pages along the top, each page's sub pages under it,
     // joined by lines (with how you get there); a click opens the editor on that page
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): { slots: number; rows: number } {
+    // the tree is built once; lay(TW) sizes and places it for a thumbnail width (the wheel zoom calls it again)
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id)): { slots: number; rows: number; lay: (TW: number) => void } {
         m.empty();
-        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0 }; }
+        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {} }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
-        const GAP = 40, LABEL = 46, slotW = TW + GAP;
-        const dims = (p: Page) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), sc = screenOf(d, this.land); const k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
-        const rowH = Math.max(...pages.map((p) => dims(p).h)) + LABEL + GAP;
+        const GAP = 40, LABEL = 46;
+        const devs = new Map(pages.map((p) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius); return [p.id, { d, sc: screenOf(d, this.land) }]; }));
+        const dims = (p: Page, TW: number) => { const { d, sc } = devs.get(p.id)!, k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         // a tidy tree: each leaf a slot, a parent centred over its children
         const pos = new Map<string, { x: number; y: number }>();
         let depthMax = 0;
@@ -1564,39 +1552,56 @@ class Editor {
         for (const r of childrenOf(pages)) x += place(r, 0, x, seen);
         for (const p of pages) if (!pos.has(p.id)) x += place(p, 0, x, seen);   // anything left (a loop) as a main page
         const box = m.createDiv({ cls: "vl-mapbox" });
-        box.style.width = `${x * slotW}px`; box.style.height = `${(depthMax + 1) * rowH - GAP + 4}px`;
         const NS = "http://www.w3.org/2000/svg";
-        const svg = m.doc.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines"); svg.setAttribute("width", String(x * slotW)); svg.setAttribute("height", String((depthMax + 1) * rowH - GAP + 4));
+        const svg = m.doc.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines");
         box.appendChild(svg);
-        const at = (p: Page) => { const q = pos.get(p.id)!, d = dims(p); return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: d.h }; };
+        const links: { par: Page; p: Page; path: SVGPathElement; label?: HTMLElement }[] = [];
         for (const p of pages) {
             const par = pages.find((q) => q.id === p.parent);
             if (!par || !pos.has(par.id)) continue;
-            // from under the parent's name, down, across, down to the sub page (its link label sits just above it)
-            const a = at(par), b = at(p);
-            const y0 = a.top + a.h + 26, midY = y0 + 8;
             const path = m.doc.createElementNS(NS, "path");
-            path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
             svg.appendChild(path);
-            if (p.link) { const t = box.createDiv({ cls: "vl-maplink", text: p.link }); t.style.left = `${b.cx}px`; t.style.maxWidth = `${slotW}px`; t.style.top = `${b.top - 19}px`; }
+            links.push({ par, p, path, label: p.link ? box.createDiv({ cls: "vl-maplink", text: p.link }) : undefined });
         }
         const keep = this.sel; this.sel = null;   // the small screens show the page as it is (no frames, no choice)
+        const thumbs: { p: Page; t: HTMLElement; ph: HTMLElement; scr: HTMLElement }[] = [];
         for (const p of pages) {
-            const q = pos.get(p.id)!, d = dims(p);
+            const { sc } = devs.get(p.id)!;
             const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (p.parent ? "" : " is-main") });
-            t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
-            const ph = t.createDiv({ cls: "vl-tphone" }); ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
+            const ph = t.createDiv({ cls: "vl-tphone" });
             const scr = ph.createDiv({ cls: "vl-screen is-show" });
             const bg = bgOf(pages, p);
             if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
-            Object.assign(scr.style, { width: `${d.sc.W}px`, height: `${d.sc.H}px`, transform: `scale(${d.k})` });
+            Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
+            thumbs.push({ p, t, ph, scr });
         }
         this.sel = keep;
-        return { slots: x, rows: depthMax + 1 };
+        const lay = (TW: number) => {
+            const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
+            const W = x * slotW, H = (depthMax + 1) * rowH - GAP + 4;
+            box.style.width = `${W}px`; box.style.height = `${H}px`;
+            svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
+            const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, TW).h }; };
+            for (const { par, p, path, label } of links) {
+                // from under the parent's name, down, across, down to the sub page (its link label sits just above it)
+                const a = at(par), b = at(p);
+                const y0 = a.top + a.h + 26, midY = y0 + 8;
+                path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
+                if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
+            }
+            for (const { p, t, ph, scr } of thumbs) {
+                const q = pos.get(p.id)!, d = dims(p, TW);
+                t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
+                ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
+                scr.style.transform = `scale(${d.k})`;
+            }
+        };
+        lay(TW);
+        return { slots: x, rows: depthMax + 1, lay };
     }
     drawPage(p: Page) {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
