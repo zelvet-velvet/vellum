@@ -39,6 +39,8 @@ export const KEY_ACTIONS: { id: string; name: string; desc: string; icon: string
     { id: "edit", name: "Edit", desc: "Frames and safe areas", icon: "pencil", key: "1" },
     { id: "show", name: "Show", desc: "The screen alone", icon: "play", key: "2" },
     { id: "map", name: "Map", desc: "Every screen as a tree", icon: "network", key: "3" },
+    { id: "screens", name: "Screens list", desc: "Open or close the list on the left", icon: "sidebar-left", key: "[" },
+    { id: "panel", name: "Settings panel", desc: "Open or close the panel on the right, in Edit", icon: "sidebar-right", key: "]" },
     { id: "save", name: "Save", desc: "Write the screens to their files", icon: "save", key: "Mod+S" },
     { id: "undo", name: "Undo", desc: "", icon: "undo-2", key: "Mod+Z" },
     { id: "redo", name: "Redo", desc: "Mod+Y too", icon: "redo-2", key: "Mod+Shift+Z" },
@@ -232,7 +234,7 @@ class Editor {
     // ---- state, undo, drafts, save
     // the editor opens in the Map (when there are screens); an app's folder remembers its last screen on the device, so
     // switching back (or reopening Obsidian) has it chosen
-    get v(): View { const wide = !Platform.isMobile && window.innerWidth >= 1000, map = this.doc.pages.length > 0; return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: wide && !map, railShow: map ? wide : undefined, map, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
+    get v(): View { const map = this.doc.pages.length > 0; return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: false, railShow: map ? false : undefined, panel: Platform.isMobile ? undefined : false, map, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
     setView(p: Partial<View>) {
         view.set(this.doc.id, { ...this.v, ...p });
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
@@ -687,8 +689,8 @@ class Editor {
         else if (bare) this.btn(mid, "minimize-2", `Show the bars (${keyText(keyOf("bars"))})`, () => this.setBars(true)).addClass("vl-unbare");
         if (bare && !Platform.isMobile) {
             // the top bar's side toggles, in the stage's top corners while it is hidden
-            this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
-            if (!this.v.show && !this.v.map) this.btn(mid, this.v.panel === false ? "vellum-side-right" : "sidebar-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-bareside", "is-r");
+            this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
+            if (!this.v.show && !this.v.map) this.btn(mid, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-bareside", "is-r");
         }
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
@@ -773,7 +775,7 @@ class Editor {
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
-            this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", this.v.rail ? "Collapse the screens" : "Expand the screens", () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             // where you are: the app (a folder; a click switches), then the screen (none in the Map)
             if (this.store) this.drawAppBtn(l);
             if (!this.store || (cur && !this.v.map)) {
@@ -801,7 +803,7 @@ class Editor {
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         if (!Platform.isMobile && !this.v.show && !this.v.map) {   // Show and Map have no settings panel
             r.createSpan({ cls: "vl-zsep" });
-            this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", this.v.panel === false ? "Expand the settings" : "Collapse the settings", () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
         this.drawZoom();
     }
@@ -2472,6 +2474,8 @@ class Editor {
         if (is("redo") || (mod && !e.shiftKey && !e.altKey && k === "y")) { this.redo(); return true; }
         if (is("duplicate")) { this.duplicate(); return true; }
         for (const m of ["edit", "show", "map"] as const) if (is(m)) { if ((m === "map") !== !!this.v.map || (m === "show") !== (!!this.v.show && !this.v.map)) this.setMode(m); return true; }
+        if (is("screens")) { this.setView({ rail: !this.v.rail }); this.draw(); return true; }
+        if (is("panel") && editing && !Platform.isMobile) { this.setView({ panel: this.v.panel === false }); this.draw(); return true; }
         if (is("notes") && editing) { this.toggleMarks(); return true; }
         if (is("note") && editing) { this.markTool(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
