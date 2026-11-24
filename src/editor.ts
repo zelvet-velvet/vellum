@@ -60,6 +60,8 @@ const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? 
 type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
+// a thumbnail in the Map; key: what its screen looked like when it was drawn (none: not drawn yet)
+type Thumb = { id: string; t: HTMLElement; ph: HTMLElement; scr: HTMLElement; key?: string };
 // the colours a mark can take (or any CSS colour)
 const MARK_COLORS: Record<string, string> = { yellow: "#f5c84b", orange: "#ff8a3d", red: "#ff4d6d", green: "#2fbf71", blue: "#3d8bff", purple: "#9b6dff", gray: "#8a8f98" };
 const markColor = (c?: string) => MARK_COLORS[c ?? "yellow"] ?? c ?? MARK_COLORS.yellow;
@@ -972,12 +974,16 @@ class Editor {
         this.drawRail();   // first: its width is part of the room the phone fits in
         if (this.v.map && this.doc.pages.length) {
             // Map: every screen in the stage as a tree; a click opens it for editing. Fit: the tree as wide as the stage
-            const box = this.wall.createDiv({ cls: "vl-stagemap" });
-            const pick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
+            // the Map kept from before (built ahead in Edit or Show): shown, laid out for the zoom, then brought up to date,
+            // the current screen at once. Drawing every thumbnail's blocks is the slow part, so it is never done here
+            const c = this.getMap(), cur = this.current();
+            this.wall.append(c.el);
+            for (const th of c.thumbs) th.t.toggleClass("is-on", th.id === cur?.id);
+            const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
+            const { slots, rows, lay } = c;
             const BASE = 110, room = this.wall.clientWidth - 64;
             let tw = BASE * (this.v.mapZoom ?? 1);
-            // the thumbnails are built once (each draws every block of its screen: the slow part); Fit only lays them out
-            const { slots, rows, lay } = this.drawMap(box, tw, pick, true);
+            lay(tw);
             if (this.v.mapFit !== false) {
                 // as big as both the width (screens across) and the height (rows of screens) allow
                 const d = deviceOf(this.doc.device), ratio = d.h / d.w;
@@ -988,8 +994,10 @@ class Editor {
             }
             this.mapLay = (z) => lay(BASE * z);
             this.drawZoom(); keep();
+            this.fillMap(c, false);
             return;
         }
+        if (this.doc.pages.length) this.mapLater();
         const cur = this.current();
         if (cur) {
             // fit: the whole phone in the stage, the pill and a margin kept clear
@@ -1577,11 +1585,10 @@ class Editor {
     // joined by lines (with how you get there); a click opens the editor on that page
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
     // the tree is built once; lay(TW) sizes and places it for a thumbnail width (the wheel zoom calls it again)
-    // later: the thumbnails' blocks are drawn over the next frames (the current screen at once, then the nearest first),
-    // so the Map shows straight away
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), later = false): { slots: number; rows: number; lay: (TW: number) => void } {
+    // lazy: the thumbnails are left empty, for fillMap to draw a few at a time (the stage's Map); otherwise all at once
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), lazy = false): { slots: number; rows: number; lay: (TW: number) => void; thumbs: Thumb[] } {
         m.empty();
-        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {} }; }
+        if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, thumbs: [] }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
         const GAP = 40, LABEL = 46;
         const devs = new Map(pages.map((p) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius); return [p.id, { d, sc: screenOf(d, this.land) }]; }));
@@ -1614,34 +1621,19 @@ class Editor {
             svg.appendChild(path);
             links.push({ par, p, path, label: p.link ? box.createDiv({ cls: "vl-maplink", text: p.link }) : undefined });
         }
-        // the small screens show the page as it is (no frames, no choice)
-        const fill = (p: Page, scr: HTMLElement) => { const keep = this.sel; this.sel = null; for (const b of this.onScreen(p, drawnBlocks(pages, p, this.land))) this.drawBlock(scr, p, b, true); this.sel = keep; };
-        const thumbs: { p: Page; t: HTMLElement; ph: HTMLElement; scr: HTMLElement }[] = [];
+        const thumbs: Thumb[] = [];
         for (const p of pages) {
             const { sc } = devs.get(p.id)!;
             const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (p.parent ? "" : " is-main") });
             const ph = t.createDiv({ cls: "vl-tphone" });
             const scr = ph.createDiv({ cls: "vl-screen is-show" });
-            const bg = bgOf(pages, p);
-            if (bg) { scr.style.background = colorOf(this.theme, bg); ph.style.background = scr.style.background; }
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
-            if (!later || p.id === cur?.id) fill(p, scr);
             t.createDiv({ cls: "vl-tname", text: p.name });
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
-            thumbs.push({ p, t, ph, scr });
-        }
-        if (later) {
-            // the rest, nearest to the current screen first, about 8 ms a frame; stops if the Map is drawn again or closed
-            const left = thumbs.filter((x) => x.p.id !== cur?.id), win = box.win, at = pos.get(cur?.id ?? "") ?? { x: 0, y: 0 };
-            left.sort((a, b) => { const pa = pos.get(a.p.id)!, pb = pos.get(b.p.id)!; return Math.hypot(pa.x - at.x, pa.y - at.y) - Math.hypot(pb.x - at.x, pb.y - at.y); });
-            const step = () => {
-                if (!box.isConnected) return;
-                const t0 = win.performance.now();
-                while (left.length && win.performance.now() - t0 < 8) { const x = left.shift()!; fill(x.p, x.scr); }
-                if (left.length) win.requestAnimationFrame(step);
-            };
-            win.requestAnimationFrame(step);
+            const th: Thumb = { id: p.id, t, ph, scr };
+            if (!lazy) this.fillThumb(th);
+            thumbs.push(th);
         }
         const lay = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
@@ -1656,15 +1648,61 @@ class Editor {
                 path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
                 if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
             }
-            for (const { p, t, ph, scr } of thumbs) {
-                const q = pos.get(p.id)!, d = dims(p, TW);
+            thumbs.forEach(({ t, ph, scr }, i) => {
+                const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
                 t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
                 ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
                 scr.style.transform = `scale(${d.k})`;
-            }
+            });
         };
         lay(TW);
-        return { slots: x, rows: depthMax + 1, lay };
+        return { slots: x, rows: depthMax + 1, lay, thumbs };
+    }
+    // a thumbnail drawn as its screen is now (no frames, no choice); skipped when it already shows that. True if drawn
+    fillThumb(th: Thumb): boolean {
+        const pages = this.doc.pages, p = pages.find((q) => q.id === th.id); if (!p) return false;
+        const bg = bgOf(pages, p), list = this.onScreen(p, drawnBlocks(pages, p, this.land)), key = JSON.stringify([bg, list]);
+        if (th.key === key) return false;
+        th.scr.empty(); th.key = key;
+        th.scr.style.background = bg ? colorOf(this.theme, bg) : ""; th.ph.style.background = th.scr.style.background;
+        const keep = this.sel; this.sel = null;
+        for (const b of list) this.drawBlock(th.scr, p, b, true);
+        this.sel = keep;
+        return true;
+    }
+    // the stage's Map, kept while the screens' tree, the device, the orientation and the colours stay the same: built
+    // ahead in Edit and Show, so pressing Map only shows it. A thumbnail whose screen changed is drawn again (fillMap)
+    mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number) => void; thumbs: Thumb[] } | null = null;
+    mapRun = 0; mapAhead = 0;
+    mapPick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
+    getMap() {
+        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? ""])]);
+        const c = this.mapCache;
+        if (c && c.skey === skey && c.theme === this.theme) return c;
+        const el = this.wall.doc.createElement("div"); el.addClass("vl-stagemap");
+        return (this.mapCache = { el, skey, theme: this.theme, ...this.drawMap(el, 110 * (this.v.mapZoom ?? 1), this.mapPick, true) });
+    }
+    // brings the Map's thumbnails up to date, nearest to the current screen first: on show, ~8 ms a frame; ahead (idle),
+    // only while the editor has nothing else to do. A newer call, or a new Map, stops it
+    fillMap(c: NonNullable<Editor["mapCache"]>, idle: boolean) {
+        const run = ++this.mapRun, win = this.wall.win, cur = this.current();
+        const at = (th: Thumb) => ({ x: parseFloat(th.t.style.left) || 0, y: parseFloat(th.t.style.top) || 0 });
+        const o = c.thumbs.find((th) => th.id === cur?.id), p0 = o ? at(o) : { x: 0, y: 0 };
+        const list = [...c.thumbs].sort((a, b) => { const pa = at(a), pb = at(b); return Math.hypot(pa.x - p0.x, pa.y - p0.y) - Math.hypot(pb.x - p0.x, pb.y - p0.y); });
+        let i = 0;
+        const step = (dl?: IdleDeadline) => {
+            if (run !== this.mapRun || this.mapCache !== c || !this.wall?.isConnected) return;   // replaced, or the editor closed
+            const t0 = win.performance.now();
+            while (i < list.length && (dl ? dl.timeRemaining() > 2 : win.performance.now() - t0 < 8)) this.fillThumb(list[i++]);
+            if (i < list.length) next();
+        };
+        const next = () => { if (idle) win.requestIdleCallback(step, { timeout: 3000 }); else win.requestAnimationFrame(() => step()); };
+        next();
+    }
+    // after a redraw in Edit or Show, once things are quiet: the Map built (or brought up to date) out of sight
+    mapLater() {
+        window.clearTimeout(this.mapAhead);
+        this.mapAhead = window.setTimeout(() => { if (this.wall?.isConnected && !this.v.map && this.doc.pages.length) this.fillMap(this.getMap(), true); }, 600);
     }
     drawPage(p: Page) {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
