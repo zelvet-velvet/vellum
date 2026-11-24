@@ -29,6 +29,7 @@ export const UI_COLORS: { id: string; name: string; group: string; vars: string[
     { id: "accenth", name: "Accent hover", group: "Accent", vars: ["--interactive-accent-hover"] },
     { id: "red", name: "Warnings", group: "Signals", vars: ["--color-red", "--text-error"] },
     { id: "guide", name: "Snap guides", group: "Signals", vars: ["--vlu-guide"], follow: "var(--color-pink, #e93147)" },   // its own variable: block kinds use Obsidian's pink too
+    { id: "mock", name: "Mock screens", group: "Signals", vars: ["--vlu-mock"], follow: "var(--color-orange, #ec7500)" },   // a proposal's frame, tag and name, everywhere it shows
 ];
 
 export const BASE_KINDS: Kind[] = [
