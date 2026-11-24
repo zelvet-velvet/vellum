@@ -152,7 +152,9 @@ class VellumSettings extends PluginSettingTab {
             for (let e: HTMLElement | null = scroller; e; e = e.parentElement) { const bg = win.getComputedStyle(e).backgroundColor; if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) { bar.style.setProperty("--vls-bg", bg); break; } }
             const onScroll = () => { bar.toggleClass("is-stuck", scroller.scrollTop > 2); };
             scroller.addEventListener("scroll", onScroll, { passive: true });
-            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); this.tabScroll = null; };
+            // room for the scrollbar kept on every tab: a long tab's scrollbar doesn't narrow the page and shift it
+            scroller.addClass("vls-scroller");
+            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); scroller.removeClass("vls-scroller"); this.tabScroll = null; };
             onScroll();
         }
         const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };

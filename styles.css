@@ -376,6 +376,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
 /* the tabs as tiles, three to a row: every tab in view at any width, nothing to scroll */
 .vls-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px 0 12px; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
+.vls-scroller { scrollbar-gutter: stable; }
 .vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
 /* a second row of tabs inside one (General: Screens, Editing, Updates) */
 .vls-subtabs { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
