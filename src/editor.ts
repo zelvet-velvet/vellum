@@ -676,7 +676,11 @@ class Editor {
         const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
         if (!w || !t0) return;
         const want = (w.clientHeight - 150) * 0.45, h0 = t0.getBoundingClientRect().height;
-        if (h0 > 0 && want > h0 * 1.1) { this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.round((this.v.mapZoom ?? 1) * (want / h0) * 100) / 100) }); this.drawPages(); }
+        if (h0 > 0 && want > h0 * 1.1) {
+            this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.round((this.v.mapZoom ?? 1) * (want / h0) * 100) / 100) });
+            // the thumbnails just drawn, laid out at the new zoom (not built again)
+            if (this.mapLay) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); } else this.drawPages();
+        }
         const t = w.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone"); if (!t) return;
         const r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
         w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
@@ -972,14 +976,16 @@ class Editor {
             const pick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
             const BASE = 110, room = this.wall.clientWidth - 64;
             let tw = BASE * (this.v.mapZoom ?? 1);
+            // the thumbnails are built once (each draws every block of its screen: the slow part); Fit only lays them out
+            const { slots, rows, lay } = this.drawMap(box, tw, pick);
             if (this.v.mapFit !== false) {
                 // as big as both the width (screens across) and the height (rows of screens) allow
-                const { slots, rows } = this.drawMap(box, BASE, pick), d = deviceOf(this.doc.device), ratio = d.h / d.w;
+                const d = deviceOf(this.doc.device), ratio = d.h / d.w;
                 const byW = room / Math.max(1, slots) - 40, byH = ((this.wall.clientHeight - 150) / Math.max(1, rows) - 86) / ratio;
                 tw = Math.max(48, Math.min(200, Math.floor(Math.min(byW, byH))));
                 this.setView({ mapZoom: Math.round((tw / BASE) * 100) / 100 });
+                lay(tw);
             }
-            const { lay } = this.drawMap(box, tw, pick);
             this.mapLay = (z) => lay(BASE * z);
             this.drawZoom(); keep();
             return;
