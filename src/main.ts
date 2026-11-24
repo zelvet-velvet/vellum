@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, Menu, normalizePath, Notice, Plugin, PluginSettingTab, setIcon, SliderComponent, TFile, TFolder, ToggleComponent } from "obsidian";
-import { EDIT_DEFAULT, EditCfg, LOOK_WORDS, openVellum, refreshAuto, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
+import { EDIT_DEFAULT, EditCfg, FIXED_KEYS, KEY_ACTIONS, comboOf, keyOf, keyText, setKeys, LOOK_WORDS, openVellum, refreshAuto, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
 import { coloursOfDoc, Doc, docColours, hasAuto } from "./model";
 import { NewsModal, newsSince } from "./news";
@@ -17,8 +17,8 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
-const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, news: true };
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
 
 // the folder a path is in; none at the vault's root
 const parentOf = (path: string) => { const i = path.lastIndexOf("/"); return i > 0 ? path.slice(0, i) : null; };
@@ -27,7 +27,7 @@ export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit }, news: saved?.news ?? true, seen: saved?.seen };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }));
@@ -35,6 +35,7 @@ export default class VellumPlugin extends Plugin {
         this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); else refreshAuto(); }));
         setSnap(this.settings.snap, () => { void this.save(); });
         setEdit(this.settings.edit);
+        setKeys(this.settings.keys);
         // the editor straight on the screens folder: no note or block needed
         this.addRibbonIcon("vellum", "Open Vellum", () => this.openScreens());
         this.addCommand({ id: "open", name: "Open the screens", callback: () => this.openScreens() });
@@ -102,9 +103,9 @@ export default class VellumPlugin extends Plugin {
     async save() { await this.saveData(this.settings); }
 }
 
-// The settings: tabs (General, Snapping, Screen colours, Editor theme, Fonts), one shown at a time, each a few cards of compact rows (name and a
+// The settings: tabs (General, Snapping, Keys, Screen colours, Editor theme, Fonts), one shown at a time, each a few cards of compact rows (name and a
 // word on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
-const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"], ["fonts", "Fonts", "type"]] as const;
+const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"], ["fonts", "Fonts", "type"]] as const;
 type Tab = (typeof TABS)[number][0];
 const TAB_KEY = "vellum:settab";   // the last tab used, kept on the device
 const APP_KEY = "vellum:setapp";   // the app whose colours the Screen colours tab shows (none: every app)
@@ -181,6 +182,35 @@ class VellumSettings extends PluginSettingTab {
         i.value = value;
         i.addEventListener("input", () => set(i.value));
         return i;
+    }
+    // the editor's keys: a click on one, then the new key (Esc: as it was); ↺ back to its default. The keys that can't be
+    // changed are listed under them, so every key is in one place
+    keys(c: HTMLElement) {
+        const s = this.plugin.settings, card = this.card(c, "");
+        const fixed = ["Escape", "Delete", "Backspace", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Shift+ArrowLeft", "Shift+ArrowRight", "Shift+ArrowUp", "Shift+ArrowDown", "Mod+Y", "Tab"];
+        for (const a of KEY_ACTIONS) {
+            const ctl = this.row(card, a.name, a.desc.replace(/\bMod\b/g, keyText("Mod")), a.icon);
+            const b = ctl.createEl("button", { cls: "vls-key", text: keyText(keyOf(a.id)), attr: { "aria-label": "Click, then press the new key" } });
+            const stop = () => { b.removeClass("is-rec"); b.setText(keyText(keyOf(a.id))); b.removeEventListener("keydown", rec, true); };
+            const rec = (e: KeyboardEvent) => {
+                e.preventDefault(); e.stopPropagation();
+                if (e.key === "Escape") { stop(); return; }
+                const k = comboOf(e); if (!k) return;
+                const other = KEY_ACTIONS.find((o) => o.id !== a.id && keyOf(o.id) === k);
+                if (other) { new Notice(`Vellum: ${keyText(k)} is already ${other.name}`); return; }
+                if (fixed.includes(k)) { new Notice(`Vellum: ${keyText(k)} can't be changed`); return; }
+                if (k === a.key) delete s.keys[a.id]; else s.keys[a.id] = k;
+                this.save(); this.display();
+            };
+            b.addEventListener("click", () => { if (b.hasClass("is-rec")) return; b.addClass("is-rec"); b.setText("Press a key…"); b.addEventListener("keydown", rec, true); });
+            b.addEventListener("blur", stop);
+            if (s.keys[a.id]) {
+                const r = ctl.createEl("button", { cls: "vls-keyback", attr: { "aria-label": `Back to ${keyText(a.key)}` } }); setIcon(r, "rotate-ccw");
+                r.addEventListener("click", () => { delete s.keys[a.id]; this.save(); this.display(); });
+            }
+        }
+        const fx = this.card(c, "Can't be changed");
+        for (const [k, what] of FIXED_KEYS) this.row(fx, what, "", "lock").createSpan({ cls: "vls-key is-fixed", text: keyText(k) });
     }
     // saved and shown a moment after the last change (a drag in the colour picker makes many)
     lookT = 0;
@@ -625,6 +655,8 @@ class VellumSettings extends PluginSettingTab {
             this.input(this.row(rest, "Grid", "Step with no line near. 1: free.", "layout-grid", "Points a drag steps by when no line is near; Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
             this.input(this.row(rest, "Margins", "Lines inside each edge.", "square-dashed", "Comma separated, in points."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
             new ToggleComponent(this.row(rest, "Guide lines", "Show the line snapped to.", "align-center-vertical")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
+        } else if (tab === "keys") {
+            this.keys(c);
         } else if (tab === "editor") {
             // the editor's own colours, in one view: the preview on top, every colour under it in columns
             const card = c.createDiv({ cls: "vls-card vls-studio is-editor" });
