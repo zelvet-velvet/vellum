@@ -223,13 +223,31 @@ class VellumWindow extends ItemView {
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
             const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
-            if (ed) ed.mount(this.contentEl);
+            if (ed) { ed.mount(this.contentEl); this.raiseAfterReload(); }
             else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
         }
         return super.setState(state, result);
     }
     async onClose() { if (windows.get(this.key) === this) windows.delete(this.key); editors.get(this.key)?.unmount(); }
+    // a reload (Ctrl+R) with the editor's window in front: Obsidian opens the main window on top of it again. As the main
+    // window unloads (noteFocus) the editor's notes on the device that it had the focus; once Obsidian has put it back,
+    // its window is raised (#98)
+    raiseAfterReload() {
+        this.app.workspace.onLayoutReady(() => window.setTimeout(() => {
+            const w = this.containerEl.win;
+            if (w === window) return;
+            const r = ((): { key?: string; at?: number } | null => { try { return JSON.parse(getLocal(RAISE_KEY) ?? "null") as { key?: string; at?: number } | null; } catch { return null; } })();
+            if (!r || r.key !== this.key || Date.now() - (r.at ?? 0) > 60000) return;
+            setLocal(RAISE_KEY, null);
+            raise(w); window.setTimeout(() => raise(w), 900);
+        }, 300));
+    }
 }
+const RAISE_KEY = "vellum:raise-after-reload";
+// the main window unloading (a reload or quit): an editor window that has the focus is noted, to be raised again
+const noteFocus = () => {
+    for (const [key, v] of windows) { const w = v.containerEl.win; if (w !== window && w.document.hasFocus()) { setLocal(RAISE_KEY, JSON.stringify({ key, at: Date.now() })); return; } }
+};
 
 // a window to the front, focused (Electron: shown, raised; restored when minimised)
 type ElectronWin = { isMinimized?(): boolean; restore?(): void; show?(): void; moveTop?(): void; focus?(): void };
@@ -4909,6 +4927,9 @@ export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumH
     addIcon("vellum-side-left", frame(7));    // the line near the edge: the sidebar is folded in (a click opens it)
     addIcon("vellum-side-right", frame(17));
     plugin.registerView(VIEW, (leaf: WorkspaceLeaf) => new VellumWindow(leaf));
+    // straight on the window, not registerDomEvent: Obsidian may let go of a plugin's listeners before the window unloads
+    window.addEventListener("beforeunload", noteFocus);
+    plugin.register(() => window.removeEventListener("beforeunload", noteFocus));
     plugin.registerMarkdownCodeBlockProcessor("vellum", async (source, el, ctx) => {
         const h = typeof host === "function" ? host() : host, dir = srcOf(source);
         if (!dir) { new Editor(plugin, h, source, el, ctx); return; }
