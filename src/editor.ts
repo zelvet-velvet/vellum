@@ -64,6 +64,7 @@ export const KEY_ACTIONS: { id: string; name: string; desc: string; icon: string
     { id: "group", name: "Group", desc: "The chosen items, in one block", icon: "group", key: "Mod+G" },
     { id: "ungroup", name: "Ungroup", desc: "A group's items back in the block", icon: "ungroup", key: "Mod+Shift+G" },
     { id: "measure", name: "Measure", desc: "Hold and drag an area: sizes and gaps; press again to clear", icon: "ruler", key: "M" },
+    { id: "before", name: "Before the change", desc: "Hold: a screen the agent changed, as it was", icon: "history", key: "B" },
     { id: "fit", name: "Fit", desc: "Fit to the window; in the Map, Fit or Full", icon: "scan", key: "F" },
     { id: "note", name: "Note or area", desc: "Click: a note; drag: an area", icon: "message-square-plus", key: "N" },
     { id: "notes", name: "Show the notes", desc: "Or hide them", icon: "message-square", key: "Shift+N" },
@@ -372,13 +373,44 @@ class Editor {
     // the folder changed outside (the agent, a sync): taken as it is; unsaved work here is offered back, never lost
     async outside() {
         if (!this.store) return;
-        const { doc } = await this.store.load(), text = serialiseDoc(doc);
-        if (text === this.saved) return;
+        const was = this.beforeKey(), { doc } = await this.store.load(), text = serialiseDoc(doc);
+        if (text === this.saved) { if (this.beforeKey() !== was) { this.mapCache = null; this.drawCard(); if (this.root?.isConnected) this.draw(); } return; }
         if (this.dirty) this.stale = this.doc;
         this.doc = doc; this.saved = text; this.fixSel(); this.draftPut();
         this.drawCard(); if (this.root?.isConnected) this.draw();
     }
 
+    // ---- changes waiting for review: a screen the agent changed has its copy in _before/ (the store reads them)
+    beforeKey() { return [...(this.store?.befores.keys() ?? [])].sort().join(","); }
+    changed(p: Page) { return !!this.store?.befores.has(p.id); }
+    changes() { return this.doc.pages.filter((p) => this.changed(p)); }
+    holdBefore = false;   // the Before key is held: the changed screen drawn as it was
+    // the screen as drawn: its copy from before the change while the Before key is held (a copy: nothing edits it)
+    shown(p: Page): Page { const b = this.holdBefore ? this.store?.befores.get(p.id) : undefined; return b ? (JSON.parse(JSON.stringify(b.page)) as Page) : p; }
+    async keepChange(ids: string[]) {
+        if (!this.store) return;
+        for (const id of ids) await this.store.keep(id);
+        this.mapCache = null; this.draw();
+        this.hint(ids.length > 1 ? `Kept ${ids.length} changes` : "Change kept");
+    }
+    // undone: the copy goes back as the screen's file and the folder is read again. Not over unsaved work here: that
+    // would be offered back with the agent's version in it
+    async undoChange(p: Page) {
+        if (!this.store) return;
+        if (this.dirty) { this.hint("Save or undo your own edits first", undefined, false); return; }
+        await this.store.restore(p.id);
+        this.mapCache = null;
+        await this.outside(); this.draw();
+        this.hint(`${p.name}: back as it was`);
+    }
+    // the review button: the next changed screen after the one open, opened in Edit
+    nextChange() {
+        const l = this.changes(); if (!l.length) return;
+        const at = l.findIndex((p) => p.id === this.current()?.id), to = l[(at + 1) % l.length];
+        if (this.v.map || this.v.show) this.setMode("edit");
+        if (!Platform.isMobile) this.setView({ panel: true });   // Keep and Undo are in its panel
+        this.openPage(to);
+    }
     // ---- what is chosen
     page(id = this.sel?.page) { return this.doc.pages.find((p) => p.id === id); }
     block() { const p = this.page(); return p ? this.blocks(p).find((b) => b.id === this.sel?.block) : undefined; }
@@ -704,7 +736,7 @@ class Editor {
         R.win.addEventListener("keydown", onKey, true);
         // the Measure key is held until any key goes up or the window loses focus
         // while it is held, a small "M + drag" tag follows the pointer
-        const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } };
+        const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } if (this.holdBefore) { this.holdBefore = false; this.drawPages(); } };
         R.win.addEventListener("keyup", unhold, true); R.win.addEventListener("blur", unhold);
         // a button held (a drag running): Alt then turns snapping off, it doesn't start a measure
         R.win.addEventListener("pointerdown", () => { this.ptrDown = true; }, true);
@@ -896,6 +928,12 @@ class Editor {
             }
         }
         const r = b.createDiv({ cls: "vl-tr" });
+        const nch = this.changes().length;
+        if (nch) {
+            const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
+            setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
+            rv.addEventListener("click", () => this.nextChange());
+        }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
             // Obsidian's settings on Vellum's tab, above the editor: its own window (newer Obsidian) or the main one, brought to
             // the front once it is open (and again a moment later: a new window may take the focus back as it appears)
@@ -1170,7 +1208,7 @@ class Editor {
                 const sw = this.wall.clientWidth - (ph ? 44 : 64) - (ph ? 72 : 112), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
-            this.drawPage(cur);
+            this.drawPage(this.shown(cur));
         }
         this.drawZoom(); keep();
     }
@@ -1513,7 +1551,7 @@ class Editor {
                 setIcon(ed.createSpan({ cls: "vl-pedgei" }), "corner-down-right");
                 ed.createSpan({ cls: "vl-pedget", text: p.link });
             }
-            const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") });
+            const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") });
             const ind = w.createDiv({ cls: "vl-pind" });
             for (let i = 0; i < depth; i++) ind.createSpan({ cls: "vl-pguide" });
             if (kids.length) {
@@ -1524,7 +1562,8 @@ class Editor {
             if (pics) w.appendChild(this.thumb(p));
             if (peeks) this.peekOn(w, p);
             const t = w.createDiv({ cls: "vl-ptext" });
-            t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
+            const pn = t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
+            if (this.changed(p)) pn.createSpan({ cls: "vl-chtag", text: "changed" });
             if (p.link && !depth) t.createDiv({ cls: "vl-pl", text: p.link });
             w.addEventListener("click", () => this.openPage(p));
             const add = this.btn(w, "plus", `Add a screen opened from ${p.name}`, () => this.addPage(p));
@@ -1854,12 +1893,13 @@ class Editor {
         const thumbs: Thumb[] = [];
         for (const p of pages) {
             const { sc } = devs.get(p.id)!;
-            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (p.parent ? "" : " is-main") });
+            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") + (p.parent ? "" : " is-main") });
             const ph = t.createDiv({ cls: "vl-tphone" });
             const scr = ph.createDiv({ cls: "vl-screen is-show", attr: { "data-page": p.id } });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
             if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
+            if (this.changed(p)) t.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });   // on the other corner
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             const th: Thumb = { id: p.id, t, ph, scr };
@@ -1939,7 +1979,7 @@ class Editor {
         this.mapCentre();
     }
     getMap() {
-        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? ""])]);
+        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? "", this.changed(p)])]);
         const c = this.mapCache;
         if (c && c.skey === skey && c.theme === this.theme) return c;
         const el = this.wall.doc.createElement("div"); el.addClass("vl-stagemap");
@@ -1970,7 +2010,9 @@ class Editor {
     drawPage(p: Page) {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
-        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
+        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") + (this.holdBefore && this.store?.befores.has(p.id) ? "  · before the change" : this.changed(p) ? "  · changed" : "") });
+        if (this.changed(p)) fig.addClass("is-changed");
+        if (this.holdBefore && this.store?.befores.has(p.id)) fig.addClass("is-before");
         // Show: the screen alone, the previous / next screen beside it; its name, the way to it and what it opens are on
         // the screen's name in the top bar (showInfo)
         if (show) fig.addClass("is-showing");
@@ -3116,6 +3158,11 @@ class Editor {
             return true;
         }
         if (e.key === "Escape" && this.measured) { this.unmeasure(); return true; }
+        if (is("before") && !this.v.map) {
+            const cur = this.current();
+            if (!this.holdBefore && cur && this.changed(cur)) { this.holdBefore = true; this.drawPages(); }
+            return true;
+        }
         if (is("fit")) { this.fitKey(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
@@ -3873,6 +3920,17 @@ class Editor {
     // the screen (nothing chosen): what it is (name, real or mock, its note), where it opens from, its colour, then its
     // blocks (the main part, with the way to add one); its marks fold at the foot
     pagePanel(body: HTMLElement, p: Page) {
+        // the agent changed it: keep the change or undo it (its copy from before is in _before/)
+        if (this.changed(p)) {
+            const c = this.section(body, "Changed");
+            c.createDiv({ cls: "vl-frameinfo", text: `Changed by the agent. Hold ${keyText(keyOf("before"))} to see it as it was.` });
+            const n = this.changes().length;
+            this.actions(c, [
+                ["check", "Keep", () => { void this.keepChange([p.id]); }],
+                ["undo-2", "Undo the change", () => { void this.undoChange(p); }],
+                ...(n > 1 ? [["check-check", `Keep all ${n}`, () => { void this.keepChange(this.changes().map((q) => q.id)); }] as [string, string, () => void]] : []),
+            ]);
+        }
         const s = this.section(body, "Screen");
         const nr = s.createDiv({ cls: "vl-namerow" });
         this.text(nr, () => p.name, (v) => { p.name = v; }, { title: "Screen name" });

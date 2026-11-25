@@ -96,6 +96,17 @@ phone frame, next to the real screens, in the same format you will build from.
 - Write two or three sub screens: `"parent": "<the screen's id>"`, `"mock": true`, names like `Home · option A`.
 - Each is a whole screen. The user compares them in the editor and the **Map**, keeps one, and you delete the rest.
 
+### A change to a screen that exists: it waits for review
+For "change it", change the real screen, and leave its old version where Vellum can show it:
+- Before you change a screen, copy its file to `_before/<the same file name>` in the app folder, unless a copy is
+  already there (that copy is the version the user last approved; keep it). Then edit the screen in place.
+- Never keep the old version in a temporary folder or anywhere else: Vellum can't see it, and the next session won't
+  know it is there.
+- Vellum marks the screen **Changed**; the user holds **B** to see it as it was, then keeps the change (the copy goes)
+  or undoes it (the copy is put back). Don't write a copy again for a screen whose copy is gone until your next change.
+- Don't edit or delete files in `_before/` yourself, and never treat them as screens.
+- Options stay mock sub screens, as above.
+
 ## 4. What a screen can hold
 | Want | Use |
 | :--- | :--- |
