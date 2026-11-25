@@ -1195,7 +1195,7 @@ class Editor {
     // name's value in the theme on show (or in the app's one palette). Edits are the doc's (undo, Save); choosing a theme
     // to look at is not. Esc, the ✕ or a click outside closes it
     lookOpen = false; lookWin: HTMLElement | null = null; lookOff: (() => void) | null = null;
-    openLooks(on: boolean) { this.lookOpen = on; if (on) this.openDevice(false); this.drawLooks(on); this.drawBar(); }
+    openLooks(on: boolean) { if (!on) this.colourSpot(null); this.lookOpen = on; if (on) this.openDevice(false); this.drawLooks(on); this.drawBar(); }
     drawLooks(focus = false) {
         const R = this.root, keep = this.lookWin?.querySelector(".vl-devwinb")?.scrollTop ?? 0;
         const had = !!this.lookWin && this.lookWin.contains(R?.doc.activeElement ?? null);
@@ -1228,6 +1228,28 @@ class Editor {
         this.lookOff = () => doc.removeEventListener("pointerdown", outside, true);
         w.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.picker) { e.preventDefault(); e.stopPropagation(); this.openLooks(false); } });
         if (focus || had) w.focus({ preventScroll: true });
+    }
+    // the items, blocks and screens using a colour name, outlined on every screen in the stage (null: none). Read from
+    // the file (not the drawn colours): a name, not whatever else happens to look the same
+    colourSpot(name: string | null) {
+        const w = this.wall; if (!w) return;
+        w.querySelectorAll(".is-cuse").forEach((el) => el.removeClass("is-cuse"));
+        w.querySelectorAll(".vl-cfocus").forEach((el) => el.removeClass("vl-cfocus"));
+        if (!name) return;
+        const uses = (o: object, keys: string[]) => keys.some((k) => (o as Record<string, unknown>)[k] === name);
+        w.querySelectorAll<HTMLElement>(".vl-screen[data-page]").forEach((scr) => {
+            const p = this.doc.pages.find((q) => q.id === scr.dataset.page); if (!p) return;
+            let any = false;
+            const mark = (el: Element | null) => { if (el) { el.addClass("is-cuse"); any = true; } };
+            if (p.bg === name) mark(scr);
+            const items = (its: Item[], bEl: Element) => { for (const it of its) { if (uses(it, ["color", "fill", "stroke"])) mark(bEl.querySelector(`[data-id="${it.id}"]`)); if (it.items) items(it.items, bEl); } };
+            for (const b of [...p.blocks, ...(p.land ?? [])]) {
+                const bEl = scr.querySelector(`[data-block="${b.id}"]`); if (!bEl) continue;
+                if (uses(b, ["fill", "stroke"])) mark(bEl);
+                items(b.items, bEl);
+            }
+            if (any) scr.addClass("vl-cfocus");
+        });
     }
     // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
     hexNow(v: string) { return hexOf(this.rgbaOf(v)); }
@@ -1340,6 +1362,9 @@ class Editor {
             const sw = b.createSpan({ cls: "vl-cbar-sw" });
             sw.style.setProperty("--c", colorOf(this.theme, n));
             b.createSpan({ cls: "vl-lookn", text: n });
+            // the pointer on a colour: what uses it lights up on the screens shown
+            row.addEventListener("pointerenter", () => this.colourSpot(n));
+            row.addEventListener("pointerleave", () => this.colourSpot(null));
             const shared = d.colors?.[n], missing = !!part && !own && !shared;
             const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : missing ? " is-missing" : " is-faint"), text: own ?? (!part ? "" : shared ? `${shared} · every theme` : "not set") });
             if (!part) { b.disabled = true; continue; }
@@ -1855,7 +1880,7 @@ class Editor {
                 const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
                 t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
                 ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
-                scr.style.transform = `scale(${d.k})`;
+                scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
             });
         };
         lay(TW);

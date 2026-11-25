@@ -1177,3 +1177,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-fold:not(.is-open) > .vls-body { display: none; }
 .vls-fold > .vls-body { border-top: 1px solid var(--vls-line); }
 .vls-advback { justify-content: flex-end; }
+
+/* the pointer on a colour in the Colours window: what uses it outlined, the rest of the screen faded */
+.vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
+.vl-screen.vl-cfocus [data-id]:not(.is-cuse):not(:has(.is-cuse)) { opacity: 0.25; }
+.vl-screen.vl-cfocus .is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); opacity: 1; }
+.vl-screen.vl-cfocus.is-cuse { outline-offset: calc(-2px * var(--vl-iz, 1)); }
