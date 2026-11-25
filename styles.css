@@ -959,6 +959,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-mbub { position: absolute; left: calc(12px * var(--u)); top: calc(-8px * var(--u)); width: max-content; max-width: calc(200px * var(--u)); padding: calc(4px * var(--u)) calc(7px * var(--u)); border-radius: calc(6px * var(--u)); background: color-mix(in srgb, var(--mc) 22%, var(--background-primary)); border: calc(1px * var(--u)) solid var(--mc); color: var(--text-normal); font: 500 calc(var(--ms, 11) * 1px * var(--u))/1.35 var(--font-interface); white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: move; box-shadow: 0 calc(2px * var(--u)) calc(8px * var(--u)) rgba(0, 0, 0, 0.2); }
 .vl-mbub.is-wide { width: calc(var(--mw) * 1px * var(--u)); max-width: none; box-sizing: border-box; }
 .vl-mbw { position: absolute; right: calc(-4px * var(--u)); top: 0; bottom: 0; width: calc(8px * var(--u)); cursor: ew-resize; }
+.vl-mbub.is-l > .vl-mbw { right: auto; left: calc(-4px * var(--u)); }   /* a box left of its pin widens from its left edge */
 .vl-mbw::after { content: ""; position: absolute; left: 50%; top: 50%; width: calc(3px * var(--u)); height: calc(14px * var(--u)); margin: calc(-7px * var(--u)) 0 0 calc(-1.5px * var(--u)); border-radius: calc(2px * var(--u)); background: var(--mc); }
 .vl-mark.is-area { box-sizing: border-box; border: calc(1.5px * var(--u)) dashed var(--mc); background: color-mix(in srgb, var(--mc) 6%, transparent); }
 .vl-mark.is-area.is-on { border-style: solid; }
@@ -1199,6 +1200,16 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen.vl-cfocus .vl-it.is-cfill:not(.is-abs) { position: relative; }   /* in a row: still in its place, now holding the stripes */
 .vl-screen.vl-cfocus .is-cfill::after, .vl-screen.vl-cfocus.is-cfill::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
     background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }
+/* the mark panel: who wrote it, its meaning as tiles (an icon in its colour over the word), guides three a row */
+.vl-mby { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 6px; padding: 1px 7px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.vl-mby svg { width: 13px; height: 13px; }
+.vl-mmean { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.vl .vl-mmeant { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: auto; min-width: 0; padding: 7px 2px 6px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.15; text-align: center; white-space: normal; }
+.vl .vl-mmeant:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl .vl-mmeant.is-on { border-color: var(--mc); background: color-mix(in srgb, var(--mc) 16%, transparent); color: var(--text-normal); }
+.vl-mmeani { display: flex; color: var(--mc); --icon-size: 18px; }
+.vl-seg2.is-stack.is-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); border: 0; gap: 4px; }
+.vl-seg2.is-stack.is-grid3 > button { border: 1px solid var(--background-modifier-border); border-radius: 6px; }
 /* the Colours window's bar: its own Save and Reset, once a colour or theme differs from the saved file */
 .vl-lookbar { display: none; }
 .vl-lookbar.is-on { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--background-modifier-border); background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); }
