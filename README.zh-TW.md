@@ -159,7 +159,8 @@ Vellum/
 └─ Remote/            一個 app
    ├─ _doc.json       裝置：尺寸、安全區域、圓角、狀態列；App 的顏色；畫面順序
    ├─ Home.json       一個畫面
-   └─ Settings.json   另一個畫面
+   ├─ Settings.json   另一個畫面
+   └─ _before/        agent 修改前的畫面，保留到你接受或復原該修改
 ```
 
 畫面由數個 **block** 組成，即手機上的方框。每個 block 內放 **item**，依錨點定位：

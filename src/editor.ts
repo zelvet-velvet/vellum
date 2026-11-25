@@ -65,6 +65,7 @@ export const KEY_ACTIONS: { id: string; name: string; desc: string; icon: string
     { id: "group", name: "Group", desc: "The chosen items, in one block", icon: "group", key: "Mod+G" },
     { id: "ungroup", name: "Ungroup", desc: "A group's items back in the block", icon: "ungroup", key: "Mod+Shift+G" },
     { id: "measure", name: "Measure", desc: "Hold and drag an area: sizes and gaps; press again to clear", icon: "ruler", key: "M" },
+    { id: "before", name: "Before the change", desc: "Hold: a screen the agent changed, as it was", icon: "history", key: "B" },
     { id: "fit", name: "Fit", desc: "Fit to the window; in the Map, Fit or Full", icon: "scan", key: "F" },
     { id: "note", name: "Note or area", desc: "Click: a note; drag: an area", icon: "message-square-plus", key: "N" },
     { id: "notes", name: "Show the notes", desc: "Or hide them", icon: "message-square", key: "Shift+N" },
@@ -117,6 +118,26 @@ const insideBox = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L 
 // (only where it is written: a default, text's "text" or a border's "line", follows the name anyway). kinds: the uses by
 // what they colour; at: each use, for the outline on the screens. A default counts as a use: it draws in that colour
 const COLOUR_KINDS = ["Text", "Blocks", "Shapes", "Lines", "Screens", "Notes"] as const;
+// an undo step: "design" when the design changed; "back", a delete of a mark, colour or theme; "none", never a step
+type Step = "design" | "back" | "none";
+const BACK = "\u0001";   // a kept step marked as a delete's (see step())
+// an app's colours and themes: saved apart from the screens (the Colours window's own Save), so the screens' Save
+// writes them as they were last saved there
+const colsOf = (d: Doc) => JSON.stringify({ colors: d.colors, themes: d.themes, theme: d.theme });
+const putCols = (d: Doc, cols: string) => {
+    const o = JSON.parse(cols) as Pick<Doc, "colors" | "themes" | "theme">;
+    if (o.colors) d.colors = o.colors; else delete d.colors;
+    if (o.themes) d.themes = o.themes; else delete d.themes;
+    if (o.theme) d.theme = o.theme; else delete d.theme;
+    return d;
+};
+// a doc's design alone: what an undo step is about (no marks, no app colours or themes)
+const designOf = (s: string) => {
+    const d = JSON.parse(s) as Doc;
+    delete d.colors; delete d.themes; delete d.theme;
+    for (const p of d.pages) delete p.marks;
+    return JSON.stringify(d);
+};
 const colourUses = (d: Doc, name: string, to?: string, at?: (page: string, el: { block?: string; item?: string }, fill: boolean) => void) => {
     let n = 0; const screens = new Set<string>(), kinds: Record<string, number> = {};
     // [field, kind, default when unset]; at hears whether the use is a fill (not a text's colour, a border or a line)
@@ -161,7 +182,7 @@ const near = (pts: number[], lines: number[], reach: number) => {
 };
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
-type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapZoom?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage; mapFit: every screen fitted in the window (Full)   // panel: false = folded (computer)
+type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapTW?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage; mapTW: a screen's width in the Map, px (its zoom is that over the chosen screen's own width); mapFit: every screen fitted in the window (Full)   // panel: false = folded (computer)
 const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // a thumbnail in the Map; key: what its screen looked like when it was drawn (none: not drawn yet)
@@ -228,7 +249,7 @@ class Editor {
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
         this.lookFrom(host);
-        this.saved = serialiseDoc(doc);
+        this.saved = serialiseDoc(doc); this.colSaved = colsOf(doc);
         this.card = el ? el.createDiv({ cls: "vl vl-card" }) : createDiv({ cls: "vl vl-card" });
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
         if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
@@ -321,20 +342,59 @@ class Editor {
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
     }
     snap() { return JSON.stringify(this.doc); }
-    get dirty() { return serialiseDoc(this.doc) !== this.saved; }
+    // the screens unsaved (an app in a folder: its colours aside, they have their own Save in the Colours window)
+    get dirty() { return serialiseDoc(this.store ? putCols({ ...this.doc }, this.colSaved) : this.doc) !== this.saved; }
+    colSaved = "";   // the app's colours and themes as in its _doc.json
+    colRenames: [string, string][] = [];   // colours renamed since then (their items too): Reset names them back
+    get colDirty() { return !!this.store && colsOf(this.doc) !== this.colSaved; }
+    // the Colours window's Save: only the colours and themes, into _doc.json; the screens' unsaved work stays unsaved
+    async saveColours() {
+        if (!this.store) return;
+        await this.store.saveColours(this.doc);
+        this.colSaved = colsOf(this.doc); this.colRenames = [];
+        this.saved = serialiseDoc(putCols(JSON.parse(this.saved) as Doc, this.colSaved));
+        this.draftPut(); this.drawBar(); this.lookBar(); this.drawCard(); this.hint("Colours saved", this.lookWin?.querySelector<HTMLElement>(".vl-lookbar") ?? undefined);
+    }
+    // Reset: every colour and theme back as last saved; a rename since then put back on its items too
+    resetColours() {
+        for (const [from, to] of [...this.colRenames].reverse()) {
+            colourUses(this.doc, to, from);
+            const ren = (l: string[]) => l.map((x) => { const b = x.startsWith(BACK), o = JSON.parse(b ? x.slice(BACK.length) : x) as Doc; colourUses(o, to, from); return (b ? BACK : "") + JSON.stringify(o); });
+            this.past = ren(this.past); this.future = ren(this.future);
+        }
+        this.colRenames = [];
+        putCols(this.doc, this.colSaved);
+        if (this.v.look && !(this.v.look in (this.doc.themes ?? {}))) this.setView({ look: undefined });
+        this.draftPut(); this.draw(); if (this.lookOpen) this.drawLooks(true);
+    }
+    // the Colours window's bar: shown once a colour or theme differs from the saved file
+    lookBar() {
+        const b = this.lookWin?.querySelector<HTMLElement>(".vl-lookbar"); if (!b) return;
+        b.empty(); b.toggleClass("is-on", this.colDirty);
+        if (!this.colDirty) return;
+        b.createSpan({ cls: "vl-lookbart", text: "Colours changed" });
+        const rs = b.createEl("button", { cls: "vl-lookrs", attr: { "aria-label": "Every colour and theme back as last saved" } }); setIcon(rs.createSpan(), "rotate-ccw"); rs.appendText("Reset");
+        rs.addEventListener("click", () => this.resetColours());
+        const sv = b.createEl("button", { cls: "vl-looksv mod-cta", attr: { "aria-label": "Write the colours and themes to the app's _doc.json (the screens are saved apart)" } }); setIcon(sv.createSpan(), "save"); sv.appendText("Save colours");
+        sv.addEventListener("click", () => { void this.saveColours().catch((e: Error) => new Notice(`Vellum: colours not saved (${e.message})`)); });
+    }
     draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx!.sourcePath}:${this.doc.id}`; }
     draftGet() { try { return getLocal(this.draftKey()); } catch { return null; } }
-    draftPut() { try { if (this.dirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
+    draftPut() { try { if (this.dirty || this.colDirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
     stale: Doc | null = null;
-    // a discrete change: one undo step
-    edit(fn: () => void, panel = true) { const s = this.snap(); fn(); this.commit(s, panel); }
+    // a discrete change: one undo step. Undo steps through the design only: marks (notes for the people and the agent)
+    // and the app's colours and themes are carried through undo as they are now, so a change to them alone is no step.
+    // step "back": a delete of one of them (a mark, a colour, a theme) is a step, and its undo brings back only what was
+    // deleted; "none": no step at all (a colour renamed: the steps kept are renamed with it)
+    edit(fn: () => void, panel = true, step: Step = "design") { const s = this.snap(); fn(); this.commit(s, panel, step); }
     // a continuous change (typing, dragging, scrubbing): begin once, apply many, end once
     begin() { if (this.pending === null) this.pending = this.snap(); }
     end() { if (this.pending !== null) { const s = this.pending; this.pending = null; this.commit(s, false); } }
-    commit(before: string, panel: boolean) {
-        const was = serialiseDoc(JSON.parse(before) as Doc) !== this.saved;
-        if (before !== this.snap()) { this.past.push(before); this.future = []; }
+    commit(before: string, panel: boolean, step: Step = "design") {
+        const was = serialiseDoc(JSON.parse(before) as Doc) !== this.saved, now = this.snap();
+        if (before !== now && step !== "none" && (step === "back" || designOf(before) !== designOf(now))) { this.past.push((step === "back" ? BACK : "") + before); this.future = []; }
         this.draftPut(); this.drawPages(); if (panel) this.drawPanel(); else this.drawBar();
+        this.lookBar();
         if (!was && this.dirty) this.hint("Unsaved: kept on this device until you save", undefined, false);
     }
     // a short note under the Save button for a few seconds (floats: nothing moves)
@@ -356,14 +416,38 @@ class Editor {
         window.setTimeout(() => h.addClass("is-out"), 1800);
         window.setTimeout(() => h.remove(), 2200);
     }
-    undo() { const s = this.past.pop(); if (!s) return; this.future.push(this.snap()); this.doc = JSON.parse(s) as Doc; this.fixSel(); this.draftPut(); this.draw(); }
-    redo() { const s = this.future.pop(); if (!s) return; this.past.push(this.snap()); this.doc = JSON.parse(s) as Doc; this.fixSel(); this.draftPut(); this.draw(); }
+    undo() { this.step(this.past, this.future, true); }
+    redo() { this.step(this.future, this.past, false); }
+    // one step from `from` (pushed onto `to`): the design as it was; the marks and colours as they are now, except a
+    // delete's step: undone, what it deleted comes back; redone, it is deleted again
+    step(from: string[], to: string[], undo: boolean) {
+        const s = from.pop(); if (!s) return;
+        const back = s.startsWith(BACK), d = JSON.parse(back ? s.slice(BACK.length) : s) as Doc, cur = this.doc;
+        to.push((back ? BACK : "") + this.snap());
+        if (!back || undo) {
+            for (const p of d.pages) {
+                const c = cur.pages.find((q) => q.id === p.id); if (!c) continue;   // a page brought back keeps its own marks
+                const was = back ? (p.marks ?? []).filter((m) => !(c.marks ?? []).some((n) => n.id === m.id)) : [];
+                const ms = [...(c.marks ?? []), ...was].map((m) => ({ ...m }));
+                if (ms.length) p.marks = ms; else delete p.marks;
+            }
+            const merge = (now?: Record<string, string>, then?: Record<string, string>) => (back ? { ...then, ...now } : now);
+            const colors = merge(cur.colors, d.colors), themes: Record<string, Record<string, string>> = {};
+            for (const n of new Set([...Object.keys(cur.themes ?? {}), ...(back ? Object.keys(d.themes ?? {}) : [])])) themes[n] = { ...merge(cur.themes?.[n], d.themes?.[n]) };
+            if (colors && Object.keys(colors).length) d.colors = { ...colors }; else delete d.colors;
+            if (Object.keys(themes).length) d.themes = themes; else delete d.themes;
+            const theme = cur.theme ?? (back ? d.theme : undefined);
+            if (theme) d.theme = theme; else delete d.theme;
+        }
+        this.doc = d; this.fixSel(); this.draftPut(); this.draw();
+    }
     save() {
         if (this.store) {
-            const text = serialiseDoc(this.doc), st = this.store;
-            st.save(this.doc).then(() => {
+            // the colours as last saved in the Colours window: unsaved ones there wait for its own Save
+            const out = putCols({ ...this.doc }, this.colSaved), text = serialiseDoc(out), st = this.store;
+            st.save(out).then(() => {
                 this.saved = text;
-                try { setLocal(this.draftKey(), null); } catch { /* */ }
+                this.draftPut();   // gone, unless the Colours window has unsaved colours
                 this.drawBar(); this.drawCard(); this.hint(`Saved to ${st.dir}`);
             }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
             return;
@@ -388,13 +472,44 @@ class Editor {
     // the folder changed outside (the agent, a sync): taken as it is; unsaved work here is offered back, never lost
     async outside() {
         if (!this.store) return;
-        const { doc } = await this.store.load(), text = serialiseDoc(doc);
-        if (text === this.saved) return;
-        if (this.dirty) this.stale = this.doc;
-        this.doc = doc; this.saved = text; this.fixSel(); this.draftPut();
+        const was = this.beforeKey(), { doc } = await this.store.load(), text = serialiseDoc(doc);
+        if (text === this.saved) { if (this.beforeKey() !== was) { this.mapCache = null; this.drawCard(); if (this.root?.isConnected) this.draw(); } return; }
+        if (this.dirty || this.colDirty) this.stale = this.doc;
+        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = []; this.fixSel(); this.draftPut();
         this.drawCard(); if (this.root?.isConnected) this.draw();
     }
 
+    // ---- changes waiting for review: a screen the agent changed has its copy in _before/ (the store reads them)
+    beforeKey() { return [...(this.store?.befores.keys() ?? [])].sort().join(","); }
+    changed(p: Page) { return !!this.store?.befores.has(p.id); }
+    changes() { return this.doc.pages.filter((p) => this.changed(p)); }
+    holdBefore = false;   // the Before key is held: the changed screen drawn as it was
+    // the screen as drawn: its copy from before the change while the Before key is held (a copy: nothing edits it)
+    shown(p: Page): Page { const b = this.holdBefore ? this.store?.befores.get(p.id) : undefined; return b ? (JSON.parse(JSON.stringify(b.page)) as Page) : p; }
+    async keepChange(ids: string[]) {
+        if (!this.store) return;
+        for (const id of ids) await this.store.keep(id);
+        this.mapCache = null; this.draw();
+        this.hint(ids.length > 1 ? `Kept ${ids.length} changes` : "Change kept");
+    }
+    // undone: the copy goes back as the screen's file and the folder is read again. Not over unsaved work here: that
+    // would be offered back with the agent's version in it
+    async undoChange(p: Page) {
+        if (!this.store) return;
+        if (this.dirty) { this.hint("Save or undo your own edits first", undefined, false); return; }
+        await this.store.restore(p.id);
+        this.mapCache = null;
+        await this.outside(); this.draw();
+        this.hint(`${p.name}: back as it was`);
+    }
+    // the review button: the next changed screen after the one open, opened in Edit
+    nextChange() {
+        const l = this.changes(); if (!l.length) return;
+        const at = l.findIndex((p) => p.id === this.current()?.id), to = l[(at + 1) % l.length];
+        if (this.v.map || this.v.show) this.setMode("edit");
+        if (!Platform.isMobile) this.setView({ panel: true });   // Keep and Undo are in its panel
+        this.openPage(to);
+    }
     // ---- what is chosen
     page(id = this.sel?.page) { return this.doc.pages.find((p) => p.id === id); }
     block() { const p = this.page(); return p ? this.blocks(p).find((b) => b.id === this.sel?.block) : undefined; }
@@ -776,7 +891,7 @@ class Editor {
         R.win.addEventListener("keydown", onKey, true);
         // the Measure key is held until any key goes up or the window loses focus
         // while it is held, a small "M + drag" tag follows the pointer
-        const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } };
+        const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } if (this.holdBefore) { this.holdBefore = false; this.drawPages(); } };
         R.win.addEventListener("keyup", unhold, true); R.win.addEventListener("blur", unhold);
         // a button held (a drag running): Alt then turns snapping off, it doesn't start a measure
         R.win.addEventListener("pointerdown", () => { this.ptrDown = true; }, true);
@@ -880,10 +995,27 @@ class Editor {
     // the Fit button and its key: in the Map, the chosen screen's row (Fit) or its whole tree (Full), whichever the button
     // shows; in Edit and Show, the screen fitted to the window
     fitKey() {
-        if (!this.v.map) { this.setView({ fit: true }); this.drawPages(); return; }
+        if (!this.v.map) { this.setView({ fit: true }); this.drawPages(); this.centrePhone(); return; }
         if (this.v.mapFit !== false) { if (this.current()) this.mapToCurrent(); }
         else { this.setView({ mapFit: true }); this.drawPages(); }
     }
+    // Edit and Show: the stage scrolled so the screen is in its middle (as far as the stage's edges let it)
+    centrePhone() {
+        const w = this.wall, ph = w?.querySelector<HTMLElement>(".vl-phone"); if (!w || !ph) return;
+        const s = w.getBoundingClientRect(), r = ph.getBoundingClientRect();
+        w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
+        w.scrollTop += r.top + r.height / 2 - (s.top + (s.height - 64) / 2);   // clear of the pill
+    }
+    // the Map's zoom counts from real size, as Edit and Show do: 100 % is the chosen screen (or the app's device) at one
+    // pixel a point. Kept as a screen's width in px, so choosing a screen of another size doesn't resize the Map;
+    // the pill shows what that width is for the chosen screen
+    mapRef() {
+        const p = this.current(), d = framed(deviceOf(p?.device ?? this.doc.device), this.doc.radius), sc = screenOf(d, this.land);
+        return Math.max(sc.W, d.w);
+    }
+    mapW() { return this.v.mapTW ?? 110; }
+    // up to 1600 % of the chosen screen; down to a 2 px screen, as small as Full needs for a big tree
+    mapClamp(tw: number) { return Math.min(MAPMAX * this.mapRef(), Math.max(2, tw)); }
     mapToCurrent() {
         const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
         if (!w || !t0) return;
@@ -891,9 +1023,9 @@ class Editor {
         const want = w.clientHeight - PILL - LINK - NAME - 2 * ROOM, h0 = t0.getBoundingClientRect().height;
         this.setView({ mapFit: false });
         if (h0 > 0 && want > 40 && Math.abs(want - h0) > 1) {
-            this.setView({ mapZoom: Math.min(MAPMAX, Math.max(0.02, Math.floor((this.v.mapZoom ?? 1) * (want / h0) * 1000) / 1000)) });
+            this.setView({ mapTW: this.mapClamp(Math.floor(this.mapW() * (want / h0) * 10) / 10) });
             // the thumbnails just drawn, laid out at the new zoom (not built again)
-            if (this.mapLay) this.mapLay(this.v.mapZoom ?? 1); else this.drawPages();
+            if (this.mapLay) this.mapLay(this.mapW()); else this.drawPages();
         }
         this.drawZoom();
         this.mapCentre();
@@ -968,6 +1100,12 @@ class Editor {
             }
         }
         const r = b.createDiv({ cls: "vl-tr" });
+        const nch = this.changes().length;
+        if (nch) {
+            const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
+            setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
+            rv.addEventListener("click", () => this.nextChange());
+        }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
             // Obsidian's settings on Vellum's tab, above the editor: its own window (newer Obsidian) or the main one, brought to
             // the front once it is open (and again a moment later: a new window may take the focus back as it appears)
@@ -1047,7 +1185,7 @@ class Editor {
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "minus", "Zoom out (Ctrl+wheel)", () => this.zoomBy(1 / 1.25));
-        pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.v.mapZoom ?? 1 : this.v.zoom) * 100)}%` });
+        pill.createSpan({ cls: "vl-zoom", text: `${Math.round((this.v.map ? this.mapW() / this.mapRef() : this.v.zoom) * 100)}%` });
         this.btn(pill, "plus", "Zoom in (Ctrl+wheel)", () => this.zoomBy(1.25));
         if (this.v.map) {
             // the Map: one button named for what it does. Full: the chosen screen's whole tree in the window. Fit (while
@@ -1153,11 +1291,11 @@ class Editor {
         // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
         const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
         const r0 = at ? (under ?? this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
-        if (this.v.map) this.setView({ mapFit: false, mapZoom: Math.min(MAPMAX, Math.max(0.02, Math.round((this.v.mapZoom ?? 1) * f * 1000) / 1000)) });
+        if (this.v.map) this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
         // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
         // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
-        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); this.remeasure(false); }
+        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.mapW()); this.drawZoom(); this.remeasure(false); }
         else this.drawPages();
         const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
@@ -1209,7 +1347,6 @@ class Editor {
             for (const th of c.thumbs) th.t.toggleClass("is-on", th.id === cur?.id);
             const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
             const { lay, size } = c;
-            const BASE = 110;
             const full = this.v.mapFit !== false;
             if (full) {
                 // Full: the chosen screen's whole tree (every screen with no screen chosen) in the window, inside the
@@ -1218,14 +1355,14 @@ class Editor {
                 let lo = 2, hi = 200;
                 if (fits(hi)) lo = hi;
                 else for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-                this.setView({ mapZoom: Math.floor((lo / BASE) * 1000) / 1000 });
+                this.setView({ mapTW: this.mapClamp(Math.floor(lo * 10) / 10) });
             }
-            lay(BASE * (this.v.mapZoom ?? 1));
-            this.mapLay = (z) => lay(BASE * z);
+            lay(this.mapW());
+            this.mapLay = lay;
             this.drawZoom(); keep();
             if (full && cur) {
                 // the tree centred (as far as the map's edges let it)
-                const b = c.el.querySelector<HTMLElement>(".vl-mapbox")?.getBoundingClientRect(), s = this.wall.getBoundingClientRect(), z = size(BASE * (this.v.mapZoom ?? 1), cur.id);
+                const b = c.el.querySelector<HTMLElement>(".vl-mapbox")?.getBoundingClientRect(), s = this.wall.getBoundingClientRect(), z = size(this.mapW(), cur.id);
                 if (b) { this.wall.scrollLeft += b.left + z.x + z.w / 2 - (s.left + s.width / 2); this.wall.scrollTop += b.top + z.h / 2 - (s.top + (s.height - 64) / 2); }
             }
             this.fillMap(c, false);
@@ -1242,7 +1379,7 @@ class Editor {
                 const sw = this.wall.clientWidth - (ph ? 44 : 64) - (ph ? 72 : 112), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
                 if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
-            this.drawPage(cur);
+            this.drawPage(this.shown(cur));
         }
         this.drawZoom(); keep();
     }
@@ -1295,8 +1432,10 @@ class Editor {
         head.createSpan({ text: "Colours" });
         head.createSpan({ cls: "vl-devwinsub" });
         this.btn(head, "x", "Close (Esc)", () => this.openLooks(false)).addClass("vl-close");
+        w.createDiv({ cls: "vl-lookbar" });
         const body = w.createDiv({ cls: "vl-devwinb" });
         this.looksPanel(body);
+        this.lookBar();
         body.scrollTop = keep;
         // under its button in the top bar
         const btn = this.bar?.querySelector<HTMLElement>(".vl-themebtn");
@@ -1416,7 +1555,7 @@ class Editor {
                         const rest = { ...themes }; delete rest[n];
                         if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
                         if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
-                    });
+                    }, true, this.store ? "none" : "back");   // a folder app: Reset in the Colours window brings it back
                     this.setView({ look: undefined }); this.draw();
                 }));
                 // the editor keeps its clicks to itself: a press anywhere but the menu closes it
@@ -1480,7 +1619,11 @@ class Editor {
                             for (const t of names) re(themes[t]);
                             re(d.colors);
                             colourUses(d, n, to);
-                        });
+                        }, true, "none");
+                        // the steps kept use the new name, so an undo never brings back a colour that is gone
+                        const ren = (l: string[]) => l.map((x) => { const b = x.startsWith(BACK), o = JSON.parse(b ? x.slice(BACK.length) : x) as Doc; colourUses(o, n, to); return (b ? BACK : "") + JSON.stringify(o); });
+                        this.past = ren(this.past); this.future = ren(this.future);
+                        this.colRenames.push([n, to]);
                         this.hint(used.n ? `Renamed on ${used.n} ${used.n === 1 ? "item" : "items"}, ${used.screens} ${used.screens === 1 ? "screen" : "screens"}` : `Renamed to ${to}`);
                     };
                     inp.addEventListener("click", (e) => e.stopPropagation());
@@ -1491,8 +1634,8 @@ class Editor {
                     this.edit(() => {
                         for (const t of names) delete themes[t][n];
                         if (d.colors) { delete d.colors[n]; if (!Object.keys(d.colors).length) delete d.colors; }
-                    });
-                    if (used.n) this.hint(`${n} deleted: ${used.n} ${used.n === 1 ? "item uses" : "items use"} it still (Ctrl+Z brings it back)`);
+                    }, true, this.store ? "none" : "back");
+                    if (used.n) this.hint(`${n} deleted: ${used.n} ${used.n === 1 ? "item uses" : "items use"} it still (${this.store ? "Reset" : "Ctrl+Z"} brings it back)`);
                 }));
             });
         }
@@ -1585,7 +1728,7 @@ class Editor {
                 setIcon(ed.createSpan({ cls: "vl-pedgei" }), "corner-down-right");
                 ed.createSpan({ cls: "vl-pedget", text: p.link });
             }
-            const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") });
+            const w = list.createDiv({ cls: "vl-prow" + (p.id === cur?.id ? " is-on" : "") + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") });
             const ind = w.createDiv({ cls: "vl-pind" });
             for (let i = 0; i < depth; i++) ind.createSpan({ cls: "vl-pguide" });
             if (kids.length) {
@@ -1596,7 +1739,8 @@ class Editor {
             if (pics) w.appendChild(this.thumb(p));
             if (peeks) this.peekOn(w, p);
             const t = w.createDiv({ cls: "vl-ptext" });
-            t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
+            const pn = t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
+            if (this.changed(p)) pn.createSpan({ cls: "vl-chtag", text: "changed" });
             if (p.link && !depth) t.createDiv({ cls: "vl-pl", text: p.link });
             w.addEventListener("click", () => this.openPage(p));
             const add = this.btn(w, "plus", `Add a screen opened from ${p.name}`, () => this.addPage(p));
@@ -1926,12 +2070,13 @@ class Editor {
         const thumbs: Thumb[] = [];
         for (const p of pages) {
             const { sc } = devs.get(p.id)!;
-            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (p.parent ? "" : " is-main") });
+            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") + (p.parent ? "" : " is-main") });
             const ph = t.createDiv({ cls: "vl-tphone" });
             const scr = ph.createDiv({ cls: "vl-screen is-show", attr: { "data-page": p.id } });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
             if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
+            if (this.changed(p)) t.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });   // on the other corner
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             const th: Thumb = { id: p.id, t, ph, scr };
@@ -2011,11 +2156,11 @@ class Editor {
         this.mapCentre();
     }
     getMap() {
-        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? ""])]);
+        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? "", this.changed(p)])]);
         const c = this.mapCache;
         if (c && c.skey === skey && c.theme === this.theme) return c;
         const el = this.wall.doc.createElement("div"); el.addClass("vl-stagemap");
-        return (this.mapCache = { el, skey, theme: this.theme, ...this.drawMap(el, 110 * (this.v.mapZoom ?? 1), this.mapPick, true) });
+        return (this.mapCache = { el, skey, theme: this.theme, ...this.drawMap(el, this.mapW(), this.mapPick, true) });
     }
     // brings the Map's thumbnails up to date, nearest to the current screen first: on show, ~8 ms a frame; ahead (idle),
     // only while the editor has nothing else to do. A newer call, or a new Map, stops it
@@ -2042,7 +2187,9 @@ class Editor {
     drawPage(p: Page) {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
-        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") });
+        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") + (this.holdBefore && this.store?.befores.has(p.id) ? "  · before the change" : this.changed(p) ? "  · changed" : "") });
+        if (this.changed(p)) fig.addClass("is-changed");
+        if (this.holdBefore && this.store?.befores.has(p.id)) fig.addClass("is-before");
         // Show: the screen alone, the previous / next screen beside it; its name, the way to it and what it opens are on
         // the screen's name in the top bar (showInfo)
         if (show) fig.addClass("is-showing");
@@ -2095,6 +2242,7 @@ class Editor {
         if (ovOn) this.drawOv(scr, p, z);
         if (!show) this.spill(scr, p);
         if (!show && this.ov.notes) this.drawMarks(scr, p, z);
+        if (!show) this.roomAround(fig, phone);
         scr.toggleClass("is-marking", this.marking && !show);
         // pointer: choose and drag
         // no landscape layout yet (nor a frame's): one button to start it from the portrait one
@@ -2108,6 +2256,19 @@ class Editor {
         }
         if (!show) scr.addEventListener("pointerdown", (e) => this.down(e, p, scr));
         if (!show) scr.addEventListener("dblclick", (e) => this.typeInPlace(e, p));
+    }
+    // Edit: the stage scrolls as far as what sits past the screen (notes, areas, drafts, items out of their block): the
+    // page's padding grows by as much, the same on both sides, so the screen stays in the middle of what scrolls
+    roomAround(fig: HTMLElement, phone: HTMLElement) {
+        const pr = phone.getBoundingClientRect();
+        let x = 0, y = 0;
+        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block").forEach((el) => {
+            const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
+            x = Math.max(x, pr.left - q.left, q.right - pr.right); y = Math.max(y, pr.top - q.top, q.bottom - pr.bottom);
+        });
+        if (!x && !y) return;
+        const px = Math.max(24, Math.ceil(x) + 24), py = Math.ceil(y) + 24;
+        fig.style.padding = `${Math.max(24, py)}px ${px}px ${Math.max(80, py)}px`;
     }
     // the overlays over the screen; the vanishing points drag (the horizon goes with them)
     drawOv(scr: HTMLElement, p: Page, z: number) {
@@ -3188,6 +3349,11 @@ class Editor {
             return true;
         }
         if (e.key === "Escape" && this.measured) { this.unmeasure(); return true; }
+        if (is("before") && !this.v.map) {
+            const cur = this.current();
+            if (!this.holdBefore && cur && this.changed(cur)) { this.holdBefore = true; this.drawPages(); }
+            return true;
+        }
         if (is("fit")) { this.fitKey(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
@@ -3251,7 +3417,7 @@ class Editor {
     }
     remove() {
         const f = this.item(), b = this.block(), p = this.page(), many = this.many, mi = this.manyItems, mk = this.mark();
-        if (mk && p) { this.edit(() => { p.marks = p.marks!.filter((m) => m !== mk); if (!p.marks.length) delete p.marks; this.sel = { page: p.id }; }); return; }
+        if (mk && p) { this.edit(() => { p.marks = p.marks!.filter((m) => m !== mk); if (!p.marks.length) delete p.marks; this.sel = { page: p.id }; }, true, "back"); return; }
         if (mi.length && p) { this.edit(() => { for (const { b: ib, it } of mi) ib.items.splice(ib.items.indexOf(it), 1); this.sel = { page: p.id }; }); return; }
         if (many.length && p) { this.edit(() => { const l = this.blocks(p); for (const g of many) l.splice(l.indexOf(g), 1); this.sel = { page: p.id }; }); return; }
         if (f) this.edit(() => { f.list.splice(f.list.indexOf(f.item), 1); this.sel = { page: p!.id, block: b!.id }; });
@@ -3945,6 +4111,17 @@ class Editor {
     // the screen (nothing chosen): what it is (name, real or mock, its note), where it opens from, its colour, then its
     // blocks (the main part, with the way to add one); its marks fold at the foot
     pagePanel(body: HTMLElement, p: Page) {
+        // the agent changed it: keep the change or undo it (its copy from before is in _before/)
+        if (this.changed(p)) {
+            const c = this.section(body, "Changed");
+            c.createDiv({ cls: "vl-frameinfo", text: `Changed by the agent. Hold ${keyText(keyOf("before"))} to see it as it was.` });
+            const n = this.changes().length;
+            this.actions(c, [
+                ["check", "Keep", () => { void this.keepChange([p.id]); }],
+                ["undo-2", "Undo the change", () => { void this.undoChange(p); }],
+                ...(n > 1 ? [["check-check", `Keep all ${n}`, () => { void this.keepChange(this.changes().map((q) => q.id)); }] as [string, string, () => void]] : []),
+            ]);
+        }
         const s = this.section(body, "Screen");
         const nr = s.createDiv({ cls: "vl-namerow" });
         this.text(nr, () => p.name, (v) => { p.name = v; }, { title: "Screen name" });

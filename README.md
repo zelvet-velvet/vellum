@@ -157,7 +157,8 @@ Vellum/
 └─ Remote/            an app
    ├─ _doc.json       the device: size, safe areas, corner, status bar; the app's colours; the screen order
    ├─ Home.json       a screen
-   └─ Settings.json   another screen
+   ├─ Settings.json   another screen
+   └─ _before/        screens as they were before the agent changed them, until you keep or undo the change
 ```
 
 A screen is a few **blocks**, boxes on the phone. Each block holds **items**, placed by an anchor:
