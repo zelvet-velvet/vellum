@@ -112,6 +112,22 @@ type Lines = { x: number[]; y: number[] };
 type MeasureModel = { groups: { box: Box; every: Box[]; all: Box[]; kids: Map<Box, { boxes: Box[] }> }[]; name: Map<Box, string>; W: number; H: number; bg: string };
 // only the outer boxes: what sits inside another (a card's text) measures against its own neighbours, not the card
 const insideBox = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L + a.W && a.T <= b.T && b.T + b.H <= a.T + a.H && (a.W > b.W || a.H > b.H);
+// where a colour name is used: items, blocks, screens' backgrounds, notes and the status bar; with `to`, renamed there
+const colourUses = (d: Doc, name: string, to?: string) => {
+    let n = 0; const screens = new Set<string>();
+    const hit = (o: object, keys: string[], page?: string) => {
+        const r = o as Record<string, unknown>;
+        for (const k of keys) if (r[k] === name) { n++; if (page) screens.add(page); if (to !== undefined) r[k] = to; }
+    };
+    const items = (its: Item[], page: string) => { for (const it of its) { hit(it, ["color", "fill", "stroke"], page); if (it.items) items(it.items, page); } };
+    if (d.bar) hit(d.bar, ["fill", "ink"]);
+    for (const p of d.pages) {
+        hit(p, ["bg"], p.id);
+        for (const b of [...p.blocks, ...(p.land ?? [])]) { hit(b, ["fill", "stroke"], p.id); items(b.items, p.id); }
+        for (const m of p.marks ?? []) hit(m, ["color"], p.id);
+    }
+    return { n, screens: screens.size };
+};
 const outerBoxes = (bs: Box[]) => bs.filter((b) => !bs.some((a) => insideBox(b, a)));
 // the nearest line within reach of any of the points: how far to shift, and the line
 type GapMark = { axis: "x" | "y"; from: number; to: number; at: number; text: string; a?: number; b?: number };   // an equal gap (a band from a to b across) or size (a bar at `at`), with its number
@@ -1311,8 +1327,9 @@ class Editor {
             this.menu(this.frow(ts, "Default"), opts, d.theme && (d.theme === "auto" ? hasAuto(d) : d.theme in themes) ? d.theme : "", (v) => { if (v) d.theme = v; else delete d.theme; }, "Default theme: the one the app opens in (its theme in _doc.json)");
         }
 
-        // the colours of the theme shown: a tile that opens the picker, ↺ back to the Obsidian colours. Obsidian's own are
-        // shown, not set here (Settings → Vellum → Screen colours)
+        // the colours of the theme shown: a tile that opens the picker. A theme sets every colour itself (none falls back
+        // to Obsidian's: a missing one says "not set"); a colour of the app's own has a menu: rename or delete it, in every
+        // theme and on every screen. Obsidian's own are shown, not set here (Settings → Vellum → Screen colours)
         const cs = this.section(body, "Colours");
         const setNames = Object.keys({ ...BASE_THEME.colors, ...this.host.theme?.colors });
         const all = [...new Set([...setNames, ...Object.keys(d.colors ?? {}), ...names.flatMap((n) => Object.keys(themes[n]))])];
@@ -1323,14 +1340,49 @@ class Editor {
             const sw = b.createSpan({ cls: "vl-cbar-sw" });
             sw.style.setProperty("--c", colorOf(this.theme, n));
             b.createSpan({ cls: "vl-lookn", text: n });
-            const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : " is-faint"), text: own ?? (part ? "Obsidian" : "") });
+            const shared = d.colors?.[n], missing = !!part && !own && !shared;
+            const val = b.createSpan({ cls: "vl-lookv" + (own ? "" : missing ? " is-missing" : " is-faint"), text: own ?? (!part ? "" : shared ? `${shared} · every theme` : "not set") });
             if (!part) { b.disabled = true; continue; }
             const put = (v: string) => { const c = v in this.theme.colors ? this.hexNow(v) : v; (d.themes![part] ??= {})[n] = c; };   // a name picked: its value now
             b.addEventListener("click", () => {
                 if (this.picker?.anchor === b) { this.closePicker(); return; }
                 this.openPicker(b, colorOf(this.theme, n), put, (v) => { if (!v) return; sw.style.setProperty("--c", v in this.theme.colors ? colorOf(this.theme, v) : v); val.setText(v); val.removeClass("is-faint"); }, false);
             });
-            if (own) this.btn(row, setNames.includes(n) ? "rotate-ccw" : "x", setNames.includes(n) ? "Back to the Obsidian colour" : "Remove this colour", () => this.edit(() => { delete d.themes?.[part]?.[n]; })).addClass("vl-lookx");
+            if (setNames.includes(n)) continue;
+            // the app's own colour: rename or delete it everywhere (Add colour put it in every theme)
+            const more = this.btn(row, "more-horizontal", `${n}: rename or delete`, () => {}); more.addClass("vl-lookx");
+            this.popMenu(more, (m) => {
+                const used = colourUses(d, n);
+                m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => {
+                    const nm = b.querySelector<HTMLElement>(".vl-lookn"); if (!nm) return;
+                    const inp = createEl("input", { cls: "vl-lookname", attr: { type: "text", spellcheck: "false", placeholder: "Colour name" } });
+                    inp.value = n; nm.replaceWith(inp); inp.focus(); inp.select();
+                    let over = false;
+                    const end = (keep: boolean) => {
+                        if (over) return; over = true;
+                        const to = inp.value.trim();
+                        if (!keep || !to || to === n) { this.drawLooks(true); return; }
+                        if (to in this.theme.colors || all.includes(to) || to === "none") { this.hint(`${to} is a colour already`, inp, false); this.drawLooks(true); return; }
+                        this.edit(() => {
+                            const re = (o?: Record<string, string>) => { if (o && n in o) { o[to] = o[n]; delete o[n]; } };
+                            for (const t of names) re(themes[t]);
+                            re(d.colors);
+                            colourUses(d, n, to);
+                        });
+                        this.hint(used.n ? `Renamed on ${used.n} ${used.n === 1 ? "item" : "items"}, ${used.screens} ${used.screens === 1 ? "screen" : "screens"}` : `Renamed to ${to}`);
+                    };
+                    inp.addEventListener("click", (e) => e.stopPropagation());
+                    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
+                    inp.addEventListener("blur", () => end(true));
+                }));
+                m.addItem((i) => i.setTitle(used.n ? `Delete (used by ${used.n} on ${used.screens} ${used.screens === 1 ? "screen" : "screens"})` : "Delete").setIcon("trash-2").onClick(() => {
+                    this.edit(() => {
+                        for (const t of names) delete themes[t][n];
+                        if (d.colors) { delete d.colors[n]; if (!Object.keys(d.colors).length) delete d.colors; }
+                    });
+                    if (used.n) this.hint(`${n} deleted: ${used.n} ${used.n === 1 ? "item uses" : "items use"} it still (Ctrl+Z brings it back)`);
+                }));
+            });
         }
         if (!part) { cs.createDiv({ cls: "vl-lookhint is-under", text: "Set in Settings → Vellum → Screen colours. Add a theme (+) for colours of this app's own." }); return; }
         // a colour name of the app's own (a brand colour…), in every theme

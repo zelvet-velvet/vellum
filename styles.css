@@ -555,6 +555,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-lookn { flex: 1; min-width: 0; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vl-lookv { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .vl-lookv.is-faint { font-family: var(--font-interface); color: var(--text-faint); }
+.vl-lookv.is-missing { font-family: var(--font-interface); color: var(--text-error); }   /* a colour this theme doesn't set */
 .vl .vl-lookx { flex: none; }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
 /* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
