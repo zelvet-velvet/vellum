@@ -4145,7 +4145,7 @@ const lookHint = (o: { fill?: string; sw?: number; sides?: string; r?: number | 
 };
 const RESIZE: ItemType[] = ["img", "rect", "ellipse"];   // items with corner handles
 const HOLD = 300;   // ms held still inside a block before a drag draws an area of its items
-const ZOOMMAX = 16, MAPMAX = 10;   // 1600 % for a screen, 1000 % for the map
+const ZOOMMAX = 16, MAPMAX = 16;   // 1600 %, for a screen and for the map
 // "1 item", "2 items"; a row, a column and a group named in words, so the three read apart in the Items list
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 const KIND_NAME: Record<string, string> = { row: "Row", col: "Column", group: "Group" };
