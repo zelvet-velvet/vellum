@@ -217,6 +217,7 @@ Vellum/
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選畫面、block 或 item 的參照，供 agent 使用 |
 | Show 模式下 <kbd>←</kbd> <kbd>→</kbd> | 上一個 · 下一個畫面 |
+| Map 模式下方向鍵 · <kbd>Enter</kbd> | 選取同一列的相鄰畫面、上層畫面或第一個下層畫面 · 開啟該畫面 |
 | 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> 常見問題

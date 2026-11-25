@@ -215,6 +215,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
 | <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
+| Arrows · <kbd>Enter</kbd> in the Map | Choose the screen beside, above (the one it opens from) or below (the first it opens) · open it |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ
