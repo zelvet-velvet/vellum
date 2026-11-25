@@ -113,20 +113,37 @@ type MeasureModel = { groups: { box: Box; every: Box[]; all: Box[]; kids: Map<Bo
 // only the outer boxes: what sits inside another (a card's text) measures against its own neighbours, not the card
 const insideBox = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L + a.W && a.T <= b.T && b.T + b.H <= a.T + a.H && (a.W > b.W || a.H > b.H);
 // where a colour name is used: items, blocks, screens' backgrounds, notes and the status bar; with `to`, renamed there
-const colourUses = (d: Doc, name: string, to?: string) => {
-    let n = 0; const screens = new Set<string>();
-    const hit = (o: object, keys: string[], page?: string) => {
+// (only where it is written: a default, text's "text" or a border's "line", follows the name anyway). kinds: the uses by
+// what they colour; at: each use, for the outline on the screens. A default counts as a use: it draws in that colour
+const COLOUR_KINDS = ["Text", "Blocks", "Shapes", "Lines", "Screens", "Notes"] as const;
+const colourUses = (d: Doc, name: string, to?: string, at?: (page: string, el: { block?: string; item?: string }) => void) => {
+    let n = 0; const screens = new Set<string>(), kinds: Record<string, number> = {};
+    // [field, kind, default when unset]
+    const hit = (o: object, keys: [string, string, string?][], page?: string, el?: { block?: string; item?: string }) => {
         const r = o as Record<string, unknown>;
-        for (const k of keys) if (r[k] === name) { n++; if (page) screens.add(page); if (to !== undefined) r[k] = to; }
+        for (const [k, kind, def] of keys) {
+            if ((r[k] ?? def) !== name) continue;
+            n++; kinds[kind] = (kinds[kind] ?? 0) + 1; if (page) { screens.add(page); if (el) at?.(page, el); }
+            if (to !== undefined && r[k] === name) r[k] = to;
+        }
     };
-    const items = (its: Item[], page: string) => { for (const it of its) { hit(it, ["color", "fill", "stroke"], page); if (it.items) items(it.items, page); } };
-    if (d.bar) hit(d.bar, ["fill", "ink"]);
+    const items = (its: Item[], page: string, block: string) => {
+        for (const it of its) {
+            const line = it.sw ? "line" : undefined, el = { block, item: it.id };
+            if (it.type === "text" || it.type === "icon") hit(it, [["color", "Text", "text"]], page, el);
+            else if (it.type === "line") hit(it, [["fill", "Lines", "line"]], page, el);
+            else hit(it, [["fill", "Shapes"], ["stroke", "Lines", line]], page, el);
+            if (it.items) items(it.items, page, block);
+        }
+    };
+    if (d.bar) hit(d.bar, [["fill", "Screens"], ["ink", "Screens"]]);
     for (const p of d.pages) {
-        hit(p, ["bg"], p.id);
-        for (const b of [...p.blocks, ...(p.land ?? [])]) { hit(b, ["fill", "stroke"], p.id); items(b.items, p.id); }
-        for (const m of p.marks ?? []) hit(m, ["color"], p.id);
+        if ((bgOf(d.pages, p) ?? "paper") === name) { n++; kinds.Screens = (kinds.Screens ?? 0) + 1; screens.add(p.id); at?.(p.id, {}); }
+        if (to !== undefined && p.bg === name) p.bg = to;
+        for (const b of [...p.blocks, ...(p.land ?? [])]) { hit(b, [["fill", "Blocks"], ["stroke", "Blocks", b.sw ? "line" : undefined]], p.id, { block: b.id }); items(b.items, p.id, b.id); }
+        for (const m of p.marks ?? []) hit(m, [["color", "Notes"]], p.id);
     }
-    return { n, screens: screens.size };
+    return { n, screens: screens.size, kinds: COLOUR_KINDS.filter((k) => kinds[k]).map((k) => `${k} ${kinds[k]}`).join(" · ") };
 };
 const outerBoxes = (bs: Box[]) => bs.filter((b) => !bs.some((a) => insideBox(b, a)));
 // the nearest line within reach of any of the points: how far to shift, and the line
@@ -1236,19 +1253,13 @@ class Editor {
         w.querySelectorAll(".is-cuse").forEach((el) => el.removeClass("is-cuse"));
         w.querySelectorAll(".vl-cfocus").forEach((el) => el.removeClass("vl-cfocus"));
         if (!name) return;
-        const uses = (o: object, keys: string[]) => keys.some((k) => (o as Record<string, unknown>)[k] === name);
-        w.querySelectorAll<HTMLElement>(".vl-screen[data-page]").forEach((scr) => {
-            const p = this.doc.pages.find((q) => q.id === scr.dataset.page); if (!p) return;
-            let any = false;
-            const mark = (el: Element | null) => { if (el) { el.addClass("is-cuse"); any = true; } };
-            if (p.bg === name) mark(scr);
-            const items = (its: Item[], bEl: Element) => { for (const it of its) { if (uses(it, ["color", "fill", "stroke"])) mark(bEl.querySelector(`[data-id="${it.id}"]`)); if (it.items) items(it.items, bEl); } };
-            for (const b of [...p.blocks, ...(p.land ?? [])]) {
-                const bEl = scr.querySelector(`[data-block="${b.id}"]`); if (!bEl) continue;
-                if (uses(b, ["fill", "stroke"])) mark(bEl);
-                items(b.items, bEl);
-            }
-            if (any) scr.addClass("vl-cfocus");
+        const shown = new Map<string, HTMLElement>();
+        w.querySelectorAll<HTMLElement>(".vl-screen[data-page]").forEach((scr) => shown.set(scr.dataset.page ?? "", scr));
+        colourUses(this.doc, name, undefined, (page, el) => {
+            const scr = shown.get(page); if (!scr) return;
+            const bEl = el.block ? scr.querySelector(`[data-block="${el.block}"]`) : null;
+            const t = el.item ? bEl?.querySelector(`[data-id="${el.item}"]`) : el.block ? bEl : scr;
+            if (t) { t.addClass("is-cuse"); scr.addClass("vl-cfocus"); }
         });
     }
     // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
@@ -1361,7 +1372,9 @@ class Editor {
             const b = row.createEl("button", { cls: "vl-lookc", attr: { "aria-label": part ? `${n}: open the picker` : n } });
             const sw = b.createSpan({ cls: "vl-cbar-sw" });
             sw.style.setProperty("--c", colorOf(this.theme, n));
-            b.createSpan({ cls: "vl-lookn", text: n });
+            // its name, and under it where it is used, by kind (nothing under it: no screen uses it)
+            const nm = b.createSpan({ cls: "vl-lookn" }); nm.createSpan({ text: n });
+            const use = colourUses(this.doc, n).kinds; if (use) nm.createSpan({ cls: "vl-lookuse", text: use });
             // the pointer on a colour: what uses it lights up on the screens shown
             row.addEventListener("pointerenter", () => this.colourSpot(n));
             row.addEventListener("pointerleave", () => this.colourSpot(null));

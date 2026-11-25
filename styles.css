@@ -550,9 +550,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl input.vl-lookname { flex: 1; min-width: 0; height: 30px; font-size: var(--font-ui-small); }
 .vl-looklist { display: flex; flex-direction: column; gap: 2px; }
 .vl-lookrow { display: flex; align-items: center; gap: 4px; }
-.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px 0 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
+.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: auto; min-height: 36px; padding: 3px 8px 3px 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
 .vl .vl-lookc:hover { background: var(--background-modifier-hover); }
-.vl-lookn { flex: 1; min-width: 0; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-lookn { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; white-space: nowrap; }
+.vl-lookn > span { overflow: hidden; text-overflow: ellipsis; }
+.vl-lookuse { font-size: var(--font-ui-smaller); color: var(--text-faint); }   /* where the colour is used: Text 5 · Blocks 1 */
 .vl-lookv { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .vl-lookv.is-faint { font-family: var(--font-interface); color: var(--text-faint); }
 .vl-lookv.is-missing { font-family: var(--font-interface); color: var(--text-error); }   /* a colour this theme doesn't set */
@@ -1181,5 +1183,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* the pointer on a colour in the Colours window: what uses it outlined, the rest of the screen faded */
 .vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
 .vl-screen.vl-cfocus [data-id]:not(.is-cuse):not(:has(.is-cuse)) { opacity: 0.25; }
-.vl-screen.vl-cfocus .is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); opacity: 1; }
-.vl-screen.vl-cfocus.is-cuse { outline-offset: calc(-2px * var(--vl-iz, 1)); }
+.vl-screen.vl-cfocus [data-id].is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); opacity: 1; }
+/* a block or the screen's background: light stripes over it (an outline round a whole block read as chosen) */
+.vl-screen.vl-cfocus [data-block].is-cuse::after, .vl-screen.vl-cfocus.is-cuse::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5; border-radius: inherit;
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }
