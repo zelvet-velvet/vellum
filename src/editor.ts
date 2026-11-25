@@ -77,6 +77,7 @@ export const FIXED_KEYS: [string, string][] = [
     ["Arrows", "Move what is chosen by 1; Shift: by the grid"],
     ["Alt+drag", "Measure, as the Measure key; Alt during a drag: no snapping"],
     ["← →", "In Show: the previous or next screen"],
+    ["Arrows, Enter", "In the Map: the screen beside, above or below (its row, the one it opens from, the first it opens); Enter opens it"],
     ["Mod+Y", "Redo"],
 ];
 let keyMap: Record<string, string> = {};
@@ -790,8 +791,12 @@ class Editor {
             if (this.mapLay) this.mapLay(this.v.mapZoom ?? 1); else this.drawPages();
         }
         this.drawZoom();
-        const t = w.querySelector<HTMLElement>(".vl-thumb.is-on"); if (!t) return;
-        const r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
+        this.mapCentre();
+    }
+    // the chosen screen in the middle of the window, clear of the pill (as far as the map's edges let the scroll go)
+    mapCentre() {
+        const w = this.wall, t = w?.querySelector<HTMLElement>(".vl-thumb.is-on"); if (!t) return;
+        const PILL = 64, LINK = 20, r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
         w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
         w.scrollTop += r.top + (r.height - LINK) / 2 - (s.top + (s.height - PILL) / 2);
     }
@@ -1821,6 +1826,26 @@ class Editor {
     mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } | null = null;
     mapRun = 0; mapAhead = 0;
     mapPick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
+    // an arrow in the Map: ← / → the screen beside it in its row (across branches), ↑ the one it opens from, ↓ the first
+    // it opens. Chosen, not opened; the view follows it: in the middle, as the Fit button puts it (Full: fitted to its
+    // tree first)
+    mapStep(cur: Page, key: string) {
+        const pages = this.doc.pages, depth = new Map<string, number>(), order: Page[] = [];
+        const walk = (p: Page, d: number) => { if (depth.has(p.id)) return; depth.set(p.id, d); order.push(p); for (const c of childrenOf(pages, p.id)) walk(c, d + 1); };
+        for (const r of childrenOf(pages)) walk(r, 0);
+        for (const p of pages) walk(p, 0);   // anything left (a loop), as the Map draws it
+        let to: Page | undefined;
+        if (key === "ArrowUp") to = pages.find((q) => q.id === cur.parent);
+        else if (key === "ArrowDown") to = childrenOf(pages, cur.id)[0];
+        else if (key === "ArrowLeft" || key === "ArrowRight") {
+            const row = order.filter((q) => depth.get(q.id) === depth.get(cur.id)), i = row.indexOf(cur);
+            to = row[i + (key === "ArrowLeft" ? -1 : 1)];
+        }
+        if (!to) return;
+        this.setView({ page: to.id });
+        this.draw();   // Full: fitted to its tree again
+        this.mapCentre();
+    }
     getMap() {
         const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? ""])]);
         const c = this.mapCache;
@@ -3006,6 +3031,14 @@ class Editor {
         if (e.key === "Escape" && this.lookOpen) { this.openLooks(false); return true; }
         if (is("ungroup") && editing) { this.ungroup(); return true; }
         if (is("group") && editing) { this.groupSel(); return true; }
+        // the Map: arrows move the chosen screen through the tree, Enter opens it; nothing else hears them there (a block
+        // chosen in Edit is out of sight in the Map: an arrow must not nudge it)
+        if (this.v.map && !mod && (e.key.startsWith("Arrow") || e.key === "Enter")) {
+            const cur = this.current();
+            if (e.key === "Enter") { if (cur) this.mapPick(cur); }
+            else if (!e.shiftKey && cur) this.mapStep(cur, e.key);
+            return true;
+        }
         if (this.v.show && !this.v.map && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "PageUp" || e.key === "PageDown")) { this.showGo(e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1); return true; }
         if (is("bars") && this.full()) { void this.root?.doc.exitFullscreen(); return true; }   // Esc may not reach a pop-out window
         if (is("bars")) { this.setBars(this.v.bars === false); return true; }
