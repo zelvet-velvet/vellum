@@ -147,6 +147,9 @@ ask you to change that one thing. They can only do that to a part that is **its 
   broken, `orange` a question for the user, `green` done or agreed, `blue` how it works or what to build, `purple` an
   idea or an option, `gray` an aside. Keep one meaning per colour on a screen.
 - A note's bubble is as wide as its text unless you set `w`; keep notes short and give long ones a `w` (around 160–220).
+- A note's bubble sits on its pin's right unless it has `tx ty`: the box placed that many points from the pin (`tx`
+  below 0: its right edge, `ty` below 0: its bottom edge). Keep the pin on what the note is about; near the screen's right
+  edge, or over the thing you mean, move the text instead: `"tx": -12, "ty": 0` puts it on the left.
 - A page's `note` says what the screen is for. Keep it current.
 
 ## 7. Rules

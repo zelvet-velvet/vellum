@@ -467,6 +467,12 @@ class Editor {
                 if (m.text || on) {
                     const bub = el.createDiv({ cls: "vl-mbub" + (mw ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
                     if (mw) bub.style.setProperty("--mw", String(mw));
+                    // placed apart from its pin (tx ty, in points): the box's near edge that far from it, a line back to it
+                    if (m.tx !== undefined || m.ty !== undefined) {
+                        const tx = m.tx ?? 12 * iz, ty = m.ty ?? -8 * iz;
+                        bub.addClass("is-apart"); if (tx < 0) bub.addClass("is-left");
+                        Object.assign(bub.style, tx < 0 ? { left: "auto", right: `${-tx}px` } : { left: `${tx}px` }, ty < 0 ? { top: "auto", bottom: `${-ty}px` } : { top: `${ty}px` });
+                    }
                     if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
                 }
             } else if (m.kind === "area") {
@@ -494,15 +500,24 @@ class Editor {
     // to its pin. On display only: the file keeps the x y that was written (an agent can't tell how tall a text wraps)
     stackNotes(layer: HTMLElement, z: number) {
         const gap = 4 / z, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string }[] = [];
+        const placed: typeof list = [];
+        let svg: SVGSVGElement | null = null;
+        const lead = (x1: number, y1: number, x2: number, y2: number, c: string) => {
+            if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
+            svg.createSvg("line", { attr: { x1, y1, x2, y2, stroke: c, "stroke-width": 1 / z } });
+        };
         layer.querySelectorAll<HTMLElement>(":scope > .vl-mark.is-note").forEach((el) => {
             const bub = el.querySelector<HTMLElement>(":scope > .vl-mbub"); if (!bub || !bub.offsetHeight) return;
             const px = parseFloat(el.style.left), py = parseFloat(el.style.top);
-            list.push({ bub, px, py, x: px + bub.offsetLeft, y: py + bub.offsetTop, w: bub.offsetWidth, h: bub.offsetHeight, c: el.style.getPropertyValue("--mc") });
+            const n = { bub, px, py, x: px + bub.offsetLeft, y: py + bub.offsetTop, w: bub.offsetWidth, h: bub.offsetHeight, c: el.style.getPropertyValue("--mc") };
+            if (!bub.hasClass("is-apart")) { list.push(n); return; }
+            // placed by hand: never moved; a line from the pin to the box's nearest point, when the box is away from it
+            placed.push(n);
+            const qx = Math.max(n.x, Math.min(px, n.x + n.w)), qy = Math.max(n.y, Math.min(py, n.y + n.h));
+            if (Math.hypot(qx - px, qy - py) > 10 / z) lead(px, py, qx, qy, n.c);
         });
-        if (list.length < 2) return;
+        if (list.length + placed.length < 2) return;
         list.sort((a, b) => a.y - b.y || a.x - b.x);
-        const placed: typeof list = [];
-        let svg: SVGSVGElement | null = null;
         for (const n of list) {
             const y0 = n.y;
             // down past every bubble above that it runs into, until it is clear of all of them
@@ -513,8 +528,7 @@ class Editor {
             placed.push(n);
             if (n.y === y0) continue;
             n.bub.style.transform = `translateY(${n.y - y0}px)`;
-            if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
-            svg.createSvg("line", { attr: { x1: n.px, y1: n.py, x2: n.x, y2: n.y + Math.min(n.h / 2, 10 / z), stroke: n.c, "stroke-width": 1 / z } });
+            lead(n.px, n.py, n.x, n.y + Math.min(n.h / 2, 10 / z), n.c);
         }
     }
     // a mark: a press chooses it, a drag moves it (an area's corner resizes it); grid steps, Alt 1 px; lines and areas snap
@@ -523,6 +537,8 @@ class Editor {
         e.stopPropagation(); e.preventDefault();
         const bw = (e.target as HTMLElement).closest<HTMLElement>("[data-mbw]");
         if (bw) { this.noteWidth(e, p, scr, m, z, bw.parentElement!); return; }
+        const bub = m.kind === "note" ? (e.target as HTMLElement).closest<HTMLElement>(".vl-mbub") : null;
+        if (bub) { this.noteText(e, p, scr, m, z, bub); return; }
         const grip = !!(e.target as HTMLElement).closest("[data-mgrip]"), x0 = e.clientX, y0 = e.clientY, st = { ...m };
         const was = this.sel?.mark === m.id;
         if (!was) { this.sel = { page: p.id, mark: m.id }; this.drawPanel(); this.drawMarks(scr, p, z); }
@@ -573,15 +589,40 @@ class Editor {
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
+    // a note's text box dragged apart from its pin (the pin stays on what the note is about): kept as tx ty from the pin,
+    // to the box's left or right edge (top or bottom) by which side of the pin it is on; Alt: whole points, else the grid
+    noteText(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
+        const was = this.sel?.mark === m.id, x0 = e.clientX, y0 = e.clientY;
+        const pin = bub.parentElement!.getBoundingClientRect(), r = bub.getBoundingClientRect();
+        const bx = (r.left - pin.left) / z, by = (r.top - pin.top) / z, bw = r.width / z, bh = r.height / z;
+        let moved = false;
+        scr.setPointerCapture(e.pointerId);
+        const move = (ev: PointerEvent) => {
+            if (!moved && Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 3) return;
+            if (!moved) { moved = true; this.begin(); if (!was) this.sel = { page: p.id, mark: m.id }; }
+            const sn = (v: number) => (ev.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
+            const nx = bx + (ev.clientX - x0) / z, ny = by + (ev.clientY - y0) / z;
+            // the near edge: left of the pin, the box's right edge (below 0); right of it, its left edge
+            m.tx = nx + bw / 2 >= 0 ? Math.max(0, sn(nx)) : Math.min(-1, sn(nx + bw));
+            m.ty = ny + bh / 2 >= 0 ? Math.max(0, sn(ny)) : Math.min(-1, sn(ny + bh));
+            this.drawMarks(scr, p, z); this.livePanel();
+        };
+        const up = () => {
+            scr.removeEventListener("pointermove", move); scr.removeEventListener("pointerup", up); scr.removeEventListener("pointercancel", up);
+            if (moved) { this.end(); this.drawPanel(); }
+            else if (!was) { this.sel = { page: p.id, mark: m.id }; this.drawPanel(); this.drawPages(); }
+        };
+        scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
+    }
     // a note's bubble: its right edge drags it wider or narrower (in monitor pixels, as the bubble keeps its size at any zoom)
     noteWidth(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
-        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width);
+        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width), sg = bub.hasClass("is-left") ? -1 : 1;
         let moved = false;
         scr.setPointerCapture(e.pointerId);
         const move = (ev: PointerEvent) => {
             if (!moved && Math.abs(ev.clientX - x0) < 3) return;
             if (!moved) { moved = true; this.begin(); }
-            m.w = Math.max(60, Math.min(600, Math.round(w0 + ev.clientX - x0)));
+            m.w = Math.max(60, Math.min(600, Math.round(w0 + sg * (ev.clientX - x0))));
             this.drawMarks(scr, p, z); this.livePanel();
         };
         const up = () => {
@@ -607,6 +648,13 @@ class Editor {
         const r3 = s.createDiv({ cls: "vl-nums" });
         this.num(r3, "Text size", () => m.size ?? editCfg.markSize, (v) => { if (v === editCfg.markSize) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
         if (m.kind === "note") this.num(r3, "Width", () => m.w ?? (editCfg.noteW || 200), (v) => { if (v === editCfg.noteW) delete m.w; else m.w = v; }, { min: 60, max: 600, unit: "px" });
+        if (m.kind === "note") {
+            // where its text box sits: beside the pin on one side, or placed by hand (a drag on the box; no side lit)
+            const side = m.tx === undefined && m.ty === undefined ? "right" : m.tx === -12 && m.ty === 0 ? "left" : m.tx === 0 && m.ty === -12 ? "above" : m.tx === 0 && m.ty === 12 ? "below" : "hand";
+            const at: Record<string, [number, number] | null> = { right: null, left: [-12, 0], above: [0, -12], below: [0, 12] };
+            const row = this.frow(s, side === "hand" ? "Text: placed by hand" : "Text");
+            this.chips(row, [["right", "Right"], ["left", "Left"], ["above", "Above"], ["below", "Below"]] as [string, string][], side, (v) => { const o = at[v]; if (o) [m.tx, m.ty] = o; else { delete m.tx; delete m.ty; } });
+        }
         if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", editCfg.noteW ? "Width: the default" : "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
         if (m.kind === "area") {
             const r2 = s.createDiv({ cls: "vl-nums" });

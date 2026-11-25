@@ -951,6 +951,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-mbub { position: absolute; left: calc(12px * var(--u)); top: calc(-8px * var(--u)); width: max-content; max-width: calc(200px * var(--u)); padding: calc(4px * var(--u)) calc(7px * var(--u)); border-radius: calc(6px * var(--u)); background: color-mix(in srgb, var(--mc) 22%, var(--background-primary)); border: calc(1px * var(--u)) solid var(--mc); color: var(--text-normal); font: 500 calc(var(--ms, 11) * 1px * var(--u))/1.35 var(--font-interface); white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: move; box-shadow: 0 calc(2px * var(--u)) calc(8px * var(--u)) rgba(0, 0, 0, 0.2); }
 .vl-mbub.is-wide { width: calc(var(--mw) * 1px * var(--u)); max-width: none; box-sizing: border-box; }
 .vl-mbw { position: absolute; right: calc(-4px * var(--u)); top: 0; bottom: 0; width: calc(8px * var(--u)); cursor: ew-resize; }
+.vl-mbub.is-left > .vl-mbw { right: auto; left: calc(-4px * var(--u)); }   /* a box left of its pin widens from its left edge */
 .vl-mbw::after { content: ""; position: absolute; left: 50%; top: 50%; width: calc(3px * var(--u)); height: calc(14px * var(--u)); margin: calc(-7px * var(--u)) 0 0 calc(-1.5px * var(--u)); border-radius: calc(2px * var(--u)); background: var(--mc); }
 .vl-mark.is-area { box-sizing: border-box; border: calc(1.5px * var(--u)) dashed var(--mc); background: color-mix(in srgb, var(--mc) 6%, transparent); }
 .vl-mark.is-area.is-on { border-style: solid; }
