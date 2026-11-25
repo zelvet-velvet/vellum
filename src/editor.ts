@@ -2623,9 +2623,11 @@ class Editor {
         // an item of the item group: they move together; Shift+click on an item, with items chosen: in or out
         const mi = this.manyItems;
         if (b && dragId && mi.some((x) => x.it.id === dragId) && !e.shiftKey) { this.dragItems(e, p, scr, b, dragId); return; }
-        if (b && dragId && e.shiftKey && b.items.some((i) => i.id === dragId) && (mi.length || (this.sel?.item && this.sel.page === p.id))) {
+        // with its block chosen alone, Shift+click on one of its items starts the items chosen with that one
+        const ownChosen = this.sel?.page === p.id && this.sel.block === b?.id && !this.sel.item && !this.many.length;
+        if (b && dragId && e.shiftKey && b.items.some((i) => i.id === dragId) && (mi.length || (this.sel?.item && this.sel.page === p.id) || ownChosen)) {
             const list = mi.map((x) => ({ block: x.b.id, item: x.it.id }));
-            if (!list.length) { const cb = this.block(), top = cb?.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (cb && top) list.push({ block: cb.id, item: top.id }); }
+            if (!list.length && this.sel?.item) { const cb = this.block(), top = cb?.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (cb && top) list.push({ block: cb.id, item: top.id }); }
             const i = list.findIndex((x) => x.item === dragId);
             if (i >= 0) list.splice(i, 1); else list.push({ block: b.id, item: dragId });
             this.chooseItems(p, list);
@@ -2872,6 +2874,16 @@ class Editor {
             if (!box) {
                 // a Ctrl+click: the item under the pointer straight away (its block need not be chosen first)
                 const t = e.target as HTMLElement, bEl = t.closest<HTMLElement>("[data-block]"), id = t.closest<HTMLElement>(".vl-it")?.dataset.id;
+                // Ctrl+Shift+click: that item (its top-level one) in or out of the items chosen, in any block
+                const top = t.closest<HTMLElement>(".vl-it[data-top]:not(.is-lock)")?.dataset.id;
+                if (e.shiftKey && bEl && top && own.has(bEl.dataset.block!) && !bEl.hasClass("is-lock")) {
+                    const list = [...add], cur = this.sel?.item && this.sel.page === p.id ? this.block() : undefined;
+                    if (!list.length && cur) { const ct = cur.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (ct) list.push({ block: cur.id, item: ct.id }); }
+                    const i = list.findIndex((x) => x.item === top);
+                    if (i >= 0) list.splice(i, 1); else list.push({ block: bEl.dataset.block!, item: top });
+                    this.chooseItems(p, list);
+                    return;
+                }
                 if (bEl && id && own.has(bEl.dataset.block!)) this.choose({ page: p.id, block: bEl.dataset.block!, item: id });
                 else if (!outside) this.choose({ page: p.id }); else if (this.sel) this.choose(null);
                 return;
