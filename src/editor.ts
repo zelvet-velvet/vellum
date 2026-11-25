@@ -2271,7 +2271,7 @@ class Editor {
     roomAround(fig: HTMLElement, phone: HTMLElement) {
         const pr = phone.getBoundingClientRect();
         let x = 0, y = 0;
-        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block").forEach((el) => {
+        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block, :scope > .vl-spill > .vl-block > .vl-it[data-top]").forEach((el) => {
             const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
             x = Math.max(x, pr.left - q.left, q.right - pr.right); y = Math.max(y, pr.top - q.top, q.bottom - pr.bottom);
         });
@@ -2426,10 +2426,22 @@ class Editor {
         if (!phone?.hasClass("vl-phone")) return;
         phone.querySelector(":scope > .vl-spill")?.remove();
         const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
-        // a chosen block, or one holding chosen items, shows its items past its own edge: those past the screen's count too
+        // items past their own block's edge, the block not showing them (not chosen): a faded copy of the block over it with
+        // its inside cut away, so they show, dashed in the block's colour, and a press there takes the block as on it
+        scr.querySelectorAll(":scope > .vl-past").forEach((e) => e.remove());
+        const outOf = (r: DOMRect, q: DOMRect) => q.width > 0 && (q.left < r.left - 0.5 || q.top < r.top - 0.5 || q.right > r.right + 0.5 || q.bottom > r.bottom + 0.5);
+        const blocks = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block"));
+        for (const el of blocks) {
+            if (el.hasClass("is-inh") || getComputedStyle(el).overflow !== "hidden") continue;
+            const br = el.getBoundingClientRect();
+            if (!Array.from(el.querySelectorAll<HTMLElement>(".vl-it[data-top]")).some((i) => outOf(br, i.getBoundingClientRect()))) continue;
+            const c = scr.appendChild(el.cloneNode(true) as HTMLElement);
+            c.removeClasses(["is-sel", "is-many", "is-hit", "is-hl"]); c.addClass("vl-past");
+        }
+        // every block shows its items past the screen's edge there, faded
         const sr = scr.getBoundingClientRect();
-        const itemsOut = (el: HTMLElement) => (el.hasClass("is-sel") || el.hasClass("is-holds")) && Array.from(el.querySelectorAll<HTMLElement>(".vl-it")).some((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && (r.left < sr.left || r.top < sr.top || r.right > sr.right || r.bottom > sr.bottom); });
-        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
+        const itemsOut = (el: HTMLElement) => !el.hasClass("is-inh") && Array.from(el.querySelectorAll<HTMLElement>(".vl-it[data-top]")).some((i) => outOf(sr, i.getBoundingClientRect()));
+        const out = blocks.filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
         if (!out.length) return;
         const g = createDiv({ cls: "vl-spill" });
         Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
