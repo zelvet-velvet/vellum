@@ -196,7 +196,7 @@ Vellum/
 
 **版型。** `"inherit": true` 的畫面會先顯示上層畫面的區塊，再疊加本身的區塊。本身區塊與上層區塊 `id` 相同時取代上層區塊；畫面僅儲存本身的區塊。
 
-**顏色與字型。** item 使用主題名稱（`paper text dim line tile loud accent`；`ui display mono`），於「設定 → Vellum」設定，或使用任何 CSS 值。App 可在自己的 `_doc.json` 設定顏色與主題（淺色、深色或任何名稱）。可在「設定 → Vellum → Screen colours」選擇該 App 後設定，或在編輯器的 Colours 視窗（頂列的調色盤按鈕）設定，並在其中切換主題檢查每個畫面。編輯器面板依據 Obsidian 主題，或使用同一頁的 Editor theme 顏色。
+**顏色與字型。** item 使用主題名稱（`paper text dim line tile loud accent`；`ui display mono`），於「設定 → Vellum」設定，或使用任何 CSS 值。App 可在自己的 `_doc.json` 設定顏色與主題（淺色、深色或任何名稱）。可在「設定 → Vellum → Screen colours」選擇該 App 後設定，或在編輯器的 Colours 視窗（頂列的調色盤按鈕）設定，並在其中切換主題檢查每個畫面。編輯器面板依據 Obsidian 主題，或於「設定 → Vellum → Editor theme」使用編輯器自己的主題：預設提供 Light 與 Dark（Ledgerline 配色，即本頁截圖所用），亦可新增或複製。編輯器主題不影響任何畫面。
 
 </details>
 
