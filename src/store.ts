@@ -9,6 +9,9 @@ export const srcOf = (source: string): string | null => {
     return m && !source.trim().startsWith("{") ? normalizePath(m[1].replace(/^["']|["']$/g, "")) : null;
 };
 const DOC = "_doc.json";
+// _before/: an agent's copy of a screen as it was before it changed it (the version the user last approved), waiting for
+// the user to keep the change (the copy goes) or undo it (the copy is put back). Never a screen of its own
+export const BEFORE = "_before";
 // newApp: called once a folder becomes an app (its _doc.json first written): the plugin adds the agent guide
 export const storeHooks: { newApp?: (dir: string) => Promise<unknown> } = {};
 
@@ -22,6 +25,7 @@ const fileName = (name: string) => name.replace(/[\\/:*?"<>|#^[\]]/g, "-").repla
 
 export class FolderStore {
     files = new Map<string, string>();   // page id → its file, as loaded or last saved
+    befores = new Map<string, { path: string; page: Page; text: string }>();   // page id → its copy in _before/, read with the folder
     ownUntil = 0;                        // our own writes, not outside changes
     constructor(readonly app: App, readonly dir: string) {}
     watches(path: string) { return path === this.dir || path.startsWith(this.dir + "/"); }
@@ -40,6 +44,14 @@ export class FolderStore {
             if (error || !doc.pages[0]) { bad.push(f.name); continue; }
             pages.push(doc.pages[0]); this.files.set(doc.pages[0].id, f.path);
         }
+        // the copies waiting for review, by the screen they belong to (the id inside: a renamed screen still matches)
+        this.befores.clear();
+        const bf = this.app.vault.getAbstractFileByPath(`${this.dir}/${BEFORE}`);
+        if (bf instanceof TFolder) for (const f of bf.children) {
+            if (!(f instanceof TFile) || f.extension !== "json") continue;
+            const text = await this.app.vault.read(f), { doc, error } = parseDoc(`{"pages": [${text}]}`), p = doc.pages[0];
+            if (!error && p && pages.some((q) => q.id === p.id)) this.befores.set(p.id, { path: f.path, page: p, text });
+        }
         const order = meta.order ?? [];
         const at = (p: Page) => { const i = order.indexOf(p.id); return i < 0 ? order.length : i; };
         pages.sort((a, b) => at(a) - at(b) || a.name.localeCompare(b.name));
@@ -48,6 +60,24 @@ export class FolderStore {
         if (sf) doc.safe = sf; if (sl) doc.safeLand = sl;
         frameOfDoc(meta, doc); coloursOfDoc(meta, doc);
         return { doc, error: bad.length ? `Not read (fix the JSON): ${bad.join(", ")}` : undefined };
+    }
+    // the change to a screen kept: its copy goes
+    async keep(id: string): Promise<void> {
+        const b = this.befores.get(id); if (!b) return;
+        this.ownUntil = Date.now() + 2000;
+        const f = this.app.vault.getAbstractFileByPath(b.path);
+        if (f instanceof TFile) await this.app.fileManager.trashFile(f);
+        this.befores.delete(id);
+        this.ownUntil = Date.now() + 1500;
+    }
+    // the change undone: the copy written back as the screen's file, then the copy goes (to the trash, as a kept one)
+    async restore(id: string): Promise<void> {
+        const b = this.befores.get(id); if (!b) return;
+        const v = this.app.vault, path = this.files.get(id) ?? normalizePath(`${this.dir}/${fileName(b.page.name)}.json`);
+        this.ownUntil = Date.now() + 2000;
+        const f = v.getAbstractFileByPath(path), text = pageText(b.page);
+        if (f instanceof TFile) await v.modify(f, text); else await v.create(path, text);
+        await this.keep(id);
     }
     // only the colours and themes into _doc.json (the Colours window's Save); the rest of the file as it is. No
     // _doc.json yet (an app never saved): the whole app is saved, as its first save would
