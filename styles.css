@@ -862,6 +862,13 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vlsd-dev { display: flex; flex-direction: column; padding: 5px 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); }
 .vlsd-dev span:last-child { font-size: 10px; color: var(--text-muted); }
 .vlsd-r.is-mock { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
+.vlsd-r.is-changed { color: var(--vlu-changed, var(--color-cyan, #00bfbc)); }
+/* the stage in the Editor theme preview: a screen's outline with what the editor draws on it */
+.vlsd-frame { position: relative; width: 112px; height: 168px; border: 1px dashed var(--background-modifier-border); border-radius: 16px; }
+.vlsd-fg { position: absolute; left: -14px; right: -14px; top: 46px; border-top: 1px solid var(--vlu-guide, var(--color-pink, #e93147)); }
+.vlsd-blk { position: absolute; left: 12px; right: 12px; top: 46px; height: 40px; border-radius: 4px; outline: 2px solid var(--interactive-accent); outline-offset: -1px; }
+.vlsd-ms { position: absolute; left: 12px; right: 12px; top: 106px; border-top: 1px solid var(--vlu-measure, var(--interactive-accent)); }
+.vlsd-ms > span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); padding: 0 4px; border-radius: 3px; font-size: 9px; line-height: 14px; background: var(--vlu-measure, var(--interactive-accent)); color: var(--text-on-accent); }
 .vlsd-r.is-on { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); font-weight: 600; }
 .vlsd-r.is-state { background: var(--background-modifier-hover); }
 .vlsd-stage { display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: var(--background-secondary); min-width: 0; }
@@ -1216,3 +1223,25 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-lookbart { flex: 1; min-width: 0; font-size: var(--font-ui-small); color: var(--text-normal); }
 .vl .vl-lookbar button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; font-size: var(--font-ui-small); box-shadow: none; }
 .vl .vl-lookbar button svg { width: 14px; height: 14px; }
+
+/* Editor theme: the preview stays in view and the colours scroll in a box of their own (no sticky preview over them):
+   the preview on top and the colours in two columns under it; beside it on a wide pane. The tab fills the pane */
+.vls-split > .vls-scroll.is-fill { display: flex; flex-direction: column; container-type: inline-size; overflow: hidden; }   /* the tab itself never scrolls: only its colours */
+.vls-scroll.is-fill > .vls-studio.is-editor { flex: 1 1 0; min-height: 0; margin-bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+.vls-edsplit { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.vls-edsplit > .vls-prev { padding: 10px var(--vls-pad) 8px; border-bottom: 1px solid var(--background-modifier-border); }
+.vls-edsplit > .vls-prev > .vls-demo { zoom: 0.72; width: 640px; max-width: calc(100% / 0.72); margin: 0 auto; }   /* small, so the colours have room */
+.vls-edsplit > .vls-list { min-height: 0; display: flex; flex-direction: column; }
+.vls-edsplit > .vls-list > .vls-colbar { flex: none; }
+.vls-edsplit > .vls-list > .vls-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.vls-studio.is-editor .vls-edsplit .vls-groups { columns: auto; }
+.vls-studio.is-editor .vls-edsplit .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); column-gap: 16px; }   /* a group's heading across, its colours two to a row: the list ends evenly */
+.vls-studio.is-editor .vls-edsplit .vls-grp { grid-column: 1 / -1; }
+.vls-studio.is-editor .vls-edsplit .vls-grp { padding: 8px 8px 2px; }
+.vls-studio.is-editor .vls-edsplit .vls-cf { width: 156px; }   /* room for a colour with its alpha (#E6E3DC14) */
+
+@container (min-width: 980px) {
+    .vls-edsplit { grid-template-rows: none; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr); }
+    .vls-edsplit > .vls-prev { overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--background-modifier-border); }
+    .vls-edsplit > .vls-prev > .vls-demo { zoom: 1; width: auto; max-width: none; }
+}

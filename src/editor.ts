@@ -1,7 +1,7 @@
 import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
-import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS } from "./render";
+import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
 import { canUngroup, ungroupBlock } from "./flatten";
@@ -14,7 +14,7 @@ import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ra
 // Keys: arrows nudge 1 px (shift 4), Delete, Ctrl+Z / Ctrl+Shift+Z, Ctrl+D duplicate, Ctrl+S save, Esc goes up a level (never out of the editor).
 // Unsaved work is kept on the device (Obsidian's local storage, per vault) until saved into the note.
 // ui: the editor's own colours that differ from Obsidian's; onFolder: the editor switched to another app's folder
-export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string>; onFolder?: (dir: string) => void }
+export interface VellumHost { theme?: Partial<Theme>; kinds?: Kind[]; ui?: Record<string, string>; mode?: "light" | "dark"; onFolder?: (dir: string) => void }
 
 // snapping while dragging / resizing: to the grid, and (on) to the edges and middles of the frame (an item's block, a
 // block's screen and safe area), margin lines inside it and the other items / blocks; Alt: none (1 px). Set in the plugin's
@@ -309,9 +309,18 @@ class Editor {
     paintLook(e: HTMLElement) {
         for (const c of Object.keys(this.theme.colors)) e.style.setProperty(`--vl-${c}`, this.theme.colors[c]);
         const obsidian = getComputedStyle(e.doc.body), own = e === this.root;   // (only the editor takes the colours; a note's preview just the copies)
+        // the editor's colours go on its tab (the view's header with them: the back and forward row), or on the editor alone
+        // when it lies over the app (a phone)
+        const at = own ? e.closest<HTMLElement>(".workspace-leaf-content") ?? e : null;
+        // a theme of the other kind than Obsidian's (Dark in a light Obsidian): the editor takes Obsidian's own light or
+        // dark variables too, so the controls the theme doesn't name (buttons, menus, scrollbars) match it
+        if (at) {
+            at.toggleClass("theme-dark", this.host.mode === "dark"); at.toggleClass("theme-light", this.host.mode === "light");
+            for (const [name, v] of Object.entries(UI_DERIVED)) { if (this.host.mode) at.style.setProperty(name, v); else at.style.removeProperty(name); }
+        }
         for (const u of UI_COLORS) for (const name of u.vars) {
-            if (this.ui[u.id]) { e.style.setProperty(`--vlr${name}`, obsidian.getPropertyValue(name).trim()); if (own) e.style.setProperty(name, this.ui[u.id]); }
-            else { e.style.removeProperty(`--vlr${name}`); if (own) e.style.removeProperty(name); }
+            if (this.ui[u.id]) { e.style.setProperty(`--vlr${name}`, obsidian.getPropertyValue(name).trim()); at?.style.setProperty(name, this.ui[u.id]); }
+            else { e.style.removeProperty(`--vlr${name}`); at?.style.removeProperty(name); }
         }
     }
     // the app theme on show: the switch's, else the doc's ("auto": as Obsidian is light or dark)

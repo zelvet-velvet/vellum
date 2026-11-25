@@ -3,7 +3,7 @@ import { EDIT_DEFAULT, EditCfg, FIXED_KEYS, KEY_ACTIONS, comboOf, keyOf, keyText
 import { getLocal, setLocal, useApp } from "./local";
 import { coloursOfDoc, Doc, docColours, hasAuto } from "./model";
 import { NewsModal, newsSince } from "./news";
-import { BASE_THEME, Theme, UI_COLORS } from "./render";
+import { BASE_THEME, EDITOR_THEMES, modeOf, Theme, UI_COLORS } from "./render";
 import { ungroupBlock } from "./flatten";
 import { FolderStore, pageText, storeHooks } from "./store";
 import { refreshGuides, writeGuide, writeSkill } from "./guide";
@@ -16,14 +16,23 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // folder: the screens the ribbon button opens (one JSON file per screen); made on the first save
 // snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
 // edit: number boxes (the arrows' step, hold-and-drag)
-// ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
-const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, measure: { ...MEASURE_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
+// ui: the editor's own colours that differ from Obsidian's (the rest follow it), the Obsidian chip of Editor theme;
+// uiThemes: the editor's named themes (Ledgerline light and dark to start), uiTheme the one in use ("": Obsidian); colors: the phones' named colours
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; uiThemes: Record<string, Record<string, string>>; uiTheme: string; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, uiThemes: structuredClone(EDITOR_THEMES), uiTheme: "", fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, measure: { ...MEASURE_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
 
 // the folder a path is in; none at the vault's root
 const parentOf = (path: string) => { const i = path.lastIndexOf("/"); return i > 0 ? path.slice(0, i) : null; };
 
 // the saved measure settings, only the ones there are now (older versions kept more)
+// the editor theme in use: its name ("": Obsidian), its colours (the Obsidian chip's under a theme's own) and whether it
+// is light or dark (none for Obsidian's: the editor is as Obsidian is)
+const uiColoursOf = (s: Settings, name: string) => (name && s.uiThemes[name] ? { ...s.ui, ...s.uiThemes[name] } : s.ui);
+const uiInUse = (s: Settings) => {
+    const name = s.uiTheme in s.uiThemes ? s.uiTheme : "";
+    const ui = uiColoursOf(s, name);
+    return { name, ui, mode: name ? modeOf(ui) : undefined };
+};
 const measureOf = (m?: Partial<MeasureCfg>): MeasureCfg => {
     const o = { ...MEASURE_DEFAULT };
     for (const key of Object.keys(o) as (keyof MeasureCfg)[]) if (m?.[key] !== undefined) (o as Record<string, unknown>)[key] = m[key];
@@ -33,12 +42,12 @@ export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, measure: measureOf(saved?.measure), edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, uiThemes: saved?.uiThemes ? { ...saved.uiThemes } : structuredClone(EDITOR_THEMES), uiTheme: saved?.uiTheme ?? "", fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, measure: measureOf(saved?.measure), edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
         useApp(this.app);
         addIcon("vellum", ICON);
-        registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }));
+        registerVellum(this, () => { const t = uiInUse(this.settings); return { theme: this.theme(), ui: t.ui, mode: t.mode, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }; });
         // Obsidian's theme changed: the screens' copies of its colours need its new values
-        this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); else refreshAuto(); }));
+        this.registerEvent(this.app.workspace.on("css-change", () => { if (this.settings.uiTheme || Object.keys(this.settings.ui).length) refreshLook(); else refreshAuto(); }));
         setSnap(this.settings.snap, () => { void this.save(); });
         setEdit(this.settings.edit);
         setMeasure(this.settings.measure);
@@ -212,16 +221,17 @@ class VellumSettings extends PluginSettingTab {
     // saved and shown a moment after the last change (a drag in the colour picker makes many)
     lookT = 0;
     queueLook() { window.clearTimeout(this.lookT); this.lookT = window.setTimeout(() => { this.save(); refreshLook(); }, 120); }
-    hide() { this.pickerOff?.(); super.hide(); }
+    hide() { this.pickerOff?.(); this.uiDrafts.clear(); super.hide(); }
     syncs: (() => void)[] = [];
     // a list of colours: a tile (Vellum's picker), the name, the value ("Obsidian" while it follows), a way back. Follow Obsidian
     // sets the list back, with an undo; rules: pairs [text, background, least contrast, name] that warn on the text's row
     // from: where a colour comes from while it is not set ("Obsidian", or "the settings" for an app's own)
-    swatches(body: HTMLElement, blurb: string, pages: [string, [string, Swatch[]][]][], rules: [string, string, number, string][], changed: () => void, demo: HTMLElement, from = "Obsidian") {
+    swatches(body: HTMLElement, blurb: string, pages: [string, [string, Swatch[]][]][], rules: [string, string, number, string][], changed: () => void, demo: HTMLElement, from = "Obsidian", followAll = true) {
         const bar = body.createDiv({ cls: "vls-colbar" }), msg = bar.createSpan({ text: blurb });
         const undo = bar.createEl("button", { text: "Undo" }); undo.hide();
         const follow = bar.createEl("button", { cls: "vls-follow", attr: { "aria-label": `Every colour back to ${from}` } });
         setIcon(follow.createSpan({ cls: "vls-tabi" }), "rotate-ccw"); follow.createSpan({ text: `Follow ${from}` });
+        if (!followAll) follow.hide();
         const sum = body.closest(".vls-card")?.querySelector(".vls-sum");
         const rows = new Map<string, { e: Swatch; chip: HTMLElement; paint: () => void; warn: HTMLElement; field: HTMLElement }>();
         // pages of colours, ‹ › between them (one page: no arrows)
@@ -398,14 +408,19 @@ class VellumSettings extends PluginSettingTab {
         const body = div(d, "vlsd-body");
         const rail = div(body, "vlsd-rail is-area", "", "panels border");
         div(rail, "vlsd-h", "Screens · 6", "faint");
-        div(rail, "vlsd-r", "Home", "text"); div(rail, "vlsd-r is-sub", "Search", "muted"); div(rail, "vlsd-r is-on", "Plans", "accent"); div(rail, "vlsd-r is-sub is-mock", "Plans B · mock", "mock"); div(rail, "vlsd-r", "Detail", "hover text").setAttr("data-state", "hover"); div(rail, "vlsd-r", "Settings", "text");
+        div(rail, "vlsd-r", "Home", "text"); div(rail, "vlsd-r is-sub", "Search", "muted"); div(rail, "vlsd-r is-on", "Plans", "accent"); div(rail, "vlsd-r is-sub is-mock", "Plans B · mock", "mock"); div(rail, "vlsd-r", "Detail", "hover text").setAttr("data-state", "hover"); div(rail, "vlsd-r is-sub is-changed", "Log · changed", "changed");
         // the device, at the rail's foot: a side area with a button in the panels' colour
         const foot = div(rail, "vlsd-rfoot is-area", "", "device border");
         div(foot, "vlsd-h", "Device", "faint");
         const dv = div(foot, "vlsd-dev", "", "panels border");
         dv.createSpan({ text: "iPhone 16", attr: { "data-use": "text" } }); dv.createSpan({ text: "Phone", attr: { "data-use": "muted" } });
         const stage = div(body, "vlsd-stage is-area", "", "side");
-        this.phoneArt(div(stage, "vlsd-phone"), true);
+        // no phone on the stage: a screen's colours are the app's, not the editor's. What the editor draws there instead: the
+        // screen's outline, a chosen block and its handle, a snap guide, a measured gap
+        const frame = div(stage, "vlsd-frame", "", "border");
+        div(frame, "vlsd-fg", "", "guide");
+        div(div(frame, "vlsd-blk", "", "accent"), "vlsd-grip", "", "accent");
+        div(frame, "vlsd-ms", "", "measure").createSpan({ text: "16" });
         const side = div(body, "vlsd-side is-area", "", "panels border");
         div(side, "vlsd-h", "Block", "faint");
         const label = (t: string) => { const f = div(side, ""); f.createSpan({ text: t, attr: { "data-use": "muted" } }); return f; };
@@ -422,13 +437,72 @@ class VellumSettings extends PluginSettingTab {
         return d;
     }
     paintDemo(d: HTMLElement, over?: Record<string, string>) {
-        const s = this.plugin.settings, obsidian = getComputedStyle(d.doc.body);
-        for (const u of UI_COLORS) for (const name of u.vars) { if (s.ui[u.id]) d.style.setProperty(name, s.ui[u.id]); else d.style.removeProperty(name); }
+        const s = this.plugin.settings, obsidian = getComputedStyle(d.doc.body), shown = this.uiShown(), draft = this.uiDrafts.get(shown), ui = draft ? (shown ? { ...s.ui, ...draft } : draft) : uiColoursOf(s, shown);
+        for (const u of UI_COLORS) for (const name of u.vars) { if (ui[u.id]) d.style.setProperty(name, ui[u.id]); else d.style.removeProperty(name); }
         // the phone is in Obsidian's colours whatever the editor's are
         for (const name of Object.keys(DEFAULTS.colors)) d.style.setProperty(`--vls-${name}`, (over?.[name] ?? s.colors[name]).replace(/var\((--[\w-]+)[^)]*\)/g, (_, v: string) => obsidian.getPropertyValue(v).trim()));
     }
     // a colour card's preview on top, its colours under it
     stack(body: HTMLElement) { return [body.createDiv({ cls: "vls-prev" }), body.createDiv({ cls: "vls-list" })]; }
+    // ---- Editor theme: Obsidian's colours (and changes to them), or a theme of the editor's own, as chips. A click on a chip
+    // uses it and shows its colours under the preview
+    uiPart: string | undefined;   // the chip shown (a theme's name; "" Obsidian): the one in use until another is clicked
+    uiDrafts = new Map<string, Record<string, string>>();   // a chip's colours changed and not saved yet, by its name ("": Obsidian)
+    uiShown() { const s = this.plugin.settings, p = this.uiPart ?? s.uiTheme; return p in s.uiThemes ? p : ""; }
+    editorTheme(c: HTMLElement) {
+        const s = this.plugin.settings, themes = s.uiThemes, names = Object.keys(themes), part = this.uiShown();
+        const card = c.createDiv({ cls: "vls-card vls-studio is-editor" });
+        const bar = card.createDiv({ cls: "vls-sbar" });
+        const use = (k: string) => { s.uiTheme = k; this.uiPart = k; this.queueLook(); this.display(); };
+        this.themeChips(bar, names, part, {
+            tip: "Your Obsidian theme's colours, with any you change here",
+            taken: (n) => n in themes,
+            pick: use,
+            rename: (n, to) => {
+                s.uiThemes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v]));
+                if (s.uiTheme === n) s.uiTheme = to;
+                const d = this.uiDrafts.get(n); if (d) { this.uiDrafts.delete(n); this.uiDrafts.set(to, d); }
+                this.uiPart = to; this.queueLook(); this.display();
+            },
+            copy: (n, to) => { themes[to] = { ...themes[n] }; use(to); },
+            drop: (n) => { delete themes[n]; this.uiDrafts.delete(n); if (s.uiTheme === n) s.uiTheme = ""; this.uiPart = undefined; this.queueLook(); this.display(); },
+            // a new theme starts as the colours shown now
+            add: (n) => { themes[n] = { ...uiColoursOf(s, part), ...this.uiDrafts.get(part) }; use(n); },
+        });
+        // the preview stays in view (on top, or on the left on a wide pane); the colours, by group, scroll on their own
+        c.addClass("is-fill");
+        const split = card.createDiv({ cls: "vls-edsplit" });
+        const edPrev = split.createDiv({ cls: "vls-prev" }), edList = split.createDiv({ cls: "vls-list" });
+        const edDemo = this.demo(edPrev);
+        // changes are a draft (the preview shows it) until Save; Reset drops it. Unset colours of a theme: as the Obsidian chip
+        const saved = () => (part ? themes[part] ?? {} : s.ui);
+        const pal = (): Record<string, string> => { let d = this.uiDrafts.get(part); if (!d) this.uiDrafts.set(part, (d = { ...saved() })); return d; };
+        let state = () => {};
+        const changed = () => {
+            const d = this.uiDrafts.get(part);
+            if (d && JSON.stringify(Object.entries(d).sort()) === JSON.stringify(Object.entries(saved()).sort())) this.uiDrafts.delete(part);
+            for (const f of this.syncs) f(); this.paintDemo(edDemo); state();
+        };
+        const groups = [...new Set(UI_COLORS.map((u) => u.group))].map((g): [string, Swatch[]] => [g, UI_COLORS.filter((u) => u.group === g).map((u) => ({
+            key: u.id, name: u.name, follow: (part ? s.ui[u.id] : undefined) ?? u.follow ?? `var(${u.vars[0]})`,
+            get: () => (this.uiDrafts.get(part) ?? saved())[u.id], set: (v) => { if (v) pal()[u.id] = v; else delete pal()[u.id]; },   // (reading starts no draft)
+        }))]);
+        const blurb = part ? "Unset ones: as the Obsidian chip." : "Point at one to see it.";
+        this.swatches(edList, blurb, [["", groups]],
+            [["text", "panels", 4.5, "Panels"], ["text", "field", 4.5, "Input boxes"], ["muted", "panels", 3, "Panels"], ["onaccent", "accent", 3, "Accent"]], changed, edDemo, "Obsidian", !part);
+        const cb = edList.querySelector<HTMLElement>(".vls-colbar")!, msg = cb.firstElementChild as HTMLElement;
+        const reset = cb.createEl("button", { text: "Reset", attr: { "aria-label": "Back to the colours last saved" } });
+        const save = cb.createEl("button", { cls: "mod-cta", text: "Save" });
+        state = () => { const on = this.uiDrafts.has(part); reset.toggle(on); save.toggle(on); if (on) msg.setText("Colours changed"); else if (msg.getText() === "Colours changed") msg.setText(blurb); };
+        reset.addEventListener("click", () => { this.uiDrafts.delete(part); this.display(); });
+        save.addEventListener("click", () => {
+            const d = this.uiDrafts.get(part); if (!d) return;
+            if (part) themes[part] = d; else s.ui = d;
+            this.uiDrafts.delete(part); this.queueLook(); this.display();
+        });
+        state();
+        this.paintDemo(edDemo);
+    }
     // ---- Screen colours: every app's (the settings), or one app's own (its _doc.json: colors, themes, theme), chosen at the top
     appDir = getLocal(APP_KEY) ?? "";   // "": every app
     appData: { dir: string; meta: Record<string, unknown> } | null = null;
@@ -497,6 +571,57 @@ class VellumSettings extends PluginSettingTab {
             if (f instanceof TFile) void this.app.vault.modify(f, text); else new Notice(`Vellum: ${path} is gone; not written`);
         }, 300);
     }
+    // a bar's theme chips: Obsidian, then each theme (a click on the one shown opens its menu: rename, copy, delete), + a new
+    // one of any name. Shared by Screen colours (an app's themes) and Editor theme
+    themeChips(bar: HTMLElement, names: string[], part: string, o: { tip: string; taken: (n: string) => boolean; pick: (key: string) => void; rename: (n: string, to: string) => void; copy: (n: string, to: string) => void; drop: (n: string) => void; add: (n: string) => void }) {
+        const taken = (n: string) => !n || n === "Obsidian" || o.taken(n);
+        const tg = bar.createDiv({ cls: "vls-sgrp is-themes" });
+        tg.createSpan({ cls: "vls-slabel", text: "Theme" });
+        const chips = tg.createDiv({ cls: "vls-chips" });
+        // a chip turned into a field for a name: Enter or a click elsewhere keeps it, Esc puts it back
+        const field = (at: HTMLElement, value: string, done: (v: string) => void) => {
+            const i = createEl("input", { cls: "vls-chipin", attr: { type: "text", spellcheck: "false", placeholder: "Theme name" } });
+            i.value = value; at.replaceWith(i); i.focus(); i.select();
+            let over = false;
+            const end = (keep: boolean) => {
+                if (over) return; over = true;
+                const v = i.value.trim();
+                if (!keep || !v || v === value) { this.display(); return; }
+                if (taken(v)) { new Notice(`Vellum: ${v} is taken`); this.display(); return; }
+                done(v);
+            };
+            i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
+            i.addEventListener("blur", () => end(true));
+        };
+        const chip = (label: string, key: string) => {
+            const b = chips.createEl("button", { cls: "vls-pill" + (part === key ? " is-on" : ""), text: label });
+            if (key === "") b.setAttr("aria-label", o.tip);
+            b.addEventListener("click", () => { if (part !== key) o.pick(key); });
+            return b;
+        };
+        chip("Obsidian", "");
+        for (const n of names) {
+            const b = chip(n, n);
+            if (part !== n) continue;
+            // the theme shown: a click on it again opens its menu
+            const chev = b.createSpan({ cls: "vls-pillx" }); setIcon(chev, "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
+            b.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (Date.now() - this.chipHid < 300) return;   // the press that closed it: a toggle, not open again
+                const m = new Menu();
+                setIcon(chev, "chevron-up"); b.addClass("is-open");
+                m.onHide(() => { this.chipHid = Date.now(); setIcon(chev, "chevron-down"); b.removeClass("is-open"); });
+                m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => o.rename(n, to))));
+                m.addItem((i) => i.setTitle("Copy").setIcon("copy").onClick(() => { let c = `${n} copy`, k = 2; while (taken(c)) c = `${n} copy ${k++}`; o.copy(n, c); }));
+                m.addItem((i) => i.setTitle("Delete").setIcon("trash-2").onClick(() => o.drop(n)));
+                const r = b.getBoundingClientRect();
+                m.showAtPosition({ x: r.left, y: r.bottom + 4 }, b.doc);
+            });
+        }
+        const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
+        plus.addEventListener("click", () => field(plus, "", o.add));
+        return tg;
+    }
     // one app: its themes (chips, the one it opens in, a name, a copy, gone), then the colours of the theme shown beside a phone
     // one app: its themes as chips in the bar (Obsidian: the colours of every app; ⋯ on the one shown renames, copies or
     // deletes it; + a new one of any name), the one it opens in, then the colours of the theme shown. The same parts as
@@ -514,61 +639,24 @@ class VellumSettings extends PluginSettingTab {
             tmp.remove();
             return o;
         };
-        const taken = (n: string) => !n || n in themes || n === "auto" || n === "Obsidian";
-        const tg = bar.createDiv({ cls: "vls-sgrp is-themes" });
-        tg.createSpan({ cls: "vls-slabel", text: "Theme" });
-        const chips = tg.createDiv({ cls: "vls-chips" });
-        // a chip turned into a field for a name: Enter keeps it, Esc puts it back
-        const field = (at: HTMLElement, value: string, done: (v: string) => void) => {
-            const i = createEl("input", { cls: "vls-chipin", attr: { type: "text", spellcheck: "false", placeholder: "Theme name" } });
-            i.value = value; at.replaceWith(i); i.focus(); i.select();
-            let over = false;
-            const end = (keep: boolean) => {
-                if (over) return; over = true;
-                const v = i.value.trim();
-                if (!keep || !v || v === value) { this.display(); return; }
-                if (taken(v)) { new Notice(`Vellum: ${v} is taken`); this.display(); return; }
-                done(v);
-            };
-            i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); end(true); } if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } });
-            i.addEventListener("blur", () => end(true));
-        };
-        const chip = (label: string, key: string) => {
-            const b = chips.createEl("button", { cls: "vls-pill" + (part === key ? " is-on" : ""), text: label });
-            if (key === "") b.setAttr("aria-label", LOOK_WORDS.obsidian);
-            b.addEventListener("click", () => { if (part !== key) { this.appPart = key; this.display(); } });
-            return b;
-        };
-        chip("Obsidian", "");
-        for (const n of names) {
-            const b = chip(n, n);
-            if (part !== n) continue;
-            // the theme shown: a click on it again opens its menu
-            const chev = b.createSpan({ cls: "vls-pillx" }); setIcon(chev, "chevron-down"); b.setAttr("aria-label", `${n}: rename, copy or delete`);
-            b.addEventListener("click", (e) => {
-                e.stopPropagation();
-                if (Date.now() - this.chipHid < 300) return;   // the press that closed it: a toggle, not open again
-                const m = new Menu();
-                setIcon(chev, "chevron-up"); b.addClass("is-open");
-                m.onHide(() => { this.chipHid = Date.now(); setIcon(chev, "chevron-down"); b.removeClass("is-open"); });
-                m.addItem((i) => i.setTitle("Rename").setIcon("pencil").onClick(() => field(b, n, (to) => {
-                    d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v]));
-                    if (d.theme === n) d.theme = to;
-                    this.appPart = to; save();
-                })));
-                m.addItem((i) => i.setTitle("Copy").setIcon("copy").onClick(() => { let c = `${n} copy`, k = 2; while (c in themes) c = `${n} copy ${k++}`; d.themes = { ...themes, [c]: { ...themes[n] } }; this.appPart = c; save(); }));
-                m.addItem((i) => i.setTitle("Delete").setIcon("trash-2").onClick(() => {
-                    const rest = { ...themes }; delete rest[n];
-                    if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
-                    if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
-                    this.appPart = undefined; save();
-                }));
-                const r = b.getBoundingClientRect();
-                m.showAtPosition({ x: r.left, y: r.bottom + 4 }, b.doc);
-            });
-        }
-        const plus = chips.createEl("button", { cls: "vls-pill is-add", attr: { "aria-label": LOOK_WORDS.fresh } }); setIcon(plus, "plus");
-        plus.addEventListener("click", () => field(plus, "", (n) => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; this.appPart = n; save(); }));
+        this.themeChips(bar, names, part, {
+            tip: LOOK_WORDS.obsidian,
+            taken: (n) => n in themes || n === "auto",
+            pick: (k) => { this.appPart = k; this.display(); },
+            rename: (n, to) => {
+                d.themes = Object.fromEntries(Object.entries(themes).map(([k, v]) => [k === n ? to : k, v]));
+                if (d.theme === n) d.theme = to;
+                this.appPart = to; save();
+            },
+            copy: (n, to) => { d.themes = { ...themes, [to]: { ...themes[n] } }; this.appPart = to; save(); },
+            drop: (n) => {
+                const rest = { ...themes }; delete rest[n];
+                if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
+                if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
+                this.appPart = undefined; save();
+            },
+            add: (n) => { d.themes = { ...themes, [n]: part ? { ...docColours(d, part) } : seed() }; this.appPart = n; save(); },
+        });
         const og = createDiv({ cls: "vls-sgrp" });   // into the colours' bar below, once it is drawn
         if (names.length) {
             og.createSpan({ cls: "vls-slabel", text: "Default theme" });
@@ -617,8 +705,9 @@ class VellumSettings extends PluginSettingTab {
         this.tabBar(root, tab);
         // the tab's own part scrolls, under the tiles; it reaches the pane's right and bottom edge through the pane's
         // padding (whatever Obsidian or a theme makes it), so its scrollbar sits where the pane's would
-        const pad = root.win.getComputedStyle(root);
-        root.setCssProps({ "--vls-pr": pad.paddingRight, "--vls-pb": pad.paddingBottom });
+        // (the first time the pane opens it is not on the page yet and has no padding to read: read it again once it is)
+        const pads = () => { const pad = root.win.getComputedStyle(root); root.setCssProps({ "--vls-pr": pad.paddingRight, "--vls-pb": pad.paddingBottom }); };
+        pads(); root.win.requestAnimationFrame(pads);
         const c = root.createDiv({ cls: "vls-scroll" });
         const bar = root.querySelector(".vls-tabs");
         c.addEventListener("scroll", () => bar?.toggleClass("is-stuck", c.scrollTop > 2), { passive: true });
@@ -708,15 +797,7 @@ class VellumSettings extends PluginSettingTab {
         } else if (tab === "keys") {
             this.keys(c);
         } else if (tab === "editor") {
-            // the editor's own colours, in one view: the preview on top, every colour under it in columns
-            const card = c.createDiv({ cls: "vls-card vls-studio is-editor" });
-            const [edPrev, edList] = this.stack(card);
-            const edDemo = this.demo(edPrev);
-            const changed = () => { for (const f of this.syncs) f(); this.paintDemo(edDemo); this.queueLook(); };
-            const list: Swatch[] = UI_COLORS.map((u) => ({ key: u.id, name: u.name, follow: u.follow ?? `var(${u.vars[0]})`, get: () => s.ui[u.id], set: (v) => { if (v) s.ui[u.id] = v; else delete s.ui[u.id]; } }));
-            this.swatches(edList, "Point at one to see it above.", [["", [["", list]]]],
-                [["text", "panels", 4.5, "Panels"], ["text", "field", 4.5, "Input boxes"], ["muted", "panels", 3, "Panels"], ["onaccent", "accent", 3, "Accent"]], changed, edDemo);
-            this.paintDemo(edDemo);
+            this.editorTheme(c);
         } else if (tab === "screens") {
             this.screenColours(c);
         } else {
@@ -734,7 +815,7 @@ class VellumSettings extends PluginSettingTab {
             }
 
         }
-        if (tab === "general" || tab === "snapping" || tab === "measure" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look)
+        if (tab === "general" || tab === "snapping" || tab === "measure" || tab === "editor" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look; Editor theme: its own Reset and Follow Obsidian)
         // back to the theme
         const foot = c.createDiv({ cls: "vls-foot" });
         foot.createSpan({ text: "Back to Obsidian's colours and fonts." });

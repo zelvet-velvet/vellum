@@ -34,6 +34,41 @@ export const UI_COLORS: { id: string; name: string; group: string; vars: string[
     { id: "changed", name: "Changed screens", group: "Signals", vars: ["--vlu-changed"], follow: "var(--color-cyan, #00bfbc)" },   // a screen the agent changed, waiting for Keep or Undo
 ];
 
+// the editor themes Vellum starts with (Settings → Editor theme), beside Obsidian's own: Light and Dark, Ledgerline's warm
+// paper and charcoal with its one loud colour, as in the README's pictures. Colours a theme leaves out follow the Obsidian chip
+export const EDITOR_THEMES: Record<string, Record<string, string>> = {
+    Light: {
+        panels: "#ECE9E1", side: "#E3DFD5", hover: "#1C1B1914", device: "#E3DFD5", field: "#F6F3EC",
+        border: "#D5D1C7", borderh: "#6D6A63", text: "#1C1B19", muted: "#6D6A63", faint: "#8C887F", onaccent: "#F6F3EC",
+        accent: "#E8461F", accenth: "#D13C17", red: "#C4314B",
+    },
+    Dark: {
+        panels: "#1F1F22", side: "#18181B", hover: "#E6E3DC14", device: "#18181B", field: "#18181B",
+        border: "#36363B", borderh: "#96969B", text: "#E6E3DC", muted: "#96969B", faint: "#77777C", onaccent: "#1F1F22",
+        accent: "#FF5C38", accenth: "#FF7552", red: "#E5484D",
+    },
+};
+// Obsidian works these out from its own colours once, on the page: with a theme of Vellum's they are worked out again on
+// the editor, from the theme's
+export const UI_DERIVED: Record<string, string> = {
+    "--background-primary-alt": "var(--background-secondary)", "--background-secondary-alt": "var(--background-secondary)",
+    "--interactive-normal": "color-mix(in srgb, var(--text-normal) 7%, var(--background-primary))",
+    "--interactive-hover": "color-mix(in srgb, var(--text-normal) 12%, var(--background-primary))",
+    "--background-modifier-active-hover": "color-mix(in srgb, var(--interactive-accent) 15%, transparent)",
+    "--icon-color": "var(--text-muted)", "--icon-color-hover": "var(--text-normal)", "--icon-color-active": "var(--interactive-accent)", "--icon-color-focused": "var(--text-normal)",
+    "--text-accent": "var(--interactive-accent)", "--text-accent-hover": "var(--interactive-accent-hover)",
+    "--text-selection": "color-mix(in srgb, var(--interactive-accent) 30%, transparent)",
+    "--scrollbar-bg": "transparent", "--scrollbar-thumb-bg": "color-mix(in srgb, var(--text-normal) 16%, transparent)",
+    "--scrollbar-active-thumb-bg": "color-mix(in srgb, var(--text-normal) 28%, transparent)",
+    "--background-modifier-border-focus": "var(--text-muted)", "--caret-color": "var(--text-normal)",
+};
+// light or dark, by how bright a theme's panels are (a colour not in hex: unknown)
+export const modeOf = (ui: Record<string, string>): "light" | "dark" | undefined => {
+    const m = /^#([0-9a-f]{6})/i.exec(ui.panels ?? ""); if (!m) return undefined;
+    const n = parseInt(m[1], 16), y = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+    return y < 128 ? "dark" : "light";
+};
+
 export const BASE_KINDS: Kind[] = [
     { id: "hero", icon: "hash", name: "summary / number", color: "var(--color-blue)" },
     { id: "nav", icon: "heading", name: "title / nav", color: "var(--text-faint)" },
