@@ -1180,12 +1180,14 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-fold > .vls-body { border-top: 1px solid var(--vls-line); }
 .vls-advback { justify-content: flex-end; }
 
-/* the pointer on a colour in the Colours window: what uses it outlined, the rest of the screen faded */
+/* the pointer on a colour in the Colours window: a text's colour, a border or a line using it outlined; a fill using it
+   (a block's, the screen's, a shape's, a row's) striped where it shows: the stripes sit over its own background and under what it holds
+   (z-index -1 in its own stacking), so what covers the fill hides them. The rest of the screen faded */
 .vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
-.vl-screen.vl-cfocus [data-id]:not(.is-cuse):not(:has(.is-cuse)) { opacity: 0.25; }
-.vl-screen.vl-cfocus [data-id].is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); opacity: 1; }
-/* a block or the screen's background: light stripes on it (an outline round a whole block read as chosen), under its
-   items and blocks (z-index -1 in its own stacking: over its background, under what it holds), so only the colour that
-   shows is striped */
-.vl-screen.vl-cfocus [data-block].is-cuse::after, .vl-screen.vl-cfocus.is-cuse::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
+.vl-screen.vl-cfocus [data-id]:not(.is-cuse, .is-cfill):not(:has(.is-cuse, .is-cfill)) { opacity: 0.25; }
+.vl-screen.vl-cfocus .is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); }
+.vl-screen.vl-cfocus [data-block].is-cuse { outline-offset: calc(-2px * var(--vl-iz, 1)); }   /* a block's border: inside it (past its edge is cut off) */
+.vl-screen.vl-cfocus .is-cfill { isolation: isolate; }
+.vl-screen.vl-cfocus .vl-it.is-cfill:not(.is-abs) { position: relative; }   /* in a row: still in its place, now holding the stripes */
+.vl-screen.vl-cfocus .is-cfill::after, .vl-screen.vl-cfocus.is-cfill::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
     background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }

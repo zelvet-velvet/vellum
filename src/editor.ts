@@ -116,14 +116,14 @@ const insideBox = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L 
 // (only where it is written: a default, text's "text" or a border's "line", follows the name anyway). kinds: the uses by
 // what they colour; at: each use, for the outline on the screens. A default counts as a use: it draws in that colour
 const COLOUR_KINDS = ["Text", "Blocks", "Shapes", "Lines", "Screens", "Notes"] as const;
-const colourUses = (d: Doc, name: string, to?: string, at?: (page: string, el: { block?: string; item?: string }) => void) => {
+const colourUses = (d: Doc, name: string, to?: string, at?: (page: string, el: { block?: string; item?: string }, fill: boolean) => void) => {
     let n = 0; const screens = new Set<string>(), kinds: Record<string, number> = {};
-    // [field, kind, default when unset]
+    // [field, kind, default when unset]; at hears whether the use is a fill (not a text's colour, a border or a line)
     const hit = (o: object, keys: [string, string, string?][], page?: string, el?: { block?: string; item?: string }) => {
         const r = o as Record<string, unknown>;
         for (const [k, kind, def] of keys) {
             if ((r[k] ?? def) !== name) continue;
-            n++; kinds[kind] = (kinds[kind] ?? 0) + 1; if (page) { screens.add(page); if (el) at?.(page, el); }
+            n++; kinds[kind] = (kinds[kind] ?? 0) + 1; if (page) { screens.add(page); if (el) at?.(page, el, k === "fill" && kind !== "Lines"); }
             if (to !== undefined && r[k] === name) r[k] = to;
         }
     };
@@ -138,7 +138,7 @@ const colourUses = (d: Doc, name: string, to?: string, at?: (page: string, el: {
     };
     if (d.bar) hit(d.bar, [["fill", "Screens"], ["ink", "Screens"]]);
     for (const p of d.pages) {
-        if ((bgOf(d.pages, p) ?? "paper") === name) { n++; kinds.Screens = (kinds.Screens ?? 0) + 1; screens.add(p.id); at?.(p.id, {}); }
+        if ((bgOf(d.pages, p) ?? "paper") === name) { n++; kinds.Screens = (kinds.Screens ?? 0) + 1; screens.add(p.id); at?.(p.id, {}, true); }
         if (to !== undefined && p.bg === name) p.bg = to;
         for (const b of [...p.blocks, ...(p.land ?? [])]) { hit(b, [["fill", "Blocks"], ["stroke", "Blocks", b.sw ? "line" : undefined]], p.id, { block: b.id }); items(b.items, p.id, b.id); }
         for (const m of p.marks ?? []) hit(m, [["color", "Notes"]], p.id);
@@ -1250,16 +1250,18 @@ class Editor {
     // the file (not the drawn colours): a name, not whatever else happens to look the same
     colourSpot(name: string | null) {
         const w = this.wall; if (!w) return;
-        w.querySelectorAll(".is-cuse").forEach((el) => el.removeClass("is-cuse"));
+        w.querySelectorAll(".is-cuse, .is-cfill").forEach((el) => el.removeClass("is-cuse", "is-cfill"));
         w.querySelectorAll(".vl-cfocus").forEach((el) => el.removeClass("vl-cfocus"));
         if (!name) return;
         const shown = new Map<string, HTMLElement>();
         w.querySelectorAll<HTMLElement>(".vl-screen[data-page]").forEach((scr) => shown.set(scr.dataset.page ?? "", scr));
-        colourUses(this.doc, name, undefined, (page, el) => {
+        // a fill (a block's, the screen's, a shape's, a row's) striped where it shows; a text's colour, a border or a
+        // line outlined
+        colourUses(this.doc, name, undefined, (page, el, fill) => {
             const scr = shown.get(page); if (!scr) return;
             const bEl = el.block ? scr.querySelector(`[data-block="${el.block}"]`) : null;
             const t = el.item ? bEl?.querySelector(`[data-id="${el.item}"]`) : el.block ? bEl : scr;
-            if (t) { t.addClass("is-cuse"); scr.addClass("vl-cfocus"); }
+            if (t) { t.addClass(fill ? "is-cfill" : "is-cuse"); scr.addClass("vl-cfocus"); }
         });
     }
     // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
