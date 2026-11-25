@@ -79,6 +79,19 @@ export class FolderStore {
         if (f instanceof TFile) await v.modify(f, text); else await v.create(path, text);
         await this.keep(id);
     }
+    // only the colours and themes into _doc.json (the Colours window's Save); the rest of the file as it is. No
+    // _doc.json yet (an app never saved): the whole app is saved, as its first save would
+    async saveColours(doc: Doc): Promise<void> {
+        const v = this.app.vault, m = v.getAbstractFileByPath(`${this.dir}/${DOC}`);
+        if (!(m instanceof TFile)) return this.save(doc);
+        this.ownUntil = Date.now() + 2000;
+        let meta: Record<string, unknown> = {};
+        try { meta = JSON.parse(await v.read(m)) as Record<string, unknown>; } catch { /* a broken file: written anew from the doc */ meta = { id: doc.id, device: doc.device, order: doc.pages.map((p) => p.id) }; }
+        meta.colors = doc.colors; meta.themes = doc.themes; meta.theme = doc.theme;
+        const text = JSON.stringify(meta, null, 2) + "\n";
+        if ((await v.read(m)) !== text) await v.modify(m, text);
+        this.ownUntil = Date.now() + 1500;
+    }
     async save(doc: Doc): Promise<void> {
         const v = this.app.vault;
         this.ownUntil = Date.now() + 2000;

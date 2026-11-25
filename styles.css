@@ -1199,3 +1199,9 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen.vl-cfocus .vl-it.is-cfill:not(.is-abs) { position: relative; }   /* in a row: still in its place, now holding the stripes */
 .vl-screen.vl-cfocus .is-cfill::after, .vl-screen.vl-cfocus.is-cfill::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
     background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }
+/* the Colours window's bar: its own Save and Reset, once a colour or theme differs from the saved file */
+.vl-lookbar { display: none; }
+.vl-lookbar.is-on { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--background-modifier-border); background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); }
+.vl-lookbart { flex: 1; min-width: 0; font-size: var(--font-ui-small); color: var(--text-normal); }
+.vl .vl-lookbar button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; font-size: var(--font-ui-small); box-shadow: none; }
+.vl .vl-lookbar button svg { width: 14px; height: 14px; }
