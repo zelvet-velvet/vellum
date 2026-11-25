@@ -808,9 +808,16 @@ class Editor {
     // the Fit button and its key: in the Map, the chosen screen's row (Fit) or its whole tree (Full), whichever the button
     // shows; in Edit and Show, the screen fitted to the window
     fitKey() {
-        if (!this.v.map) { this.setView({ fit: true }); this.drawPages(); return; }
+        if (!this.v.map) { this.setView({ fit: true }); this.drawPages(); this.centrePhone(); return; }
         if (this.v.mapFit !== false) { if (this.current()) this.mapToCurrent(); }
         else { this.setView({ mapFit: true }); this.drawPages(); }
+    }
+    // Edit and Show: the stage scrolled so the screen is in its middle (as far as the stage's edges let it)
+    centrePhone() {
+        const w = this.wall, ph = w?.querySelector<HTMLElement>(".vl-phone"); if (!w || !ph) return;
+        const s = w.getBoundingClientRect(), r = ph.getBoundingClientRect();
+        w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
+        w.scrollTop += r.top + r.height / 2 - (s.top + (s.height - 64) / 2);   // clear of the pill
     }
     mapToCurrent() {
         const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
@@ -2023,6 +2030,7 @@ class Editor {
         if (ovOn) this.drawOv(scr, p, z);
         if (!show) this.spill(scr, p);
         if (!show && this.ov.notes) this.drawMarks(scr, p, z);
+        if (!show) this.roomAround(fig, phone);
         scr.toggleClass("is-marking", this.marking && !show);
         // pointer: choose and drag
         // no landscape layout yet (nor a frame's): one button to start it from the portrait one
@@ -2036,6 +2044,19 @@ class Editor {
         }
         if (!show) scr.addEventListener("pointerdown", (e) => this.down(e, p, scr));
         if (!show) scr.addEventListener("dblclick", (e) => this.typeInPlace(e, p));
+    }
+    // Edit: the stage scrolls as far as what sits past the screen (notes, areas, drafts, items out of their block): the
+    // page's padding grows by as much, the same on both sides, so the screen stays in the middle of what scrolls
+    roomAround(fig: HTMLElement, phone: HTMLElement) {
+        const pr = phone.getBoundingClientRect();
+        let x = 0, y = 0;
+        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block").forEach((el) => {
+            const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
+            x = Math.max(x, pr.left - q.left, q.right - pr.right); y = Math.max(y, pr.top - q.top, q.bottom - pr.bottom);
+        });
+        if (!x && !y) return;
+        const px = Math.max(24, Math.ceil(x) + 24), py = Math.ceil(y) + 24;
+        fig.style.padding = `${Math.max(24, py)}px ${px}px ${Math.max(80, py)}px`;
     }
     // the overlays over the screen; the vanishing points drag (the horizon goes with them)
     drawOv(scr: HTMLElement, p: Page, z: number) {
