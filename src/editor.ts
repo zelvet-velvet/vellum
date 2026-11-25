@@ -174,10 +174,12 @@ const MARK_MEANINGS: [string, string, string][] = [["yellow", "Remark", "message
 // (none: the right, top at the pin, as notes were before; the Right tile centres it as the others do)
 const NOTE_SIDES: Record<string, [number, number]> = { left: [-12, 0], right: [12, 0], above: [0, -14], below: [0, 14] };
 // which side a note's text box is on: by the larger of tx and ty (a tie: across)
-const sideOf = (tx: number, ty: number) => (Math.abs(tx) >= Math.abs(ty) ? (tx >= 0 ? "r" : "l") : ty >= 0 ? "b" : "t");
+// which side a note's text box hangs on: its side, else (tx ty alone, as an agent may write it) the larger of the two
+const SIDE_KEY = { left: "l", right: "r", above: "t", below: "b" } as const;
+const sideOf = (m: Mark) => { if (m.side) return SIDE_KEY[m.side]; const tx = m.tx ?? 0, ty = m.ty ?? 0; return Math.abs(tx) >= Math.abs(ty) ? (tx >= 0 ? "r" : "l") : ty >= 0 ? "b" : "t"; };
 const noteSide = (m: Mark) => {
     if (m.tx === undefined && m.ty === undefined) return "right";
-    const hit = Object.entries(NOTE_SIDES).find(([, o]) => o[0] === m.tx && o[1] === m.ty);
+    const hit = Object.entries(NOTE_SIDES).find(([k, o]) => o[0] === m.tx && o[1] === m.ty && (m.side ?? k) === k);
     return hit ? hit[0] : "hand";
 };
 const markColor = (c?: string) => MARK_COLORS[c ?? "yellow"] ?? c ?? MARK_COLORS.yellow;
@@ -483,7 +485,7 @@ class Editor {
                     // placed apart from its pin (tx ty, in points): the box's near edge that far from it, a line back to it
                     // apart from its pin (tx ty, points): it hangs from that point, centred on it, on the side the point is on
                     if (m.tx !== undefined || m.ty !== undefined) {
-                        const tx = m.tx ?? 0, ty = m.ty ?? 0, sd = sideOf(tx, ty);
+                        const tx = m.tx ?? 0, ty = m.ty ?? 0, sd = sideOf(m);
                         bub.addClass("is-apart", `is-${sd}`);
                         Object.assign(bub.style, { left: `${tx}px`, top: `${ty}px`, transform: { r: "translate(0, -50%)", l: "translate(-100%, -50%)", b: "translate(-50%, 0)", t: "translate(-50%, -100%)" }[sd] });
                     }
@@ -618,18 +620,11 @@ class Editor {
             if (!moved) { moved = true; this.begin(); if (!was) this.sel = { page: p.id, mark: m.id }; }
             const sn = (v: number) => (ev.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
             const nx = bx + (ev.clientX - x0) / z, ny = by + (ev.clientY - y0) / z;
-            // the side it is furthest out on; the point it hangs from is the middle of its edge toward the pin, pulled onto
-            // the pin's line when near it (centred), and kept on that side of the diagonal
+            // anywhere: the side it is furthest out on, and the point it hangs from the middle of its edge toward the pin
+            // (so it stays under the pointer), pulled onto the pin's line when near it (centred)
             const cx = nx + bw / 2, cy = ny + bh / 2, near = 8 / z;
-            let ax: number, ay: number;
-            if (Math.abs(cx) - bw / 2 >= Math.abs(cy) - bh / 2) {
-                ax = sn(cx >= 0 ? nx : nx + bw); ay = Math.abs(cy) < near ? 0 : sn(cy);
-                if (Math.abs(ay) > Math.abs(ax)) ay = Math.sign(ay) * Math.abs(ax);
-            } else {
-                ay = sn(cy >= 0 ? ny : ny + bh); ax = Math.abs(cx) < near ? 0 : sn(cx);
-                if (Math.abs(ax) >= Math.abs(ay)) ax = Math.sign(ax) * Math.max(0, Math.abs(ay) - 1);
-            }
-            m.tx = ax; m.ty = ay;
+            if (Math.abs(cx) - bw / 2 >= Math.abs(cy) - bh / 2) { m.side = cx >= 0 ? "right" : "left"; m.tx = sn(cx >= 0 ? nx : nx + bw); m.ty = Math.abs(cy) < near ? 0 : sn(cy); }
+            else { m.side = cy >= 0 ? "below" : "above"; m.ty = sn(cy >= 0 ? ny : ny + bh); m.tx = Math.abs(cx) < near ? 0 : sn(cx); }
             this.drawMarks(scr, p, z); this.livePanel();
         };
         const up = () => {
@@ -674,7 +669,7 @@ class Editor {
         if (m.kind === "note") {
             // where its text box sits: on a side of the pin (centred on it), or where a drag left it
             const t = this.section(body, "Text box"), side = noteSide(m);
-            this.seg(t, [["left", "Left", "arrow-left"], ["right", "Right", "arrow-right"], ["above", "Above", "arrow-up"], ["below", "Below", "arrow-down"]], side, (v) => { [m.tx, m.ty] = NOTE_SIDES[v]; }).addClass("is-stack");
+            this.seg(t, [["left", "Left", "arrow-left"], ["right", "Right", "arrow-right"], ["above", "Above", "arrow-up"], ["below", "Below", "arrow-down"]], side, (v) => { [m.tx, m.ty] = NOTE_SIDES[v]; m.side = v as NonNullable<Mark["side"]>; }).addClass("is-stack");
             t.createDiv({ cls: "vl-frameinfo", text: side === "hand" ? "Placed by hand. Pick a side to put it back beside the pin." : "Or drag the text box anywhere: the pin stays on what the note is about." });
             const wr = this.frow(t, "Width");
             this.seg(wr, [["auto", editCfg.noteW ? "Default" : "Fit the text"], ["set", "Set"]], m.w ? "set" : "auto", (v) => { if (v === "auto") delete m.w; else m.w = m.w ?? (editCfg.noteW || 200); });

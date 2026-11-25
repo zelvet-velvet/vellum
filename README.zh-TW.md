@@ -191,7 +191,7 @@ Vellum/
 | `icon` | `name`（Lucide）、`color size sw` |
 | `row` `col` | `items gap pad main cross`、`fill stroke sw r` |
 | `group` | `items`，各自以自己的 `g dx dy` 放在群組的 `w h` 範圍內；整組一起移動 |
-| **Mark** | 畫面上給你與 agent 的標註，不屬於設計本身：`id`、`kind`（`note`：圖釘 · `area`：`w h` 的框，可加 `guide`：`thirds phi spiral diag center` · `line`：`axis` `"x"` 直線或 `"y"` 橫線）、`x y`、`text`、`color`、`size`（文字大小，省略為 11）、note 的 `w`（說明框寬度，省略則依文字寬度）、note 的 `tx ty`（說明框與圖釘分開擺放：距圖釘的點數，框以此點置中、位於該側：`-12 0` 左側，`12 0` 右側，`0 -14` 上方，`0 14` 下方；省略則在圖釘右側）、`land`、`by`（`"agent"`） |
+| **Mark** | 畫面上給你與 agent 的標註，不屬於設計本身：`id`、`kind`（`note`：圖釘 · `area`：`w h` 的框，可加 `guide`：`thirds phi spiral diag center` · `line`：`axis` `"x"` 直線或 `"y"` 橫線）、`x y`、`text`、`color`、`size`（文字大小，省略為 11）、note 的 `w`（說明框寬度，省略則依文字寬度）、note 的 `tx ty side`（說明框與圖釘分開擺放：`tx ty` 為距圖釘的點數，框以此點置中，位於 `side` 所指的一側 `left right above below`：`-12 0 left`、`12 0 right`、`0 -14 above`、`0 14 below`；省略 side 則依 `tx ty` 較大者判斷；全部省略則在圖釘右側）、`land`、`by`（`"agent"`） |
 
 **版型。** `"inherit": true` 的畫面會先顯示上層畫面的區塊，再疊加本身的區塊。本身區塊與上層區塊 `id` 相同時取代上層區塊；畫面僅儲存本身的區塊。
 

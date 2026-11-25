@@ -37,8 +37,8 @@ export interface Block { id: string; name: string; kind: string; x: number; y: n
 export type Guide = "thirds" | "phi" | "spiral" | "diag" | "center";
 // size: its text's size (11 if not set); a note's w: its bubble's width (else as wide as its text, up to 200)
 // a note's tx ty: its text box apart from the pin: the point (in screen points from the pin) it hangs from, centred on
-// it, on the side the point is on (the larger of tx and ty: right, left, below or above). Neither: on the pin's right
-export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; size?: number; tx?: number; ty?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
+// it, on its side (left, right, above, below; none: the larger of tx and ty says). Neither: on the pin's right
+export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; size?: number; tx?: number; ty?: number; side?: "left" | "right" | "above" | "below"; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
 // the same id as one of the frame's takes that one's place (an override); the page keeps only its own blocks
@@ -82,7 +82,10 @@ export const parseDoc = (source: string): { doc: Doc; error?: string } => {
             if (q.inherit !== true) delete q.inherit;
             // marks: only those that can be drawn (a kind and a place)
             if (Array.isArray(p.marks)) { q.marks = p.marks.filter((m) => m && typeof m.id === "string" && ["note", "area", "line"].includes(m.kind) && typeof m.x === "number" && typeof m.y === "number"); if (!q.marks.length) delete q.marks;
-                for (const m of q.marks ?? []) for (const k of ["tx", "ty"] as const) if (m[k] !== undefined && (typeof m[k] !== "number" || m.kind !== "note")) delete m[k];
+                for (const m of q.marks ?? []) {
+                    for (const k of ["tx", "ty"] as const) if (m[k] !== undefined && (typeof m[k] !== "number" || m.kind !== "note")) delete m[k];
+                    if (m.side !== undefined && (m.kind !== "note" || !["left", "right", "above", "below"].includes(m.side))) delete m.side;
+                }
             } else delete q.marks;
             return q;
         });

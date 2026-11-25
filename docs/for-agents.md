@@ -148,8 +148,8 @@ ask you to change that one thing. They can only do that to a part that is **its 
   idea or an option, `gray` an aside. Keep one meaning per colour on a screen.
 - A note's bubble is as wide as its text unless you set `w`; keep notes short and give long ones a `w` (around 160–220).
 - A note's bubble sits on its pin's right unless it has `tx ty`: the point, in points from the pin, the bubble hangs
-  from, centred on it, on that side (`-12 0` left, `12 0` right, `0 -14` above, `0 14` below). Keep the pin on what the note is about;
-  near the screen's right edge, or over the thing you mean, move the text instead.
+  from, centred on it, on its `side` (`left`, `right`, `above`, `below`): `"tx": -12, "ty": 0, "side": "left"`. Keep the
+  pin on what the note is about; near the screen's right edge, or over the thing you mean, move the text instead.
 - A page's `note` says what the screen is for. Keep it current.
 
 ## 7. Rules
