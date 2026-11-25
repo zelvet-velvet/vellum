@@ -23,6 +23,19 @@ export interface SnapCfg { on: boolean; dist: number; grid: number; margins: num
 export const SNAP_DEFAULT: SnapCfg = { on: true, dist: 6, grid: 4, margins: [16], frame: true, others: true, guides: true };
 let snap: SnapCfg = { ...SNAP_DEFAULT }, keepSnap = () => {};
 export const setSnap = (c: SnapCfg, save: () => void) => { snap = c; keepSnap = save; };
+// measure (Settings → Measure): the content under the area (as is, dimmed, hidden), the lines' width (monitor px; their
+// colour: Editor theme → Measure), the stripes in the blocks' empty space, a grid on the snapping grid, the far distances
+// Advanced: dim (how much of the content shows, %), frames, strength (the lines, %), the stripes' gap and width (monitor
+// px) and strength (%) (Light and Strong set them; a change of one: custom), step (the grid's, 0: the snapping grid's),
+// farAt (a distance past this share of its block, %, is far)
+export interface MeasureCfg {
+    content: "show" | "dim" | "hide"; weight: number; stripes: "off" | "light" | "strong" | "custom"; grid: boolean; far: "faint" | "hide";
+    dim: number; frames: "dashed" | "solid"; strength: number; hatch: number; hatchW: number; hatchS: number; step: number; farAt: number;
+}
+export const STRIPES = { light: { hatch: 6, hatchW: 1.5, hatchS: 30 }, strong: { hatch: 4, hatchW: 2, hatchS: 50 } } as const;
+export const MEASURE_DEFAULT: MeasureCfg = { content: "dim", weight: 1.5, stripes: "light", grid: true, far: "faint", dim: 40, frames: "dashed", strength: 100, ...STRIPES.light, step: 0, farAt: 25 };
+let measureCfg: MeasureCfg = { ...MEASURE_DEFAULT };
+export const setMeasure = (c: MeasureCfg) => { measureCfg = c; };
 // an even grid overlay shown (snapping to overlays on) takes the place of the snap grid
 let ovlGrid = 0;
 const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
@@ -50,6 +63,8 @@ export const KEY_ACTIONS: { id: string; name: string; desc: string; icon: string
     { id: "all", name: "Choose every block", desc: "On the screen", icon: "box-select", key: "Mod+A" },
     { id: "group", name: "Group", desc: "The chosen items, in one block", icon: "group", key: "Mod+G" },
     { id: "ungroup", name: "Ungroup", desc: "A group's items back in the block", icon: "ungroup", key: "Mod+Shift+G" },
+    { id: "measure", name: "Measure", desc: "Hold and drag an area: sizes and gaps; press again to clear", icon: "ruler", key: "M" },
+    { id: "fit", name: "Fit", desc: "Fit to the window; in the Map, Fit or Full", icon: "scan", key: "F" },
     { id: "note", name: "Note or area", desc: "Click: a note; drag: an area", icon: "message-square-plus", key: "N" },
     { id: "notes", name: "Show the notes", desc: "Or hide them", icon: "message-square", key: "Shift+N" },
     { id: "overlay", name: "Show the overlay", desc: "Or hide it", icon: "grid-3x3", key: "Mod+'" },
@@ -60,6 +75,7 @@ export const FIXED_KEYS: [string, string][] = [
     ["Esc", "Let go, one level at a time; never closes the editor"],
     ["Delete", "Delete what is chosen"],
     ["Arrows", "Move what is chosen by 1; Shift: by the grid"],
+    ["Alt+drag", "Measure, as the Measure key; Alt during a drag: no snapping"],
     ["← →", "In Show: the previous or next screen"],
     ["Mod+Y", "Redo"],
 ];
@@ -90,6 +106,12 @@ function selInk(blockEl: HTMLElement, itemEl: HTMLElement) {
     blockEl.setCssProps({ "--vl-sel": `rgb(${pick[0]}, ${pick[1]}, ${pick[2]})`, "--vl-sel-ink": 0.299 * pick[0] + 0.587 * pick[1] + 0.114 * pick[2] > 150 ? "#111" : "#fff" });
 }
 type Lines = { x: number[]; y: number[] };
+// measure: a screen's blocks as boxes (screen points), each with its items (every: all of them; all: the outer ones)
+// kids: a group's, row's or column's parts
+type MeasureModel = { groups: { box: Box; every: Box[]; all: Box[]; kids: Map<Box, { boxes: Box[] }> }[]; name: Map<Box, string>; W: number; H: number; bg: string };
+// only the outer boxes: what sits inside another (a card's text) measures against its own neighbours, not the card
+const insideBox = (b: Box, a: Box) => a !== b && a.L <= b.L && b.L + b.W <= a.L + a.W && a.T <= b.T && b.T + b.H <= a.T + a.H && (a.W > b.W || a.H > b.H);
+const outerBoxes = (bs: Box[]) => bs.filter((b) => !bs.some((a) => insideBox(b, a)));
 // the nearest line within reach of any of the points: how far to shift, and the line
 type GapMark = { axis: "x" | "y"; from: number; to: number; at: number; text: string; a?: number; b?: number };   // an equal gap (a band from a to b across) or size (a bar at `at`), with its number
 // marks from a block's points to the screen's: along the axis by one offset, across it (at, a band's a and b) by the other
@@ -365,6 +387,10 @@ class Editor {
     }
     keepOv() { try { setLocal(`vellum:ovl:${this.doc.id}`, JSON.stringify(this.ov)); } catch { /* */ } }
     // ---- marks: notes, areas and guide lines on a screen (in the note, for the people and the agent), in the layout on show
+    measuring = false;   // the Measure key is held: a drag measures its area
+    // a measure shown (until a click or the Measure key again): its screen and area, kept across redraws (a zoom, Fit),
+    // and its numbers, for Copy reference
+    measured: { page: string; area: Box; model: MeasureModel; text: string } | null = null;
     marking = false;   // the mark tool: a click leaves a note, a drag an area
     // the mark tool on or off; on, hidden marks show again (the new one would be invisible)
     markTool() { this.marking = !this.marking; if (this.marking && !this.ov.notes) { this.ov.notes = true; this.keepOv(); } this.drawPages(); this.drawZoom(); }
@@ -642,6 +668,17 @@ class Editor {
             if (this.full() || (lost && inside) || (a && (R === a || R.contains(a)))) this.key(e);
         };
         R.win.addEventListener("keydown", onKey, true);
+        // the Measure key is held until any key goes up or the window loses focus
+        // while it is held, a small "M + drag" tag follows the pointer
+        const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } };
+        R.win.addEventListener("keyup", unhold, true); R.win.addEventListener("blur", unhold);
+        // a button held (a drag running): Alt then turns snapping off, it doesn't start a measure
+        R.win.addEventListener("pointerdown", () => { this.ptrDown = true; }, true);
+        R.win.addEventListener("pointerup", () => { this.ptrDown = false; }, true);
+        R.addEventListener("pointermove", (e) => {
+            this.ptr = { x: e.clientX, y: e.clientY };
+            const h = R.querySelector<HTMLElement>(".vl-meas-hint"); if (h) this.hintAt(h);
+        });
         // the mouse's back button: one level up, as Esc (Obsidian never hears it, so it does not go back in its history)
         const back = (e: MouseEvent) => { if (e.button !== 3) return; e.preventDefault(); e.stopPropagation(); if (e.type === "mouseup") this.up(); };
         for (const t of ["mousedown", "mouseup", "auxclick"] as const) R.addEventListener(t, back, true);
@@ -676,6 +713,23 @@ class Editor {
         const mid = body.createDiv({ cls: "vl-mid" });
         this.wall = mid.createDiv({ cls: "vl-stage" });
         this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, { x: e.clientX, y: e.clientY }); }, { passive: false });
+        // a click anywhere lets a measure go; the Measure key held (or Alt: beside the screen, or anywhere in Show and the
+        // Map) and a drag measures, in every mode (before anything else hears the press: no choosing, panning or opening).
+        // Begun beside the screen in Edit or Show, it measures the screen shown
+        this.wall.addEventListener("pointerdown", (e) => {
+            // a click (not a drag: a pan, a zoom) lets a measure go
+            if (this.measured) {
+                const x0 = e.clientX, y0 = e.clientY, w = this.wall;
+                const up = (u: PointerEvent) => { w.removeEventListener("pointerup", up, true); if (u.button === 0 && Math.abs(u.clientX - x0) + Math.abs(u.clientY - y0) < 4 && !this.measuring) this.unmeasure(); };
+                w.addEventListener("pointerup", up, true);
+            }
+            if (e.button !== 0 || this.marking) return;
+            // (a Map thumbnail's screen takes no pointer: the press lands on its phone, which holds it)
+            const t = e.target as HTMLElement, on = t.closest<HTMLElement>(".vl-screen[data-page]") ?? t.closest(".vl-tphone")?.querySelector<HTMLElement>(":scope > .vl-screen[data-page]") ?? null;
+            if (!(this.measuring || (e.altKey && !t.closest("button")))) return;
+            const scr = on ?? (this.v.map ? this.nearestThumb(e.clientX, e.clientY) : this.wall.querySelector<HTMLElement>(".vl-screen[data-page]")), p = scr && this.doc.pages.find((x) => x.id === scr.dataset.page);
+            if (scr && p) this.measure(e, p, scr);
+        }, true);
         // the middle button drags the view around (Edit, Show and Map); no browser autoscroll
         this.wall.addEventListener("pointerdown", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); this.pan(e); } }, true);
         this.wall.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
@@ -685,10 +739,6 @@ class Editor {
             if (e.button !== 0 || this.v.show || this.v.map || this.marking || (e.target as HTMLElement).closest(".vl-screen, button, .vl-empty")) return;
             const p = this.current(), scr = this.wall.querySelector<HTMLElement>(".vl-screen");
             if (p && scr) this.marquee(e, p, scr, true);
-        });
-        this.wall.addEventListener("pointerdown", (e) => {
-            if (e.button !== 0 || !this.v.map || (e.target as HTMLElement).closest(".vl-thumb, button")) return;
-            e.preventDefault(); this.pan(e);
         });
         this.wall.addEventListener("click", (e) => { if ((this.v.show || this.v.map) && e.target === this.wall && this.sel) this.choose(null); });   // a tap beside the phone lets go
         this.zbar = mid.createDiv({ cls: "vl-zbar" });
@@ -721,6 +771,13 @@ class Editor {
     }
     // Fit in the Map (and the Map opened from Edit or Show): the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
+    // the Fit button and its key: in the Map, the chosen screen's row (Fit) or its whole tree (Full), whichever the button
+    // shows; in Edit and Show, the screen fitted to the window
+    fitKey() {
+        if (!this.v.map) { this.setView({ fit: true }); this.drawPages(); return; }
+        if (this.v.mapFit !== false) { if (this.current()) this.mapToCurrent(); }
+        else { this.setView({ mapFit: true }); this.drawPages(); }
+    }
     mapToCurrent() {
         const w = this.wall, t0 = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone");
         if (!w || !t0) return;
@@ -886,15 +943,12 @@ class Editor {
             // the Map: one button named for what it does. Full: the chosen screen's whole tree in the window. Fit (while
             // that shows): the chosen screen's row, centred
             const full = this.v.mapFit !== false, none = full && !this.current();
-            const fit = pill.createEl("button", { cls: "vl-zfit", text: full ? "Fit" : "Full", attr: { "aria-label": full ? "Fit the chosen screen" : "Show the chosen screen's whole tree" } });
+            const fit = pill.createEl("button", { cls: "vl-zfit", text: full ? "Fit" : "Full", attr: { "aria-label": `${full ? "Fit the chosen screen" : "Show the chosen screen's whole tree"} (${keyText(keyOf("fit"))})` } });
             fit.disabled = none;
-            fit.addEventListener("click", () => {
-                if (full) this.mapToCurrent();
-                else { this.setView({ mapFit: true }); this.drawPages(); }
-            });
+            fit.addEventListener("click", () => this.fitKey());
         } else {
-            const fit = pill.createEl("button", { cls: "vl-zfit" + (this.v.fit ? " is-on" : ""), text: "Fit", attr: { "aria-label": "Fit to the window" } });
-            fit.addEventListener("click", () => { this.setView({ fit: true }); this.drawPages(); });
+            const fit = pill.createEl("button", { cls: "vl-zfit" + (this.v.fit ? " is-on" : ""), text: "Fit", attr: { "aria-label": `Fit to the window (${keyText(keyOf("fit"))})` } });
+            fit.addEventListener("click", () => this.fitKey());
         }
         pill.createSpan({ cls: "vl-zsep" });
         this.btn(pill, "maximize-2", `Hide the bars (${keyText(keyOf("bars"))})`, () => this.setBars(false));
@@ -993,7 +1047,7 @@ class Editor {
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
         // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
         // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
-        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); }
+        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.v.mapZoom ?? 1); this.drawZoom(); this.remeasure(false); }
         else this.drawPages();
         const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
@@ -1032,6 +1086,7 @@ class Editor {
         // a redraw keeps where the stage was scrolled (choosing a block or an item does not jump to the top)
         const sx = this.wall.scrollLeft, sy = this.wall.scrollTop, keep = () => { this.wall.scrollLeft = sx; this.wall.scrollTop = sy; };
         this.wall.empty(); this.mapLay = null;
+        if (this.measured) this.wall.win.requestAnimationFrame(() => this.remeasure());   // drawn again on the new screen
         this.wall.toggleClass("is-show", !!this.v.show && !this.v.map);
         if (!this.doc.pages.length) { const e = this.wall.createDiv({ cls: "vl-empty" }); e.createSpan({ text: "No screens yet." }); e.createEl("button", { cls: "vl-act", text: "+ Add a screen" }).addEventListener("click", () => this.addPage()); }
         this.drawRail();   // first: its width is part of the room the phone fits in
@@ -1704,7 +1759,7 @@ class Editor {
             const { sc } = devs.get(p.id)!;
             const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (p.parent ? "" : " is-main") });
             const ph = t.createDiv({ cls: "vl-tphone" });
-            const scr = ph.createDiv({ cls: "vl-screen is-show" });
+            const scr = ph.createDiv({ cls: "vl-screen is-show", attr: { "data-page": p.id } });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
             if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
@@ -1806,7 +1861,7 @@ class Editor {
         const phone = row.createDiv({ cls: "vl-phone" });
         if (show) this.showAround(row, phone, p);
         phone.style.width = `${W * z}px`; phone.style.height = `${H * z}px`; phone.style.borderRadius = `${dev.radius * z}px`;
-        const scr = phone.createDiv({ cls: "vl-screen" + (show ? " is-show" : "") });
+        const scr = phone.createDiv({ cls: "vl-screen" + (show ? " is-show" : ""), attr: { "data-page": p.id } });
         const bg = bgOf(this.doc.pages, p);
         if (bg) { scr.style.background = colorOf(this.theme, bg); phone.style.background = scr.style.background; }
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
@@ -2468,6 +2523,275 @@ class Editor {
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
+    // ---- measure (#75): the Measure key held (or Alt: beside the blocks in Edit, anywhere in Show and the Map) and a drag
+    // over an area frames every block and item it touches with its size, and shows the gaps between neighbours and each
+    // item's padding to its block's edges, in screen points. Nothing is chosen or moved; it stays until a click or the
+    // Measure key again (not Esc: it doesn't reach a pop-out window), and Copy reference copies its numbers meanwhile
+    measure(e: PointerEvent, p: Page, scr: HTMLElement) {
+        e.preventDefault(); e.stopPropagation();
+        this.unmeasure();
+        // the screen's scale as drawn: the zoom in Edit and Show, the thumbnail's in the Map
+        const r = scr.getBoundingClientRect(), k = r.width / (scr.offsetWidth || 1);
+        const at = (x: number, y: number) => [(x - r.left) / k, (y - r.top) / k];
+        const [x0, y0] = at(e.clientX, e.clientY);
+        // every block's and item's box, read once from the page; the drag only does arithmetic and draws, once a frame
+        const model = this.measureModel(p, scr);
+        let area: Box | null = null, raf = 0;
+        // the drag is followed on the screen, or in the Map on its thumbnail's phone (the screen there takes no pointer)
+        const cap = scr.closest<HTMLElement>(".vl-tphone") ?? scr;
+        cap.setPointerCapture(e.pointerId);
+        const move = (m: PointerEvent) => {
+            const [x1, y1] = at(m.clientX, m.clientY);
+            if (!area && (Math.abs(x1 - x0) + Math.abs(y1 - y0)) * k < 4) return;
+            area = { L: Math.min(x0, x1), T: Math.min(y0, y1), W: Math.abs(x1 - x0), H: Math.abs(y1 - y0) };
+            if (!raf) raf = scr.win.requestAnimationFrame(() => { raf = 0; if (area) this.drawMeasure(p, scr, area, k, model); });
+        };
+        const up = () => {
+            cap.removeEventListener("pointermove", move); cap.removeEventListener("pointerup", up); cap.removeEventListener("pointercancel", up);
+            if (raf) { scr.win.cancelAnimationFrame(raf); raf = 0; }
+            if (!area) { this.unmeasure(); return; }
+            this.drawMeasure(p, scr, area, k, model);
+            // the click that ends the drag must not open or choose what is under it (a Map thumbnail, a link in Show)
+            const eat = (c: MouseEvent) => { c.stopPropagation(); c.preventDefault(); };
+            scr.win.addEventListener("click", eat, true);
+            scr.win.setTimeout(() => scr.win.removeEventListener("click", eat, true), 0);
+        };
+        cap.addEventListener("pointermove", move); cap.addEventListener("pointerup", up); cap.addEventListener("pointercancel", up);
+    }
+    // the Map: the screen of the thumbnail nearest a point (a measure begun in the space between them)
+    nearestThumb(x: number, y: number): HTMLElement | null {
+        let best: HTMLElement | null = null, bd = Infinity;
+        this.wall?.querySelectorAll<HTMLElement>(".vl-tphone").forEach((ph) => {
+            const r = ph.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+            if (d < bd) { bd = d; best = ph; }
+        });
+        return (best as HTMLElement | null)?.querySelector<HTMLElement>(":scope > .vl-screen[data-page]") ?? null;
+    }
+    ptr: { x: number; y: number } | null = null;   // the pointer, last seen over the editor
+    ptrDown = false;
+    hintAt(h: HTMLElement) {
+        const r = this.root?.getBoundingClientRect(); if (!r || !this.ptr) { h.addClass("is-hidden"); return; }
+        h.removeClass("is-hidden"); h.setCssStyles({ left: `${this.ptr.x - r.left + 14}px`, top: `${this.ptr.y - r.top + 16}px` });
+    }
+    // the measure shown, drawn again for the screen as it is now: another zoom (its boxes kept: they are in screen
+    // points), or a redraw (read again: the screen may have changed)
+    remeasure(fresh = true) {
+        const m = this.measured, scr = m && this.wall?.querySelector<HTMLElement>(`.vl-screen[data-page="${m.page}"]`), p = m && this.doc.pages.find((x) => x.id === m.page);
+        if (!m || !scr || !p) return;
+        this.drawMeasure(p, scr, m.area, scr.getBoundingClientRect().width / (scr.offsetWidth || 1), fresh ? undefined : m.model);
+    }
+    unmeasure() {
+        this.measured = null;
+        this.wall?.querySelectorAll(".vl-meas").forEach((el) => el.remove());
+    }
+    // the screen's blocks and their items as boxes in screen points (items read as drawn), with names for the copied text
+    measureModel(p: Page, scr: HTMLElement): MeasureModel {
+        const name = new Map<Box, string>(), groups: MeasureModel["groups"] = [];
+        for (const { block: b } of this.layers(p)) {
+            const box: Box = { L: b.x, T: b.y, W: b.w, H: b.h };
+            name.set(box, `block "${b.name}" (${b.id})`);
+            const bEl = scr.querySelector<HTMLElement>(`[data-block="${b.id}"]`), kids: MeasureModel["groups"][number]["kids"] = new Map();
+            // an item's box, and its parts' (a group, a row, a column), all the way down
+            const add = (it: Item): Box | null => {
+                const q = bEl && this.itemBox(bEl, b, it); if (!q || q.W <= 0 || q.H <= 0) return null;
+                const ib: Box = { L: q.L + b.x, T: q.T + b.y, W: q.W, H: q.H };
+                name.set(ib, `${this.itemRef(it, 30)} in "${b.name}"`);
+                if (it.items?.length) kids.set(ib, { boxes: it.items.map(add).filter((x): x is Box => !!x) });
+                return ib;
+            };
+            const every = b.items.map(add).filter((x): x is Box => !!x);
+            groups.push({ box, every, all: outerBoxes(every), kids });
+        }
+        // the screen's colour, to cover its content in the area (dim or hide); a clear screen: the phone's, else the panel's
+        const clear = (c: string) => !c || c === "transparent" || /rgba\([^)]*,\s*0\)$/.test(c);
+        let bg = scr.win.getComputedStyle(scr).backgroundColor;
+        if (clear(bg) && scr.parentElement) bg = scr.win.getComputedStyle(scr.parentElement).backgroundColor;
+        if (clear(bg)) bg = "var(--background-primary)";
+        return { groups, name, W: scr.offsetWidth, H: scr.offsetHeight, bg };
+    }
+    drawMeasure(p: Page, scr: HTMLElement, A: Box, k: number, model = this.measureModel(p, scr)) {
+        scr.querySelectorAll(".vl-meas").forEach((el) => el.remove());
+        const hit = (a: Box, b: Box) => a.L < b.L + b.W && b.L < a.L + a.W && a.T < b.T + b.H && b.T < a.T + a.H;
+        const n = (v: number) => Math.round(v), name = model.name;
+        // an area over one group, row or column only (or inside it), the deepest such: its parts are measured, to each
+        // other and to its edges; else the block's own items, a group as one. An item with others inside it (a switch's
+        // track and knob, a button's background and label) is the same: its insides only when the area is on it
+        const groups = model.groups.filter((g) => hit(g.box, A)).map((g) => {
+            const both = (x: Box) => Math.max(0, Math.min(x.L + x.W, A.L + A.W) - Math.max(x.L, A.L)) * Math.max(0, Math.min(x.T + x.H, A.T + A.H) - Math.max(x.T, A.T));
+            const cover = (x: Box) => both(x) / (x.W * x.H || 1), on = (x: Box) => both(x) / (A.W * A.H || 1);
+            const parts = (x: Box, l: Box[]) => g.kids.get(x)?.boxes ?? l.filter((b) => insideBox(b, x));
+            // the block's items as a tree: each box with the one it sits in and its own parts
+            const nodes: { b: Box; up: Box | null; depth: number; kids: Box[] }[] = [], upOf = new Map<Box, Box | null>();
+            const walk = (l: Box[], up: Box | null, depth: number) => {
+                for (const x of outerBoxes(l)) { const kids = parts(x, l); nodes.push({ b: x, up, depth, kids }); upOf.set(x, up); if (kids.length) walk(kids, x, depth + 1); }
+            };
+            walk(g.every, null, 0);
+            const under = (x: Box, c: Box) => { for (let u = upOf.get(x) ?? null; u; u = upOf.get(u) ?? null) if (u === c) return true; return false; };
+            // the deepest container the area covers nearly all of (90 %) or lies mostly on (75 % of the area), with
+            // nothing beside it, at any level, covered by half or more (an edge clipped by the area doesn't count).
+            // Found anywhere in the tree, not a level at a time: a switch at its group's corner, taken in with a drag
+            // past it (and past the group's edge), is still found
+            const fits = nodes.filter((nd) => nd.kids.length > 0 && (on(nd.b) >= 0.75 || cover(nd.b) >= 0.9)
+                && nodes.every((m) => m === nd || under(m.b, nd.b) || under(nd.b, m.b) || cover(m.b) < 0.5));
+            const pick = fits.sort((a, b) => b.depth - a.depth)[0], C = pick?.b ?? null, list = pick ? pick.kids : g.every;
+            const all = outerBoxes(list);
+            return { box: g.box, top: g.all, inner: C, edge: C ?? g.box, all, items: all.filter((x) => hit(x, A)) };
+        });
+        type M = { axis: "x" | "y"; from: number; to: number; at: number; v: number; far: boolean; what: string };
+        const ms: M[] = [];
+        const across = (a: Box, b: Box) => Math.min(a.T + a.H, b.T + b.H) - Math.max(a.T, b.T);
+        const down = (a: Box, b: Box) => Math.min(a.L + a.W, b.L + b.W) - Math.max(a.L, b.L);
+        // boxes that touch or overlap by under a point (texts stacked 14 apart, each 14.4 high) are neighbours, not one
+        // row: the next one along is the one touching it (a gap of 0, not shown), never one past it
+        const E = 1, row = (a: Box, b: Box) => across(a, b) > E, col = (a: Box, b: Box) => down(a, b) > E;
+        // inside a block, a distance past a quarter of it (at least 48) is room more than spacing (a short text's line to
+        // the far edge): drawn faint and dashed, and the first left out where labels crowd
+        const far = (v: number, B: Box | null, axis: "x" | "y") => !!B && v > Math.max(48, ((axis === "x" ? B.W : B.H) * (measureCfg.farAt || 25)) / 100);
+        // gaps: each box to its nearest neighbour on every side (sharing some of a row or a column), each pair once; one
+        // of the two in the area. Every side, not only right and below: a wide box over a row has one nearest box under
+        // it, and the others' gaps up to it were lost
+        const gaps = (bs: Box[], B: Box | null) => {
+            const seen = new Set<string>(), ix = new Map(bs.map((b, i) => [b, i]));
+            const x = (a: Box, R: Box) => {
+                const key = `x${ix.get(a)}:${ix.get(R)}`; if (seen.has(key) || !(hit(a, A) || hit(R, A))) return; seen.add(key);
+                const v = n(R.L - a.L - a.W); if (v > 0) ms.push({ axis: "x", from: a.L + a.W, to: R.L, at: Math.max(a.T, R.T) + across(a, R) / 2, v, far: far(v, B, "x"), what: `gap across ${name.get(a)} → ${name.get(R)}` });
+            };
+            const y = (a: Box, D: Box) => {
+                const key = `y${ix.get(a)}:${ix.get(D)}`; if (seen.has(key) || !(hit(a, A) || hit(D, A))) return; seen.add(key);
+                const v = n(D.T - a.T - a.H); if (v > 0) ms.push({ axis: "y", from: a.T + a.H, to: D.T, at: Math.max(a.L, D.L) + down(a, D) / 2, v, far: far(v, B, "y"), what: `gap down ${name.get(a)} → ${name.get(D)}` });
+            };
+            for (const a of bs) {
+                let R: Box | null = null, D: Box | null = null, Lt: Box | null = null, U: Box | null = null;
+                for (const b of bs) {
+                    if (b === a) continue;
+                    if (row(a, b) && b.L >= a.L + a.W - E && (!R || b.L < R.L)) R = b;
+                    if (row(a, b) && b.L + b.W <= a.L + E && (!Lt || b.L + b.W > Lt.L + Lt.W)) Lt = b;
+                    if (col(a, b) && b.T >= a.T + a.H - E && (!D || b.T < D.T)) D = b;
+                    if (col(a, b) && b.T + b.H <= a.T + E && (!U || b.T + b.H > U.T + U.H)) U = b;
+                }
+                if (R) x(a, R);
+                if (Lt) x(Lt, a);
+                if (D) y(a, D);
+                if (U) y(U, a);
+            }
+        };
+        gaps(outerBoxes(groups.map((g) => g.box)), null);
+        for (const g of groups) {
+            gaps(g.all, g.inner ?? g.box);
+            // padding: an item's distance to its block's edge (or its group's, row's or column's), where no other item sits between
+            const B = g.edge;
+            for (const x of g.items) {
+                const others = g.all.filter((o) => o !== x), mid = (a: number, l: number) => a + l / 2;
+                const pad = (axis: "x" | "y", from: number, to: number, side: string, clear: boolean) => {
+                    const v = n(to - from);
+                    if (clear && v > 0) ms.push({ axis, from, to, at: axis === "x" ? mid(x.T, x.H) : mid(x.L, x.W), v, far: far(v, B, axis), what: `padding ${side} ${name.get(x)}` });
+                };
+                pad("x", B.L, x.L, "left", !others.some((o) => row(o, x) && o.L + o.W <= x.L + E));
+                pad("x", x.L + x.W, B.L + B.W, "right", !others.some((o) => row(o, x) && o.L >= x.L + x.W - E));
+                pad("y", B.T, x.T, "top", !others.some((o) => col(o, x) && o.T + o.H <= x.T + E));
+                pad("y", x.T + x.H, B.T + B.H, "bottom", !others.some((o) => col(o, x) && o.T >= x.T + x.H - E));
+            }
+        }
+        // drawn in one layer over the screen, in screen points; --mu keeps lines and labels one screen pixel at any zoom
+        // the layer is laid out at monitor size and scaled down to the screen: drawn in screen points (inside the zoomed
+        // screen) its lines were a fraction of a pixel, rounded up to one and zoomed with it (blocks at 1200 %)
+        const cfg = measureCfg, lay = createDiv({ cls: "vl-meas" + (cfg.frames === "solid" ? " is-solid" : "") });
+        // positions and lengths on whole device pixels (a 9 px dash is 11.25 of them at 125 %: rounded one way across
+        // and another down, the two sides' dashes differed)
+        const dpr = scr.win.devicePixelRatio || 1, dev = (v: number) => Math.round(v * dpr) / dpr, line = (v: number) => Math.max(1, Math.round(v * dpr)) / dpr;
+        const st = cfg.stripes !== "off", px = (v: number) => `${dev(v * k)}px`;
+        const lw = line(cfg.weight || 1.5);
+        // the screen may sit at a fraction of a pixel (a zoom, a scroll): the layer is moved back onto whole ones, or
+        // every line got a faint extra row and the dashes' ends blurred, unlike across and down
+        const sr = scr.getBoundingClientRect(), frac = (v: number) => (v * dpr - Math.round(v * dpr)) / dpr;
+        lay.setCssProps({ "--mx": `${-frac(sr.left) / k}px`, "--my": `${-frac(sr.top) / k}px`, "--mW": px(model.W), "--mH": px(model.H), "--mk": String(1 / k), "--mu": "1", "--mw": String(lw), "--mta": `${line(lw + 1)}px`, "--mdl": `${line(9)}px`, "--mdp": `${line(6)}px`, "--ms": `${Math.max(20, Math.min(100, cfg.strength || 100))}%`, "--hs": String(cfg.hatch), "--hw": String(cfg.hatchW), "--ha": `${Math.max(5, Math.min(100, cfg.hatchS))}%` });
+        const place = (el: HTMLElement, b: Box) => el.setCssStyles({ left: px(b.L), top: px(b.T), width: px(b.W), height: px(b.H) });
+        // the content under the area: covered in the screen's own colour, partly (dim) or wholly (hide), so the frames
+        // and numbers read first
+        if (cfg.content !== "show") {
+            const cover = lay.createDiv({ cls: "vl-meas-cover" }); place(cover, A);
+            cover.setCssStyles({ background: model.bg, opacity: String(cfg.content === "hide" ? 1 : 1 - Math.max(0, Math.min(100, cfg.dim)) / 100) });
+        }
+        const areaEl = lay.createDiv({ cls: "vl-meas-area" }); place(areaEl, A);
+        // a grid in the area, on the screen's own grid lines; left out where its cells would be under 6 px on the monitor
+        const step = cfg.step > 0 ? cfg.step : snap.grid;
+        if (cfg.grid && step * k >= 6) {
+            areaEl.addClass("has-grid");
+            areaEl.setCssProps({ "--gs": px(step) });
+            areaEl.setCssStyles({ backgroundPosition: `${px(-A.L)} ${px(-A.T)}` });
+        }
+        // frames and bars only inside the area: what is past its edge (the rest of a block it crosses) is cut off
+        const clip = lay.createDiv({ cls: "vl-meas-clip" }); place(clip, A);
+        const inner = clip.createDiv({ cls: "vl-meas-in" }); inner.setCssStyles({ left: px(-A.L), top: px(-A.T), width: px(model.W), height: px(model.H) });
+        for (const g of groups) {
+            // the stripes fill the block's empty space only: each of its items is a hole in them
+            if (st) {
+                const B = g.box, h = inner.createDiv({ cls: "vl-meas-hatch" }); place(h, B);
+                const holes = g.top.map((x) => `M${(x.L - B.L) * k} ${(x.T - B.T) * k}h${x.W * k}v${x.H * k}h${-x.W * k}Z`).join("");
+                h.setCssStyles({ clipPath: `path(evenodd, "M0 0H${B.W * k}V${B.H * k}H0Z${holes}")` });
+            }
+            place(inner.createDiv({ cls: "vl-meas-frame is-block" }), g.box);
+            if (g.inner) place(inner.createDiv({ cls: "vl-meas-frame is-group" }), g.inner);
+            for (const x of g.items) place(inner.createDiv({ cls: "vl-meas-frame" }), x);
+        }
+        // labels, laid out by arithmetic (no reading the page back): a tag is LW px per character plus its padding, in a
+        // monospace font, so its size is known before it is drawn. Kept inside the screen (its edge cuts what is past
+        // it). A size is always shown, at the first spot around its frame on no other label; a gap where it would sit on
+        // one is left out with its bar
+        const LW = 6, LH = 15, g1 = 2 / k, taken: Box[] = [];
+        const dims = (t: string) => ({ w: (t.length * LW + 8) / k, h: LH / k });
+        const clamp = (x: number, y: number, w: number, h: number): Box => ({ L: Math.max(g1, Math.min(model.W - w - g1, x)), T: Math.max(g1, Math.min(model.H - h - g1, y)), W: w, H: h });
+        const free = (q: Box) => !taken.some((t) => q.L < t.L + t.W + g1 && t.L < q.L + q.W + g1 && q.T < t.T + t.H + g1 / 2 && t.T < q.T + q.H + g1 / 2);
+        const draw = (t: string, q: Box, cls: string) => {
+            const s = lay.createSpan({ cls: `vl-meas-tag ${cls}`, text: t });
+            s.setCssStyles({ left: px(q.L), top: px(q.T), width: px(q.W) });
+            taken.push(q);
+            return s;
+        };
+        type Spot = "below" | "above" | "in" | "right" | "left" | "corner";
+        const spot = (b: Box, s: Spot, w: number, h: number): Box => {
+            const cx = b.L + b.W / 2 - w / 2, cy = b.T + b.H / 2 - h / 2;
+            const [x, y] = s === "below" ? [cx, b.T + b.H + g1] : s === "above" ? [cx, b.T - g1 - h] : s === "in" ? [cx, cy] : s === "right" ? [b.L + b.W + g1, cy] : s === "left" ? [b.L - g1 - w, cy] : [b.L + g1, b.T + g1];
+            return clamp(x, y, w, h);
+        };
+        const size = (b: Box, spots: Spot[], cls: string) => {
+            const t = `${n(b.W)} × ${n(b.H)}`, { w, h } = dims(t);
+            draw(t, spots.map((s) => spot(b, s, w, h)).find(free) ?? spot(b, spots[0], w, h), `is-size ${cls}`);
+        };
+        const sz = (b: Box) => `${n(b.W)} × ${n(b.H)}`;
+        size(A, ["below", "above"], "is-area");
+        // the near ones first: where they crowd, a far one gives way
+        // a gap or padding whose middle is outside the area is not measured (its bar would be cut off)
+        const shown = ms.filter((m) => { const c = (m.from + m.to) / 2, [x, y] = m.axis === "x" ? [c, m.at] : [m.at, c]; return x >= A.L && x <= A.L + A.W && y >= A.T && y <= A.T + A.H; });
+        for (const m of [...shown.filter((x) => !x.far), ...shown.filter((x) => x.far && cfg.far !== "hide")]) {
+            const t = String(m.v), { w, h } = dims(t), c = (m.from + m.to) / 2;
+            const q = m.axis === "x" ? clamp(c - w / 2, m.at - h / 2, w, h) : clamp(m.at - w / 2, c - h / 2, w, h);
+            if (!free(q)) continue;
+            const bar = inner.createDiv({ cls: `vl-meas-bar is-${m.axis}${m.far ? " is-far" : ""}` }), len = px(Math.max(0, m.to - m.from));
+            if (m.axis === "x") bar.setCssStyles({ left: px(m.from), width: len, top: px(m.at) });
+            else bar.setCssStyles({ top: px(m.from), height: len, left: px(m.at) });
+            draw(t, q, `is-gap${m.far ? " is-far" : ""}`);
+        }
+        // the sizes after the gaps: a size finds another spot around its frame, a gap's number has only its own (a size
+        // label under each of a column's rows took the gaps between them)
+        for (const g of groups) for (const x of g.items) size(x, ["below", "above", "in", "right", "left"], "");
+        for (const g of groups) size(g.box, ["corner"], "is-block");
+        for (const g of groups) if (g.inner) size(g.inner, ["above", "below", "left", "right"], "is-block");
+        scr.appendChild(lay);   // one write to the page
+        // the same numbers as text, for Copy reference
+        const lines = [`Measured on screen "${p.name}" (${p.id}): area x ${n(A.L)} y ${n(A.T)}, ${sz(A)}`];
+        for (const g of groups) {
+            lines.push(`- ${name.get(g.box)}: ${sz(g.box)}`);
+            if (g.inner) lines.push(`  - inside ${name.get(g.inner)}: ${sz(g.inner)}`);
+            for (const x of g.items) lines.push(`  - ${name.get(x)}: ${sz(x)}`);
+        }
+        for (const m of shown) lines.push(`- ${m.what}: ${m.v}`);
+        this.measured = { page: p.id, area: A, model, text: lines.join("\n") };
+    }
+    copyMeasure() {
+        const t = this.measured?.text; if (!t) return;
+        (this.root?.win ?? window).navigator.clipboard.writeText(t).then(() => this.hint("Measures copied"), () => this.writer("Copy the measures", t, () => { /* */ }));
+    }
     // the chosen items move together, each from its own gravity point (snapped to the grid; Alt 1 px); a tap chooses
     // the one under the pointer alone
     dragItems(e: PointerEvent, p: Page, scr: HTMLElement, hitB: Block, hitId: string) {
@@ -2651,6 +2975,7 @@ class Editor {
         const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), c = comboOf(e), is = (id: string) => c !== "" && c === keyOf(id);
         const editing = !this.v.show && !this.v.map;
         if (is("save")) { this.save(); return true; }
+        if (is("reference") && !typing && this.measured) { this.copyMeasure(); return true; }
         if (is("reference") && !typing) { this.copyReference(); return true; }
         if (typing) return false;
         if (is("undo")) { this.undo(); return true; }
@@ -2661,6 +2986,20 @@ class Editor {
         if (is("panel") && editing && !Platform.isMobile) { this.setView({ panel: this.v.panel === false }); this.draw(); return true; }
         if (is("notes") && editing) { this.toggleMarks(); return true; }
         if (is("note") && editing) { this.markTool(); return true; }
+        // Measure: its key or Alt, held before the press, then a drag (the same: a crosshair, a measure wherever it starts);
+        // Alt pressed during a drag only turns snapping off. A press of the Measure key while a measure shows clears it
+        // (Esc too, where it reaches the editor)
+        const alt = e.key === "Alt" && !mod && !e.shiftKey;
+        if (is("measure") || (alt && !this.ptrDown)) {
+            if (!alt && !e.repeat && this.measured) this.unmeasure();
+            if (!this.measuring && this.root) {
+                this.measuring = true; this.root.addClass("is-measuring");
+                const h = this.root.createDiv({ cls: "vl-meas-hint" }); h.createEl("kbd", { text: alt ? "Alt" : keyText(keyOf("measure")) }); h.createSpan({ text: "+ drag to measure" }); this.hintAt(h);
+            }
+            return true;
+        }
+        if (e.key === "Escape" && this.measured) { this.unmeasure(); return true; }
+        if (is("fit")) { this.fitKey(); return true; }
         if (e.key === "Escape" && this.marking) { this.marking = false; this.drawPages(); return true; }
         if (e.key === "Escape" && this.sel?.mark) { this.choose({ page: this.sel.page }); return true; }
         if (e.key === "Escape" && this.devOpen) { this.openDevice(false); return true; }

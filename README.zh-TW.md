@@ -208,6 +208,7 @@ Vellum/
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | 複製 · 刪除 |
 | <kbd>Ctrl</kbd> <kbd>S</kbd> | 存檔 |
 | 拖曳時按住 <kbd>Alt</kbd> / <kbd>Shift</kbd> | 不吸附 · 維持比例 |
+| 按住 <kbd>M</kbd> 或 <kbd>Alt</kbd> 再拖曳 | 測量框內的尺寸、間距與內距（點一下或按 <kbd>M</kbd> 清除） |
 | 按住滑鼠中鍵拖曳 · <kbd>Ctrl</kbd> + 滾輪 | 移動視野 · 以游標為中心縮放（最大 1600 %） |
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
 | <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 加入或移出選取 · 全部區塊 |

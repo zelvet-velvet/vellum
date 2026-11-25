@@ -206,6 +206,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | Duplicate · delete |
 | <kbd>Ctrl</kbd> <kbd>S</kbd> | Save |
 | <kbd>Alt</kbd> / <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
+| <kbd>M</kbd> or <kbd>Alt</kbd> held, then drag | Measure the area: sizes, gaps and paddings (a click or <kbd>M</kbd> clears it) |
 | Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |

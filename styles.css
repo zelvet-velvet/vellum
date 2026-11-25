@@ -391,6 +391,52 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* while dragging: every item's frame, faint and dashed, so the edges to line up with can be seen */
 .vl-screen.is-dragging .vl-block .vl-it:not(.is-sel) { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--vlu-guide, var(--color-pink, #e93147)) 45%, transparent); outline-offset: calc(-0.5px * var(--vl-iz, 1)); }
 .vl-screen:has(> .vl-gapm) .vl-ratio { visibility: hidden; }   /* while gaps or sizes are marked, the size label would sit on their numbers */
+/* measure (#75): one colour. The area, a dashed frame on every block and item in it, sizes as filled tags, gaps and
+   paddings as bars with end ticks and a dark tag. --mu: one screen pixel at any zoom (the Map's thumbnails too) */
+/* laid out at monitor size (--mW, --mH) and scaled down to the screen (--mk): lines stay whole pixels at any zoom */
+.vl-meas { position: absolute; left: 0; top: 0; width: var(--mW, 100%); height: var(--mH, 100%); transform: translate(var(--mx, 0), var(--my, 0)) scale(var(--mk, 1)); transform-origin: 0 0; z-index: 9; pointer-events: none; --mc: var(--vlu-measure, var(--interactive-accent)); --u: var(--mu, 1); --lw: calc(var(--mw, 1.5) * 1px * var(--u)); --lc: color-mix(in srgb, var(--mc) var(--ms, 100%), transparent); }
+.vl-meas > div, .vl-meas-in, .vl-meas-in > div { position: absolute; }
+.vl-meas-clip { overflow: hidden; }
+.vl.is-measuring .vl-stage, .vl.is-measuring .vl-stage * { cursor: crosshair !important; }
+.vl-meas-cover { pointer-events: none; }
+/* the area: a clear dashed edge (dashes as a gradient, so they keep their length at any zoom), a faint tint, and the grid */
+/* the area's edge and the frames: dashes drawn as gradients (an outline's width is rounded down to whole pixels, so
+   1.5 px drew as 1); --dc colour, --dt thickness, --dl the dash and its gap, --dp the dash (100%: solid). Every side's
+   dashes start at its top or left corner; drawMeasure rounds --dl, --dp and the widths to whole device pixels, so the
+   dashes across and down are the same */
+.vl-meas { --dl: var(--mdl, 9px); --dp: var(--mdp, 6px); }
+.vl-meas.is-solid .vl-meas-frame { --dp: 100%; }
+.vl-meas-area { --dc: var(--lc); --dt: var(--mta, calc(var(--lw) + 1px)); background-color: color-mix(in srgb, var(--mc) 6%, transparent);
+    box-shadow: 0 0 0 calc(1.5px * var(--u)) color-mix(in srgb, var(--mc) 25%, transparent); }
+.vl-meas-area.has-grid { background-image: linear-gradient(to right, color-mix(in srgb, var(--mc) 22%, transparent) calc(1px * var(--u)), transparent 0), linear-gradient(to bottom, color-mix(in srgb, var(--mc) 22%, transparent) calc(1px * var(--u)), transparent 0); background-size: var(--gs) var(--gs); }
+.vl-meas-frame { --dc: var(--lc); --dt: var(--lw); }
+.vl-meas-area::before, .vl-meas-frame::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, var(--dc) var(--dp), transparent 0) 0 0 / var(--dl) var(--dt) repeat-x, linear-gradient(90deg, var(--dc) var(--dp), transparent 0) 0 100% / var(--dl) var(--dt) repeat-x, linear-gradient(180deg, var(--dc) var(--dp), transparent 0) 0 0 / var(--dt) var(--dl) repeat-y, linear-gradient(180deg, var(--dc) var(--dp), transparent 0) 100% 0 / var(--dt) var(--dl) repeat-y; }
+.vl-meas-frame.is-block { --dc: color-mix(in srgb, var(--lc) 60%, transparent); }
+.vl-meas-frame.is-group { --dc: color-mix(in srgb, var(--lc) 75%, transparent); background: color-mix(in srgb, var(--mc) 5%, transparent); }   /* the group measured inside: fainter than its parts */
+.vl-meas-hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--mc) var(--ha, 30%), transparent) 0 calc(var(--hw, 1.5) * 1px * var(--u)), transparent 0 calc(var(--hs, 6) * 1px * var(--u) + var(--hw, 1.5) * 1px * var(--u))); }
+.vl-meas-bar.is-x { height: 0; border-top: var(--lw) solid var(--lc); margin-top: calc(var(--lw) / -2); }
+.vl-meas-bar.is-y { width: 0; border-left: var(--lw) solid var(--lc); margin-left: calc(var(--lw) / -2); }
+.vl-meas-bar::before, .vl-meas-bar::after { content: ""; position: absolute; }
+.vl-meas-bar.is-x::before, .vl-meas-bar.is-x::after { top: calc(-3.5px * var(--u)); height: calc(6px * var(--u)); border-left: var(--lw) solid var(--lc); }
+.vl-meas-bar.is-x::before { left: 0; } .vl-meas-bar.is-x::after { right: 0; }
+.vl-meas-bar.is-y::before, .vl-meas-bar.is-y::after { left: calc(-3.5px * var(--u)); width: calc(6px * var(--u)); border-top: var(--lw) solid var(--lc); }
+.vl-meas-bar.is-y::before { top: 0; } .vl-meas-bar.is-y::after { bottom: 0; }
+/* a tag's size is worked out from its text (6 px a character, a monospace font, 15 px high), so it is laid out
+   without reading the page back: keep these numbers in step with drawMeasure's LW and LH */
+.vl-meas-tag { position: absolute; box-sizing: border-box; height: 15px; padding: 0 4px; border-radius: 3px; font: 600 10px/15px var(--font-monospace); text-align: center; white-space: nowrap; overflow: hidden; transform: scale(var(--u)); transform-origin: 0 0; background: var(--mc); color: var(--text-on-accent, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+.vl-meas-tag.is-gap { background: #15171c; color: color-mix(in srgb, var(--mc) 70%, #fff); }
+.vl-meas-tag.is-block { background: color-mix(in srgb, var(--mc) 70%, #15171c); }
+/* far: more room than spacing (past a quarter of the block); faint and dashed */
+.vl-meas-bar.is-far { opacity: 0.55; }
+/* the frames' dashes (not the browser's dashed border), the same across and down */
+.vl-meas-bar.is-x.is-far { border-top: 0; height: var(--lw); background: linear-gradient(90deg, var(--lc) var(--dp), transparent 0) 0 0 / var(--dl) 100% repeat-x; }
+.vl-meas-bar.is-y.is-far { border-left: 0; width: var(--lw); background: linear-gradient(180deg, var(--lc) var(--dp), transparent 0) 0 0 / 100% var(--dl) repeat-y; }
+.vl-meas-tag.is-gap.is-far { opacity: 0.7; box-shadow: none; }
+.vl-screen:has(> .vl-meas) .vl-ratio { visibility: hidden; }
+.vl-meas-hint { position: absolute; z-index: 60; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); font-size: 12px; color: var(--text-muted); }
+.vl-meas-hint.is-hidden { display: none; }
+.vl-meas-hint kbd { padding: 1px 6px; border-radius: 4px; background: var(--background-modifier-hover); color: var(--text-normal); font: 600 11px/1.4 var(--font-interface); }
 .vl .vl-zpill button.vl-btn.is-on { color: var(--interactive-accent); }
 .vl .vl-zpill button.vl-btn.is-off { pointer-events: auto; cursor: default; background: transparent; }   /* not in this mode: faded, its place kept, its tooltip says where it works */
 
@@ -401,9 +447,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 var(--vls-pad); }
 /* the tabs: words with a line under the one open, on the settings' own background; pinned to the top while they scroll */
 /* the tabs as tiles, three to a row: every tab in view at any width, nothing to scroll */
-.vls-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px 0 12px; background: var(--vls-bg, var(--background-primary)); border-bottom: 1px solid var(--background-modifier-border); box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)); }
-.vls-scroller { scrollbar-gutter: stable; }
-.vls-tabs.is-stuck { box-shadow: 0 -100px 0 80px var(--vls-bg, var(--background-primary)), 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
+/* the pane: the tiles on top, the tab's own part under them scrolls (its scrollbar starts below the tiles) */
+.vertical-tab-content.vls-split { display: flex; flex-direction: column; overflow: hidden; }
+.vls-split > .vls-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding-top: 10px; margin-right: calc(-1 * var(--vls-pr, 0px)); padding-right: var(--vls-pr, 0px); margin-bottom: calc(-1 * var(--vls-pb, 0px)); padding-bottom: 12px; }
+.vls-tabs { flex: none; position: relative; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0 0 10px; border-bottom: 1px solid var(--background-modifier-border); }
+.vls-tabs.is-stuck { box-shadow: 0 8px 12px -10px rgba(0, 0, 0, 0.5); }
 /* a second row of tabs inside one (General: Screens, Editing, Updates) */
 .vls-subtabs { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0 0 12px; padding: 3px; border-radius: 9px; background: var(--background-secondary); }
 .vl-settings button.vls-subtab { justify-content: center; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
@@ -996,8 +1044,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-bareside.is-r { left: auto; right: 14px; }
 .vl .vl-unbare:hover, .vl .vl-bareside:hover { opacity: 1; color: var(--text-normal); }
 .vl-unbare svg, .vl-bareside svg { width: 22px; height: 22px; }
-/* the Map: a drag on the empty stage moves it */
-.vl-stage:has(> .vl-stagemap) { cursor: grab; }
 
 /* lock: drawn, but the screen does not hear a click on it while editing (it goes through to what is under) */
 .vl-screen:not(.is-show) .is-lock { pointer-events: none; }
@@ -1094,6 +1140,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-tabi { display: inline-flex; --icon-size: 15px; }
 .vl-settings button.vls-tab, .vl-settings button.vls-subtab, .vl-settings button.vls-follow { display: inline-flex; align-items: center; gap: 7px; }
 .vl-settings button.vls-subtab .vls-tabi, .vls-pill .vls-tabi { --icon-size: 13px; }
+.vls-pill .vls-tabi svg { display: block; }   /* no baseline gap under the icon: it sits level with the words */
+.vl-settings .vls-pill { line-height: 1; }
 .vls-tab:not(.is-on) .vls-tabi, .vls-subtab:not(.is-on) .vls-tabi { opacity: 0.75; }
 .vls-tab.is-on .vls-tabi { color: var(--interactive-accent); }
 .vls-ricon { flex: none; width: 32px; height: 32px; margin-right: -8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--background-secondary); color: var(--text-muted); --icon-size: 16px; }
@@ -1121,3 +1169,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-settings .vls-key.is-rec { border-color: var(--interactive-accent); color: var(--interactive-accent); font-family: var(--font-interface); }
 .vl-settings .vls-key.is-fixed { cursor: default; color: var(--text-muted); }
 .vl-settings .vls-keyback { width: 28px; height: 28px; padding: 0; margin-left: 6px; box-shadow: none; background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
+/* Settings → Measure → Advanced: a card that folds by its heading */
+.vl-settings button.vls-foldhead { width: 100%; height: 44px; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer; justify-content: flex-start; --icon-size: 16px; }
+.vls-foldi { display: inline-flex; color: var(--text-muted); transition: transform 0.15s; }
+.vls-fold.is-open .vls-foldi { transform: rotate(90deg); }
+.vls-fold:not(.is-open) > .vls-body { display: none; }
+.vls-fold > .vls-body { border-top: 1px solid var(--vls-line); }
+.vls-advback { justify-content: flex-end; }

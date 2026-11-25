@@ -1,5 +1,5 @@
 import { addIcon, App, FuzzySuggestModal, Menu, normalizePath, Notice, Plugin, PluginSettingTab, setIcon, SliderComponent, TFile, TFolder, ToggleComponent } from "obsidian";
-import { EDIT_DEFAULT, EditCfg, FIXED_KEYS, KEY_ACTIONS, comboOf, keyOf, keyText, setKeys, LOOK_WORDS, openVellum, refreshAuto, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
+import { EDIT_DEFAULT, EditCfg, FIXED_KEYS, KEY_ACTIONS, comboOf, keyOf, keyText, setKeys, LOOK_WORDS, openVellum, refreshAuto, registerVellum, setEdit, setSnap, SnapCfg, SNAP_DEFAULT, setMeasure, MeasureCfg, MEASURE_DEFAULT, STRIPES, hexOf, hsvToRgb, refreshLook, rgbToHsv } from "./editor";
 import { getLocal, setLocal, useApp } from "./local";
 import { coloursOfDoc, Doc, docColours, hasAuto } from "./model";
 import { NewsModal, newsSince } from "./news";
@@ -17,17 +17,23 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // snap: how drags and resizes snap (to the grid, edges, middles, margins, other items)
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
-const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, measure: { ...MEASURE_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
 
 // the folder a path is in; none at the vault's root
 const parentOf = (path: string) => { const i = path.lastIndexOf("/"); return i > 0 ? path.slice(0, i) : null; };
 
+// the saved measure settings, only the ones there are now (older versions kept more)
+const measureOf = (m?: Partial<MeasureCfg>): MeasureCfg => {
+    const o = { ...MEASURE_DEFAULT };
+    for (const key of Object.keys(o) as (keyof MeasureCfg)[]) if (m?.[key] !== undefined) (o as Record<string, unknown>)[key] = m[key];
+    return o;
+};
 export default class VellumPlugin extends Plugin {
     settings: Settings = structuredClone(DEFAULTS);
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
-        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
+        this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, measure: measureOf(saved?.measure), edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => ({ theme: this.theme(), ui: this.settings.ui, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }));
@@ -35,6 +41,7 @@ export default class VellumPlugin extends Plugin {
         this.registerEvent(this.app.workspace.on("css-change", () => { if (Object.keys(this.settings.ui).length) refreshLook(); else refreshAuto(); }));
         setSnap(this.settings.snap, () => { void this.save(); });
         setEdit(this.settings.edit);
+        setMeasure(this.settings.measure);
         setKeys(this.settings.keys);
         // the editor straight on the screens folder: no note or block needed
         this.addRibbonIcon("vellum", "Open Vellum", () => this.openScreens());
@@ -105,7 +112,7 @@ export default class VellumPlugin extends Plugin {
 
 // The settings: tabs (General, Snapping, Keys, Screen colours, Editor theme, Fonts), one shown at a time, each a few cards of compact rows (name and a
 // word on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
-const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"], ["fonts", "Fonts", "type"]] as const;
+const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["measure", "Measure", "ruler"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"], ["fonts", "Fonts", "type"]] as const;
 type Tab = (typeof TABS)[number][0];
 const TAB_KEY = "vellum:settab";   // the last tab used, kept on the device
 const APP_KEY = "vellum:setapp";   // the app whose colours the Screen colours tab shows (none: every app)
@@ -141,22 +148,9 @@ class VellumSettings extends PluginSettingTab {
         }
         return cur;
     }
-    tabScroll: (() => void) | null = null;
     tabBar(c: HTMLElement, on: Tab) {
+        // above the tab's own scrolling part (display): the tiles stay in view and the scrollbar starts under them
         const bar = c.createDiv({ cls: "vls-tabs", attr: { role: "tablist" } });
-        // pinned to the top while the settings scroll, on their own background (a band of it above the bar covers the
-        // scroller's top padding, whatever Obsidian or a theme makes it); a shadow once something is under it
-        this.tabScroll?.();
-        const win = c.win, scroller = (() => { for (let e: HTMLElement | null = c; e; e = e.parentElement) { const o = win.getComputedStyle(e).overflowY; if (o === "auto" || o === "scroll") return e; } return null; })();
-        if (scroller) {
-            for (let e: HTMLElement | null = scroller; e; e = e.parentElement) { const bg = win.getComputedStyle(e).backgroundColor; if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) { bar.style.setProperty("--vls-bg", bg); break; } }
-            const onScroll = () => { bar.toggleClass("is-stuck", scroller.scrollTop > 2); };
-            scroller.addEventListener("scroll", onScroll, { passive: true });
-            // room for the scrollbar kept on every tab: a long tab's scrollbar doesn't narrow the page and shift it
-            scroller.addClass("vls-scroller");
-            this.tabScroll = () => { scroller.removeEventListener("scroll", onScroll); scroller.removeClass("vls-scroller"); this.tabScroll = null; };
-            onScroll();
-        }
         const pick = (k: Tab) => { try { setLocal(TAB_KEY, k); } catch { /* */ } this.display(); this.containerEl.querySelector<HTMLElement>(".vls-tab.is-on")?.focus(); };
         TABS.forEach(([k, name, icon], i) => {
             const b = bar.createEl("button", { cls: "vls-tab" + (k === on ? " is-on" : ""), attr: { role: "tab", "aria-selected": String(k === on), tabindex: k === on ? "0" : "-1" } });
@@ -218,7 +212,7 @@ class VellumSettings extends PluginSettingTab {
     // saved and shown a moment after the last change (a drag in the colour picker makes many)
     lookT = 0;
     queueLook() { window.clearTimeout(this.lookT); this.lookT = window.setTimeout(() => { this.save(); refreshLook(); }, 120); }
-    hide() { this.pickerOff?.(); this.tabScroll?.(); super.hide(); }
+    hide() { this.pickerOff?.(); super.hide(); }
     syncs: (() => void)[] = [];
     // a list of colours: a tile (Vellum's picker), the name, the value ("Obsidian" while it follows), a way back. Follow Obsidian
     // sets the list back, with an undo; rules: pairs [text, background, least contrast, name] that warn on the text's row
@@ -616,11 +610,18 @@ class VellumSettings extends PluginSettingTab {
         this.addName(co, (n) => n in s.colors || n in pal(), (n) => { for (const t of names) themes[t][n] = "#888888"; save(false); });
     }
     display() {
-        const { containerEl: c } = this, s = this.plugin.settings;
+        const root = this.containerEl, s = this.plugin.settings;
         this.pickerOff?.(); this.syncs = [];
-        c.empty(); c.addClass("vl-settings");
+        root.empty(); root.addClass("vl-settings", "vls-split");
         const tab = this.tab();
-        this.tabBar(c, tab);
+        this.tabBar(root, tab);
+        // the tab's own part scrolls, under the tiles; it reaches the pane's right and bottom edge through the pane's
+        // padding (whatever Obsidian or a theme makes it), so its scrollbar sits where the pane's would
+        const pad = root.win.getComputedStyle(root);
+        root.setCssProps({ "--vls-pr": pad.paddingRight, "--vls-pb": pad.paddingBottom });
+        const c = root.createDiv({ cls: "vls-scroll" });
+        const bar = root.querySelector(".vls-tabs");
+        c.addEventListener("scroll", () => bar?.toggleClass("is-stuck", c.scrollTop > 2), { passive: true });
         if (tab === "general") {
             // General's parts as tabs of their own, one shown
             const part = this.subTabs(c, "vellum:setgeneral", [["screens", "Screens", "folder-open"], ["editing", "Editing", "mouse-pointer-2"], ["updates", "Updates", "sparkles"]]);
@@ -641,7 +642,7 @@ class VellumSettings extends PluginSettingTab {
             }
         } else if (tab === "snapping") {
             const sn = s.snap, sp = this.card(c, "");
-            const master = this.row(sp, "Snap while dragging", "Alt: off for one drag.", "magnet", "Blocks and items snap to the lines near them. The magnet under the phone switches it too.");
+            const master = this.row(sp, "Snap while dragging", "Alt during a drag: off.", "magnet", "Blocks and items snap to the lines near them. The magnet under the phone switches it too.");
             const rest = sp.createDiv({ cls: "vls-group" + (sn.on ? "" : " is-off") });
             new ToggleComponent(master).setValue(sn.on).onChange((v) => { sn.on = v; rest.toggleClass("is-off", !v); this.save(); });
             const to = this.row(rest, "Snap to", "", "crosshair", "The frame: an item's block, or a block's screen and safe area.");
@@ -658,6 +659,51 @@ class VellumSettings extends PluginSettingTab {
             this.input(this.row(rest, "Grid", "Step with no line near. 1: free.", "layout-grid", "Points a drag steps by when no line is near; Shift + arrow keys too."), String(sn.grid), (v) => { const n = Math.round(Number(v)); if (n >= 1 && n <= 64) { sn.grid = n; this.save(); } }, { cls: "is-num", type: "number" });
             this.input(this.row(rest, "Margins", "Lines inside each edge.", "square-dashed", "Comma separated, in points."), sn.margins.join(", "), (v) => { sn.margins = v.split(/[,\s]+/).map(Number).filter((n) => n > 0 && n < 400); this.save(); }, { cls: "is-short", placeholder: "16, 24" });
             new ToggleComponent(this.row(rest, "Guide lines", "Show the line snapped to.", "align-center-vertical")).setValue(sn.guides).onChange((v) => { sn.guides = v; this.save(); });
+        } else if (tab === "measure") {
+            // measure (M or Alt held, then a drag): five choices, each a row of words
+            const ms = s.measure, mc = this.card(c, "");
+            // a choice in words; returns a redraw of which is lit (a change made elsewhere: none, when custom)
+            const pick = <T extends string>(ctl: HTMLElement, opts: [T, string][], get: () => T, set: (v: T) => void) => {
+                const lit = () => bs.forEach((x, i) => x.toggleClass("is-on", opts[i][0] === get()));
+                const bs = opts.map(([v, text]) => {
+                    const b = ctl.createEl("button", { cls: "vls-pill", text });
+                    b.addEventListener("click", () => { set(v); lit(); this.save(); });
+                    return b;
+                });
+                lit();
+                return lit;
+            };
+            pick(this.row(mc, "Content", "Under the area.", "eye", "Dim: faded, so the measures read first. Hide: frames only."), [["show", "As is"], ["dim", "Dim"], ["hide", "Hide"]], () => ms.content, (v) => { ms.content = v; });
+            pick(this.row(mc, "Lines", "Frames, edges, gaps.", "minus", "Their width on the monitor. Their colour: Editor theme → Measure."), [["1", "Thin"], ["1.5", "Normal"], ["2.5", "Bold"]], () => String(ms.weight) as "1" | "1.5" | "2.5", (v) => { ms.weight = Number(v); });
+            const stripesLit = pick(this.row(mc, "Stripes", "In the blocks' empty space.", "hash"), [["off", "Off"], ["light", "Light"], ["strong", "Strong"]], () => ms.stripes, (v) => {
+                ms.stripes = v; if (v === "light" || v === "strong") { Object.assign(ms, STRIPES[v]); this.save(); this.display(); }   // Advanced shows the new numbers
+            });
+            pick(this.row(mc, "Grid", "The snapping grid, in the area.", "layout-grid", "Its step is Snapping → Grid. Hidden when zoomed out too far to read."), [["off", "Off"], ["on", "On"]], () => (ms.grid ? "on" : "off"), (v) => { ms.grid = v === "on"; });
+            pick(this.row(mc, "Far distances", "More room than spacing.", "move-horizontal", "Past a share of their block (Advanced → Far from), such as a short text's line to the far edge."), [["faint", "Faint"], ["hide", "Hide"]], () => ms.far, (v) => { ms.far = v; });
+            // Advanced: the numbers behind the choices above, folded until opened (kept on the device)
+            const ADV = "vellum:measureAdv";
+            let open = false; try { open = getLocal(ADV) === "1"; } catch { /* */ }
+            const adv = c.createDiv({ cls: "vls-card vls-fold" + (open ? " is-open" : "") });
+            const head = adv.createEl("button", { cls: "vls-head vls-foldhead", attr: { "aria-expanded": String(open) } });
+            setIcon(head.createSpan({ cls: "vls-foldi" }), "chevron-right");
+            head.createSpan({ cls: "vls-title", text: "Advanced" });
+            head.createSpan({ cls: "vls-sum", text: "The numbers behind the choices" });
+            head.addEventListener("click", () => { open = !open; adv.toggleClass("is-open", open); head.setAttr("aria-expanded", String(open)); try { setLocal(ADV, open ? "1" : "0"); } catch { /* */ } });
+            const ab = adv.createDiv({ cls: "vls-body" });
+            const slide = (name: string, desc: string, icon: string, min: number, max: number, step: number, get: () => number, set: (v: number) => void) =>
+                new SliderComponent(this.row(ab, name, desc, icon)).setLimits(min, max, step).setValue(get()).setDynamicTooltip().onChange((v) => { set(v); this.save(); });
+            slide("Dim to", "How much of the content shows, %.", "sun-dim", 10, 90, 5, () => ms.dim, (v) => { ms.dim = v; });
+            pick(this.row(ab, "Frames", "Around blocks and items.", "square-dashed", "The area's own edge stays dashed."), [["dashed", "Dashed"], ["solid", "Solid"]], () => ms.frames, (v) => { ms.frames = v; });
+            slide("Line strength", "How solid the lines are, %.", "contrast", 20, 100, 5, () => ms.strength, (v) => { ms.strength = v; });
+            const stripe = (v: () => void) => { v(); if (ms.stripes !== "off") { ms.stripes = "custom"; stripesLit(); } };
+            slide("Stripe gap", "Space between stripes, px.", "hash", 2, 16, 1, () => ms.hatch, (v) => stripe(() => { ms.hatch = v; }));
+            slide("Stripe width", "Each stripe, px.", "minus", 0.5, 4, 0.5, () => ms.hatchW, (v) => stripe(() => { ms.hatchW = v; }));
+            slide("Stripe strength", "How solid the stripes are, %.", "contrast", 5, 80, 5, () => ms.hatchS, (v) => stripe(() => { ms.hatchS = v; }));
+            this.input(this.row(ab, "Grid step", "In points. Empty: Snapping → Grid.", "ruler"), ms.step ? String(ms.step) : "", (v) => { const n = Math.round(Number(v || 0)); if (n >= 0 && n <= 64) { ms.step = n; this.save(); } }, { cls: "is-num", type: "number", placeholder: String(s.snap.grid) });
+            slide("Far from", "Share of the block, %.", "move-horizontal", 10, 60, 5, () => ms.farAt, (v) => { ms.farAt = v; });
+            const back = ab.createDiv({ cls: "vls-row vls-advback" }).createEl("button", { cls: "vls-pill" });
+            setIcon(back.createSpan({ cls: "vls-tabi" }), "rotate-ccw"); back.createSpan({ text: "Back to the defaults" });
+            back.addEventListener("click", () => { Object.assign(ms, MEASURE_DEFAULT); this.save(); this.display(); });
         } else if (tab === "keys") {
             this.keys(c);
         } else if (tab === "editor") {
@@ -687,13 +733,13 @@ class VellumSettings extends PluginSettingTab {
             }
 
         }
-        if (tab === "general" || tab === "snapping" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look)
+        if (tab === "general" || tab === "snapping" || tab === "measure" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look)
         // back to the theme
         const foot = c.createDiv({ cls: "vls-foot" });
         foot.createSpan({ text: "Back to Obsidian's colours and fonts." });
         const rb = foot.createEl("button", { cls: "mod-warning vls-follow" });
         setIcon(rb.createSpan({ cls: "vls-tabi" }), "rotate-ccw"); rb.createSpan({ text: "Reset look" });
-        rb.addEventListener("click", () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap, edit: s.edit }; this.queueLook(); this.display(); });
+        rb.addEventListener("click", () => { this.plugin.settings = { ...structuredClone(DEFAULTS), folder: s.folder, snap: s.snap, measure: s.measure, edit: s.edit }; this.queueLook(); this.display(); });
     }
 }
 const div = (p: HTMLElement, cls: string, text = "", use = "") => { const e = p.createDiv({ cls }); if (text) e.setText(text); if (use) e.setAttr("data-use", use); return e; };
