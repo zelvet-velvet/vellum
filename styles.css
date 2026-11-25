@@ -1184,6 +1184,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
 .vl-screen.vl-cfocus [data-id]:not(.is-cuse):not(:has(.is-cuse)) { opacity: 0.25; }
 .vl-screen.vl-cfocus [data-id].is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); opacity: 1; }
-/* a block or the screen's background: light stripes over it (an outline round a whole block read as chosen) */
-.vl-screen.vl-cfocus [data-block].is-cuse::after, .vl-screen.vl-cfocus.is-cuse::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5; border-radius: inherit;
+/* a block or the screen's background: light stripes on it (an outline round a whole block read as chosen), under its
+   items and blocks (z-index -1 in its own stacking: over its background, under what it holds), so only the colour that
+   shows is striped */
+.vl-screen.vl-cfocus [data-block].is-cuse::after, .vl-screen.vl-cfocus.is-cuse::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
     background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }
