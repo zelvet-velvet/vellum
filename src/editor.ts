@@ -43,8 +43,9 @@ const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
 const ovls = new Map<string, OvlCfg>();
 // number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
 // markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text)
-export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW: number }
-export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0 };
+// noteStack: notes whose text boxes would overlap are moved apart on screen (a box dragged by hand never moves)
+export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW: number; noteStack: boolean }
+export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0, noteStack: true };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
 // the editor's keys: each action and its key, set in Settings → Keys. The editor handles them itself: it runs in its own
@@ -487,6 +488,7 @@ class Editor {
                     if (m.tx !== undefined || m.ty !== undefined) {
                         const tx = m.tx ?? 0, ty = m.ty ?? 0, sd = sideOf(m);
                         bub.addClass("is-apart", `is-${sd}`);
+                        if (noteSide(m) === "hand") bub.addClass("is-hand");
                         Object.assign(bub.style, { left: `${tx}px`, top: `${ty}px`, transform: { r: "translate(0, -50%)", l: "translate(-100%, -50%)", b: "translate(-50%, 0)", t: "translate(-50%, -100%)" }[sd] });
                     }
                     if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
@@ -515,26 +517,16 @@ class Editor {
     // notes whose bubbles would overlap: the lower one is pushed down until it clears the one above, with a thin line back
     // to its pin. On display only: the file keeps the x y that was written (an agent can't tell how tall a text wraps)
     stackNotes(layer: HTMLElement, z: number) {
-        const gap = 4 / z, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string }[] = [];
-        const placed: typeof list = [];
-        let svg: SVGSVGElement | null = null;
-        const lead = (x1: number, y1: number, x2: number, y2: number, c: string) => {
-            if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
-            svg.createSvg("line", { attr: { x1, y1, x2, y2, stroke: c, "stroke-width": 1 / z } });
-        };
+        const gap = 4 / z, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string; dy: number }[] = [];
+        const placed: typeof list = [], all: typeof list = [];
         layer.querySelectorAll<HTMLElement>(":scope > .vl-mark.is-note").forEach((el) => {
             const bub = el.querySelector<HTMLElement>(":scope > .vl-mbub"); if (!bub || !bub.offsetHeight) return;
-            const px = parseFloat(el.style.left), py = parseFloat(el.style.top);
-            const n = { bub, px, py, x: px + bub.offsetLeft, y: py + bub.offsetTop, w: bub.offsetWidth, h: bub.offsetHeight, c: el.style.getPropertyValue("--mc") };
-            if (!bub.hasClass("is-apart")) { list.push(n); return; }
-            const er = el.getBoundingClientRect(), br = bub.getBoundingClientRect();
-            n.x = px + (br.left - er.left) / z; n.y = py + (br.top - er.top) / z;
-            // placed by hand: never moved; a line from the pin to the box's nearest point, when the box is away from it
-            placed.push(n);
-            const qx = Math.max(n.x, Math.min(px, n.x + n.w)), qy = Math.max(n.y, Math.min(py, n.y + n.h));
-            if (Math.hypot(qx - px, qy - py) > 10 / z) lead(px, py, qx, qy, n.c);
+            const px = parseFloat(el.style.left), py = parseFloat(el.style.top), er = el.getBoundingClientRect(), br = bub.getBoundingClientRect();
+            const n = { bub, px, py, x: px + (br.left - er.left) / z, y: py + (br.top - er.top) / z, w: br.width / z, h: br.height / z, c: el.style.getPropertyValue("--mc"), dy: 0 };
+            all.push(n);
+            // a box dragged by hand stays where it was put (the others go round it); so does every box with the setting off
+            if (bub.hasClass("is-hand") || !editCfg.noteStack) placed.push(n); else list.push(n);
         });
-        if (list.length + placed.length < 2) return;
         list.sort((a, b) => a.y - b.y || a.x - b.x);
         for (const n of list) {
             const y0 = n.y;
@@ -544,9 +536,15 @@ class Editor {
                 for (const o of placed) if (n.x < o.x + o.w && o.x < n.x + n.w && n.y < o.y + o.h + gap && o.y < n.y + n.h) { n.y = o.y + o.h + gap; moved = true; }
             }
             placed.push(n);
-            if (n.y === y0) continue;
-            n.bub.style.transform = `translateY(${n.y - y0}px)`;
-            lead(n.px, n.py, n.x, n.y + Math.min(n.h / 2, 10 / z), n.c);
+            if (n.y !== y0) { n.dy = n.y - y0; n.bub.style.transform = `${n.bub.style.transform} translateY(${n.dy}px)`.trim(); }
+        }
+        // a line from the pin to its box's nearest point, for every box away from its pin (moved, or placed apart)
+        let svg: SVGSVGElement | null = null;
+        for (const n of all) {
+            const qx = Math.max(n.x, Math.min(n.px, n.x + n.w)), qy = Math.max(n.y, Math.min(n.py, n.y + n.h));
+            if (!n.dy && Math.hypot(qx - n.px, qy - n.py) <= 16 / z) continue;
+            if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
+            svg.createSvg("line", { attr: { x1: n.px, y1: n.py, x2: qx, y2: qy, stroke: n.c, "stroke-width": 1 / z } });
         }
     }
     // a mark: a press chooses it, a drag moves it (an area's corner resizes it); grid steps, Alt 1 px; lines and areas snap
