@@ -1245,3 +1245,16 @@ body.is-mobile .vl-chead { align-items: flex-start; }
     .vls-edsplit > .vls-prev { overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--background-modifier-border); }
     .vls-edsplit > .vls-prev > .vls-demo { zoom: 1; width: auto; max-width: none; }
 }
+
+/* Vellum alone in its own window: Obsidian's tab bar, the view's back / forward row and its window buttons are hidden;
+   the top bar is the window's bar (#100) */
+body.vl-own-window .workspace-tab-header-container, body.vl-own-window .view-header, body.vl-own-window .titlebar { display: none; }
+.vl-top.is-titlebar { -webkit-app-region: drag; }
+.vl-top.is-titlebar :is(button, select, input, .vl-pg, .vl-review) { -webkit-app-region: no-drag; }
+body.mod-macos .vl-top.is-titlebar { padding-left: 80px; }   /* the Mac's own window buttons */
+.vl-top.is-titlebar > .vl-tr { align-self: stretch; }
+.vl-winbtns { display: flex; align-self: stretch; margin: 0 -10px 0 4px; }
+.vl .vl-winbtn { width: 46px; height: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text-muted); }
+.vl .vl-winbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vl .vl-winbtn.is-close:hover { background: #e81123; color: #fff; }
+.vl-winbtn svg { width: 16px; height: 16px; }
