@@ -171,12 +171,13 @@ const MARK_COLORS: Record<string, string> = { yellow: "#f5c84b", orange: "#ff8a3
 // (a|b: the newer Lucide name, else the older one)
 const MARK_MEANINGS: [string, string, string][] = [["yellow", "Remark", "message-circle"], ["red", "Problem", "triangle-alert|alert-triangle"], ["orange", "Question", "circle-help|help-circle"], ["green", "Done", "circle-check|check-circle"], ["blue", "How it works", "info"], ["purple", "Idea", "lightbulb"], ["gray", "Aside", "circle-minus|minus-circle"]];
 // a note's text box on a side of its pin: tx ty is the point it hangs from (none: on the right, as before tx ty)
-const NOTE_SIDES: Record<string, [number, number] | null> = { right: null, left: [-12, 0], above: [0, -14], below: [0, 14] };
+// (none: the right, top at the pin, as notes were before; the Right tile centres it as the others do)
+const NOTE_SIDES: Record<string, [number, number]> = { left: [-12, 0], right: [12, 0], above: [0, -14], below: [0, 14] };
 // which side a note's text box is on: by the larger of tx and ty (a tie: across)
 const sideOf = (tx: number, ty: number) => (Math.abs(tx) >= Math.abs(ty) ? (tx >= 0 ? "r" : "l") : ty >= 0 ? "b" : "t");
 const noteSide = (m: Mark) => {
     if (m.tx === undefined && m.ty === undefined) return "right";
-    const hit = Object.entries(NOTE_SIDES).find(([, o]) => o && o[0] === m.tx && o[1] === m.ty);
+    const hit = Object.entries(NOTE_SIDES).find(([, o]) => o[0] === m.tx && o[1] === m.ty);
     return hit ? hit[0] : "hand";
 };
 const markColor = (c?: string) => MARK_COLORS[c ?? "yellow"] ?? c ?? MARK_COLORS.yellow;
@@ -673,7 +674,7 @@ class Editor {
         if (m.kind === "note") {
             // where its text box sits: on a side of the pin (centred on it), or where a drag left it
             const t = this.section(body, "Text box"), side = noteSide(m);
-            this.seg(t, [["right", "Right", "arrow-right"], ["left", "Left", "arrow-left"], ["above", "Above", "arrow-up"], ["below", "Below", "arrow-down"]], side, (v) => { const o = NOTE_SIDES[v]; if (o) [m.tx, m.ty] = o; else { delete m.tx; delete m.ty; } }).addClass("is-stack");
+            this.seg(t, [["left", "Left", "arrow-left"], ["right", "Right", "arrow-right"], ["above", "Above", "arrow-up"], ["below", "Below", "arrow-down"]], side, (v) => { [m.tx, m.ty] = NOTE_SIDES[v]; }).addClass("is-stack");
             t.createDiv({ cls: "vl-frameinfo", text: side === "hand" ? "Placed by hand. Pick a side to put it back beside the pin." : "Or drag the text box anywhere: the pin stays on what the note is about." });
             const wr = this.frow(t, "Width");
             this.seg(wr, [["auto", editCfg.noteW ? "Default" : "Fit the text"], ["set", "Set"]], m.w ? "set" : "auto", (v) => { if (v === "auto") delete m.w; else m.w = m.w ?? (editCfg.noteW || 200); });
