@@ -119,6 +119,16 @@ const COLOUR_KINDS = ["Text", "Blocks", "Shapes", "Lines", "Screens", "Notes"] a
 // an undo step: "design" when the design changed; "back", a delete of a mark, colour or theme; "none", never a step
 type Step = "design" | "back" | "none";
 const BACK = "\u0001";   // a kept step marked as a delete's (see step())
+// an app's colours and themes: saved apart from the screens (the Colours window's own Save), so the screens' Save
+// writes them as they were last saved there
+const colsOf = (d: Doc) => JSON.stringify({ colors: d.colors, themes: d.themes, theme: d.theme });
+const putCols = (d: Doc, cols: string) => {
+    const o = JSON.parse(cols) as Pick<Doc, "colors" | "themes" | "theme">;
+    if (o.colors) d.colors = o.colors; else delete d.colors;
+    if (o.themes) d.themes = o.themes; else delete d.themes;
+    if (o.theme) d.theme = o.theme; else delete d.theme;
+    return d;
+};
 // a doc's design alone: what an undo step is about (no marks, no app colours or themes)
 const designOf = (s: string) => {
     const d = JSON.parse(s) as Doc;
@@ -222,7 +232,7 @@ class Editor {
         const { doc, error } = loaded ?? parseDoc(source);
         this.doc = doc;
         this.lookFrom(host);
-        this.saved = serialiseDoc(doc);
+        this.saved = serialiseDoc(doc); this.colSaved = colsOf(doc);
         this.card = el ? el.createDiv({ cls: "vl vl-card" }) : createDiv({ cls: "vl vl-card" });
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
         if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
@@ -315,10 +325,45 @@ class Editor {
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
     }
     snap() { return JSON.stringify(this.doc); }
-    get dirty() { return serialiseDoc(this.doc) !== this.saved; }
+    // the screens unsaved (an app in a folder: its colours aside, they have their own Save in the Colours window)
+    get dirty() { return serialiseDoc(this.store ? putCols({ ...this.doc }, this.colSaved) : this.doc) !== this.saved; }
+    colSaved = "";   // the app's colours and themes as in its _doc.json
+    colRenames: [string, string][] = [];   // colours renamed since then (their items too): Reset names them back
+    get colDirty() { return !!this.store && colsOf(this.doc) !== this.colSaved; }
+    // the Colours window's Save: only the colours and themes, into _doc.json; the screens' unsaved work stays unsaved
+    async saveColours() {
+        if (!this.store) return;
+        await this.store.saveColours(this.doc);
+        this.colSaved = colsOf(this.doc); this.colRenames = [];
+        this.saved = serialiseDoc(putCols(JSON.parse(this.saved) as Doc, this.colSaved));
+        this.draftPut(); this.drawBar(); this.lookBar(); this.drawCard(); this.hint("Colours saved", this.lookWin?.querySelector<HTMLElement>(".vl-lookbar") ?? undefined);
+    }
+    // Reset: every colour and theme back as last saved; a rename since then put back on its items too
+    resetColours() {
+        for (const [from, to] of [...this.colRenames].reverse()) {
+            colourUses(this.doc, to, from);
+            const ren = (l: string[]) => l.map((x) => { const b = x.startsWith(BACK), o = JSON.parse(b ? x.slice(BACK.length) : x) as Doc; colourUses(o, to, from); return (b ? BACK : "") + JSON.stringify(o); });
+            this.past = ren(this.past); this.future = ren(this.future);
+        }
+        this.colRenames = [];
+        putCols(this.doc, this.colSaved);
+        if (this.v.look && !(this.v.look in (this.doc.themes ?? {}))) this.setView({ look: undefined });
+        this.draftPut(); this.draw(); if (this.lookOpen) this.drawLooks(true);
+    }
+    // the Colours window's bar: shown once a colour or theme differs from the saved file
+    lookBar() {
+        const b = this.lookWin?.querySelector<HTMLElement>(".vl-lookbar"); if (!b) return;
+        b.empty(); b.toggleClass("is-on", this.colDirty);
+        if (!this.colDirty) return;
+        b.createSpan({ cls: "vl-lookbart", text: "Colours changed" });
+        const rs = b.createEl("button", { cls: "vl-lookrs", attr: { "aria-label": "Every colour and theme back as last saved" } }); setIcon(rs.createSpan(), "rotate-ccw"); rs.appendText("Reset");
+        rs.addEventListener("click", () => this.resetColours());
+        const sv = b.createEl("button", { cls: "vl-looksv mod-cta", attr: { "aria-label": "Write the colours and themes to the app's _doc.json (the screens are saved apart)" } }); setIcon(sv.createSpan(), "save"); sv.appendText("Save colours");
+        sv.addEventListener("click", () => { void this.saveColours().catch((e: Error) => new Notice(`Vellum: colours not saved (${e.message})`)); });
+    }
     draftKey() { return this.store ? `vellum:${this.store.dir}` : `vellum:${this.ctx!.sourcePath}:${this.doc.id}`; }
     draftGet() { try { return getLocal(this.draftKey()); } catch { return null; } }
-    draftPut() { try { if (this.dirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
+    draftPut() { try { if (this.dirty || this.colDirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
     stale: Doc | null = null;
     // a discrete change: one undo step. Undo steps through the design only: marks (notes for the people and the agent)
     // and the app's colours and themes are carried through undo as they are now, so a change to them alone is no step.
@@ -332,6 +377,7 @@ class Editor {
         const was = serialiseDoc(JSON.parse(before) as Doc) !== this.saved, now = this.snap();
         if (before !== now && step !== "none" && (step === "back" || designOf(before) !== designOf(now))) { this.past.push((step === "back" ? BACK : "") + before); this.future = []; }
         this.draftPut(); this.drawPages(); if (panel) this.drawPanel(); else this.drawBar();
+        this.lookBar();
         if (!was && this.dirty) this.hint("Unsaved: kept on this device until you save", undefined, false);
     }
     // a short note under the Save button for a few seconds (floats: nothing moves)
@@ -380,10 +426,11 @@ class Editor {
     }
     save() {
         if (this.store) {
-            const text = serialiseDoc(this.doc), st = this.store;
-            st.save(this.doc).then(() => {
+            // the colours as last saved in the Colours window: unsaved ones there wait for its own Save
+            const out = putCols({ ...this.doc }, this.colSaved), text = serialiseDoc(out), st = this.store;
+            st.save(out).then(() => {
                 this.saved = text;
-                try { setLocal(this.draftKey(), null); } catch { /* */ }
+                this.draftPut();   // gone, unless the Colours window has unsaved colours
                 this.drawBar(); this.drawCard(); this.hint(`Saved to ${st.dir}`);
             }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
             return;
@@ -410,8 +457,8 @@ class Editor {
         if (!this.store) return;
         const { doc } = await this.store.load(), text = serialiseDoc(doc);
         if (text === this.saved) return;
-        if (this.dirty) this.stale = this.doc;
-        this.doc = doc; this.saved = text; this.fixSel(); this.draftPut();
+        if (this.dirty || this.colDirty) this.stale = this.doc;
+        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = []; this.fixSel(); this.draftPut();
         this.drawCard(); if (this.root?.isConnected) this.draw();
     }
 
@@ -1259,8 +1306,10 @@ class Editor {
         head.createSpan({ text: "Colours" });
         head.createSpan({ cls: "vl-devwinsub" });
         this.btn(head, "x", "Close (Esc)", () => this.openLooks(false)).addClass("vl-close");
+        w.createDiv({ cls: "vl-lookbar" });
         const body = w.createDiv({ cls: "vl-devwinb" });
         this.looksPanel(body);
+        this.lookBar();
         body.scrollTop = keep;
         // under its button in the top bar
         const btn = this.bar?.querySelector<HTMLElement>(".vl-themebtn");
@@ -1380,7 +1429,7 @@ class Editor {
                         const rest = { ...themes }; delete rest[n];
                         if (Object.keys(rest).length) d.themes = rest; else delete d.themes;
                         if (d.theme === n || (d.theme === "auto" && !hasAuto(d)) || !d.themes) delete d.theme;
-                    }, true, "back");
+                    }, true, this.store ? "none" : "back");   // a folder app: Reset in the Colours window brings it back
                     this.setView({ look: undefined }); this.draw();
                 }));
                 // the editor keeps its clicks to itself: a press anywhere but the menu closes it
@@ -1448,6 +1497,7 @@ class Editor {
                         // the steps kept use the new name, so an undo never brings back a colour that is gone
                         const ren = (l: string[]) => l.map((x) => { const b = x.startsWith(BACK), o = JSON.parse(b ? x.slice(BACK.length) : x) as Doc; colourUses(o, n, to); return (b ? BACK : "") + JSON.stringify(o); });
                         this.past = ren(this.past); this.future = ren(this.future);
+                        this.colRenames.push([n, to]);
                         this.hint(used.n ? `Renamed on ${used.n} ${used.n === 1 ? "item" : "items"}, ${used.screens} ${used.screens === 1 ? "screen" : "screens"}` : `Renamed to ${to}`);
                     };
                     inp.addEventListener("click", (e) => e.stopPropagation());
@@ -1458,8 +1508,8 @@ class Editor {
                     this.edit(() => {
                         for (const t of names) delete themes[t][n];
                         if (d.colors) { delete d.colors[n]; if (!Object.keys(d.colors).length) delete d.colors; }
-                    }, true, "back");
-                    if (used.n) this.hint(`${n} deleted: ${used.n} ${used.n === 1 ? "item uses" : "items use"} it still (Ctrl+Z brings it back)`);
+                    }, true, this.store ? "none" : "back");
+                    if (used.n) this.hint(`${n} deleted: ${used.n} ${used.n === 1 ? "item uses" : "items use"} it still (${this.store ? "Reset" : "Ctrl+Z"} brings it back)`);
                 }));
             });
         }
