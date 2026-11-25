@@ -4,6 +4,27 @@ You are helping someone design an app's screens with **Vellum**, an Obsidian plu
 vault; they edit them on a phone frame in Obsidian, you read and write the same files. Field by field, the format is in
 the [Field reference](../README.md#-file-format).
 
+## The workflow
+Design and code meet in the same files. One round goes like this:
+
+1. **Frame first.** Find or make the app's folder (section 1), set its device and colours in `_doc.json` (section 2).
+2. **Draft the screens.** One JSON file per screen, one item per part (section 5), each block named. Link them with
+   `parent` and `link` so the Map shows the flow. Tell the user which files you wrote and where.
+3. **The user looks and edits.** In Vellum they drag and restyle in **Edit**, tap through in **Show**, see every screen
+   as a tree in the **Map**. They change things by hand, leave **marks** (notes) on the screen, or press **Copy
+   reference** on a block and paste it to you with what to change.
+4. **You answer.** Read the files again first: the user may have moved things since. Change only what a reference or a
+   mark points at. Options are mock sub screens (section 3); a change to a real screen waits for review (`_before/`,
+   section 3). Answer marks with marks of your own (section 6).
+5. **The user keeps or undoes** each change in the Map, keeps one option, and you delete the other options.
+6. **Build from the screens** (section 8) once the user says a screen is ready. Ask before building a screen that
+   still has open marks or mock options.
+7. **Keep them in step.** When the built app changes, change its screens too, so the next round starts from what is
+   real.
+
+Read a screen's file again before each change, never from memory of an earlier turn. If the user has the editor open,
+Vellum reloads what you write; their unsaved edits are kept.
+
 ## 1. Set up the folder
 Every app is its own folder, inside one **Vellum folder** that holds this guide:
 
@@ -89,6 +110,8 @@ before the first screen:
   (the palette button in its top bar), and switches between themes there; switching does not change the file. Read
   `_doc.json` again before you build: the colours may have changed.
 - When you build, each theme is one of the app's colour sets (light, dark…), and each name is a colour token in it.
+- Settings → Vellum → **Editor theme** colours only the editor around the screens (its panels, the stage). It is never
+  the app's look: don't read it, and don't build from it.
 
 ## 3. When the user wants options: mocks, not an artifact
 For "show me a few ways this could look", make the options **in Vellum**, not as an HTML page or image: they land on the
@@ -171,7 +194,23 @@ ask you to change that one thing. They can only do that to a part that is **its 
   picture under the content). Keep it, and lock a full-screen background or backdrop you draw yourself.
 - The user may have the editor open. Write the files; Vellum reloads them and never overwrites unsaved edits.
 
-## 8. Before you finish
+## 8. Build the app from the screens
+- **Sizes are points** (iOS points, Android dp, CSS px at 1×) on the device in `_doc.json`. A block's `x y` count from
+  the screen's top left, and blocks keep out of the safe areas unless `bleed`: build with the platform's safe-area
+  insets (a block at `y` = `safe.top` sits right under the inset), not fixed offsets.
+- **A block is a component or a section** (its name is a good type name: `BalanceCard`, `TabBar`); its `kind` says
+  what sort (summary, list, tiles, input, floating). Its items are the component's parts.
+- **Anchors are alignment**, `dx dy` padding from that edge (section 4). `"hug"` is wrap-content, `"fill"` fills the
+  block. A `row` / `col` is a stack (`HStack`, `Row`, flex) with its `gap pad main cross`.
+- **Colours and fonts are tokens**: the names in `_doc.json`'s `themes` / `colors` and `ui display mono`. Make them the
+  app's theme, then use the names, never the hex values, so light and dark both work.
+- **`parent` and `link` are navigation**: a child screen opens from its parent, the `link` says how (a tap on a row,
+  a tab).
+- `mock` screens, drafts (blocks outside the screen), marks and `_before/` copies are never built.
+- When the code can't do something a screen shows, or needs a choice the screen leaves open, leave a `blue` or
+  `orange` mark on the screen saying so, rather than guessing.
+
+## 9. Before you finish
 Check each screen you wrote:
 - `_doc.json` has the frame for this app (section 2).
 - Every block has a name the user would say.
