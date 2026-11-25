@@ -550,11 +550,14 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl input.vl-lookname { flex: 1; min-width: 0; height: 30px; font-size: var(--font-ui-small); }
 .vl-looklist { display: flex; flex-direction: column; gap: 2px; }
 .vl-lookrow { display: flex; align-items: center; gap: 4px; }
-.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px 0 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
+.vl .vl-lookc { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: auto; min-height: 36px; padding: 3px 8px 3px 6px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; cursor: pointer; }
 .vl .vl-lookc:hover { background: var(--background-modifier-hover); }
-.vl-lookn { flex: 1; min-width: 0; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-lookn { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; font-size: var(--font-ui-small); color: var(--text-normal); overflow: hidden; white-space: nowrap; }
+.vl-lookn > span { overflow: hidden; text-overflow: ellipsis; }
+.vl-lookuse { font-size: var(--font-ui-smaller); color: var(--text-faint); }   /* where the colour is used: Text 5 · Blocks 1 */
 .vl-lookv { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .vl-lookv.is-faint { font-family: var(--font-interface); color: var(--text-faint); }
+.vl-lookv.is-missing { font-family: var(--font-interface); color: var(--text-error); }   /* a colour this theme doesn't set */
 .vl .vl-lookx { flex: none; }
 .vl-railbox > * { flex-shrink: 0; }   /* a long list scrolls; nothing in it is squeezed to fit (New screen kept its height only when the list was short) */
 /* New screen: like the Save button (the accent, a 6 px corner, the icon bare beside the text), full width */
@@ -1176,3 +1179,15 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-fold:not(.is-open) > .vls-body { display: none; }
 .vls-fold > .vls-body { border-top: 1px solid var(--vls-line); }
 .vls-advback { justify-content: flex-end; }
+
+/* the pointer on a colour in the Colours window: a text's colour, a border or a line using it outlined; a fill using it
+   (a block's, the screen's, a shape's, a row's) striped where it shows: the stripes sit over its own background and under what it holds
+   (z-index -1 in its own stacking), so what covers the fill hides them. The rest of the screen faded */
+.vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
+.vl-screen.vl-cfocus [data-id]:not(.is-cuse, .is-cfill):not(:has(.is-cuse, .is-cfill)) { opacity: 0.25; }
+.vl-screen.vl-cfocus .is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); }
+.vl-screen.vl-cfocus [data-block].is-cuse { outline-offset: calc(-2px * var(--vl-iz, 1)); }   /* a block's border: inside it (past its edge is cut off) */
+.vl-screen.vl-cfocus .is-cfill { isolation: isolate; }
+.vl-screen.vl-cfocus .vl-it.is-cfill:not(.is-abs) { position: relative; }   /* in a row: still in its place, now holding the stripes */
+.vl-screen.vl-cfocus .is-cfill::after, .vl-screen.vl-cfocus.is-cfill::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: inherit;
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--interactive-accent) 35%, transparent) 0 calc(1.5px * var(--vl-iz, 1)), transparent 0 calc(8px * var(--vl-iz, 1))); }
