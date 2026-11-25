@@ -167,6 +167,18 @@ type Sel = { page: string; block?: string; item?: string; mark?: string } | null
 type Thumb = { id: string; t: HTMLElement; ph: HTMLElement; scr: HTMLElement; key?: string };
 // the colours a mark can take (or any CSS colour)
 const MARK_COLORS: Record<string, string> = { yellow: "#f5c84b", orange: "#ff8a3d", red: "#ff4d6d", green: "#2fbf71", blue: "#3d8bff", purple: "#9b6dff", gray: "#8a8f98" };
+// a mark's colour as a meaning, the agent guide's words (docs/for-agents.md, section 6), with an icon for each
+// (a|b: the newer Lucide name, else the older one)
+const MARK_MEANINGS: [string, string, string][] = [["yellow", "Remark", "message-circle"], ["red", "Problem", "triangle-alert|alert-triangle"], ["orange", "Question", "circle-help|help-circle"], ["green", "Done", "circle-check|check-circle"], ["blue", "How it works", "info"], ["purple", "Idea", "lightbulb"], ["gray", "Aside", "circle-minus|minus-circle"]];
+// a note's text box on a side of its pin: tx ty is the point it hangs from (none: on the right, as before tx ty)
+const NOTE_SIDES: Record<string, [number, number] | null> = { right: null, left: [-12, 0], above: [0, -14], below: [0, 14] };
+// which side a note's text box is on: by the larger of tx and ty (a tie: across)
+const sideOf = (tx: number, ty: number) => (Math.abs(tx) >= Math.abs(ty) ? (tx >= 0 ? "r" : "l") : ty >= 0 ? "b" : "t");
+const noteSide = (m: Mark) => {
+    if (m.tx === undefined && m.ty === undefined) return "right";
+    const hit = Object.entries(NOTE_SIDES).find(([, o]) => o && o[0] === m.tx && o[1] === m.ty);
+    return hit ? hit[0] : "hand";
+};
 const markColor = (c?: string) => MARK_COLORS[c ?? "yellow"] ?? c ?? MARK_COLORS.yellow;
 // the workspace was open when the note re-drew its block (a save rewrites the note): the new editor opens it again as it was
 const reopen = new Map<string, { at: number; sel: Sel; past: string[]; future: string[] }>();
@@ -468,10 +480,11 @@ class Editor {
                     const bub = el.createDiv({ cls: "vl-mbub" + (mw ? " is-wide" : ""), text: by + (m.text || "Write the note in the panel") });
                     if (mw) bub.style.setProperty("--mw", String(mw));
                     // placed apart from its pin (tx ty, in points): the box's near edge that far from it, a line back to it
+                    // apart from its pin (tx ty, points): it hangs from that point, centred on it, on the side the point is on
                     if (m.tx !== undefined || m.ty !== undefined) {
-                        const tx = m.tx ?? 12 * iz, ty = m.ty ?? -8 * iz;
-                        bub.addClass("is-apart"); if (tx < 0) bub.addClass("is-left");
-                        Object.assign(bub.style, tx < 0 ? { left: "auto", right: `${-tx}px` } : { left: `${tx}px` }, ty < 0 ? { top: "auto", bottom: `${-ty}px` } : { top: `${ty}px` });
+                        const tx = m.tx ?? 0, ty = m.ty ?? 0, sd = sideOf(tx, ty);
+                        bub.addClass("is-apart", `is-${sd}`);
+                        Object.assign(bub.style, { left: `${tx}px`, top: `${ty}px`, transform: { r: "translate(0, -50%)", l: "translate(-100%, -50%)", b: "translate(-50%, 0)", t: "translate(-50%, -100%)" }[sd] });
                     }
                     if (on) bub.createDiv({ cls: "vl-mbw", attr: { "data-mbw": "1", "aria-label": "Drag to make the note wider or narrower" } });
                 }
@@ -511,6 +524,8 @@ class Editor {
             const px = parseFloat(el.style.left), py = parseFloat(el.style.top);
             const n = { bub, px, py, x: px + bub.offsetLeft, y: py + bub.offsetTop, w: bub.offsetWidth, h: bub.offsetHeight, c: el.style.getPropertyValue("--mc") };
             if (!bub.hasClass("is-apart")) { list.push(n); return; }
+            const er = el.getBoundingClientRect(), br = bub.getBoundingClientRect();
+            n.x = px + (br.left - er.left) / z; n.y = py + (br.top - er.top) / z;
             // placed by hand: never moved; a line from the pin to the box's nearest point, when the box is away from it
             placed.push(n);
             const qx = Math.max(n.x, Math.min(px, n.x + n.w)), qy = Math.max(n.y, Math.min(py, n.y + n.h));
@@ -602,9 +617,18 @@ class Editor {
             if (!moved) { moved = true; this.begin(); if (!was) this.sel = { page: p.id, mark: m.id }; }
             const sn = (v: number) => (ev.altKey ? Math.round(v) : Math.round(v / grid()) * grid());
             const nx = bx + (ev.clientX - x0) / z, ny = by + (ev.clientY - y0) / z;
-            // the near edge: left of the pin, the box's right edge (below 0); right of it, its left edge
-            m.tx = nx + bw / 2 >= 0 ? Math.max(0, sn(nx)) : Math.min(-1, sn(nx + bw));
-            m.ty = ny + bh / 2 >= 0 ? Math.max(0, sn(ny)) : Math.min(-1, sn(ny + bh));
+            // the side it is furthest out on; the point it hangs from is the middle of its edge toward the pin, pulled onto
+            // the pin's line when near it (centred), and kept on that side of the diagonal
+            const cx = nx + bw / 2, cy = ny + bh / 2, near = 8 / z;
+            let ax: number, ay: number;
+            if (Math.abs(cx) - bw / 2 >= Math.abs(cy) - bh / 2) {
+                ax = sn(cx >= 0 ? nx : nx + bw); ay = Math.abs(cy) < near ? 0 : sn(cy);
+                if (Math.abs(ay) > Math.abs(ax)) ay = Math.sign(ay) * Math.abs(ax);
+            } else {
+                ay = sn(cy >= 0 ? ny : ny + bh); ax = Math.abs(cx) < near ? 0 : sn(cx);
+                if (Math.abs(ax) >= Math.abs(ay)) ax = Math.sign(ax) * Math.max(0, Math.abs(ay) - 1);
+            }
+            m.tx = ax; m.ty = ay;
             this.drawMarks(scr, p, z); this.livePanel();
         };
         const up = () => {
@@ -616,7 +640,7 @@ class Editor {
     }
     // a note's bubble: its right edge drags it wider or narrower (in monitor pixels, as the bubble keeps its size at any zoom)
     noteWidth(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
-        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width), sg = bub.hasClass("is-left") ? -1 : 1;
+        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width), sg = bub.hasClass("is-l") ? -1 : bub.hasClass("is-t") || bub.hasClass("is-b") ? 2 : 1;
         let moved = false;
         scr.setPointerCapture(e.pointerId);
         const move = (ev: PointerEvent) => {
@@ -634,34 +658,32 @@ class Editor {
     markPanel(body: HTMLElement, p: Page, m: Mark) {
         const names = { note: "Note", area: "Area", line: "Guide line" } as const;
         const s = this.section(body, names[m.kind]);
-        if (m.by) s.createDiv({ cls: "vl-frameinfo", text: `Written by ${m.by}.` });
+        if (m.by) { const w = s.createDiv({ cls: "vl-mby" }); setIcon(w.createSpan(), m.by === "agent" ? "bot" : "user"); w.createSpan({ text: `Written by ${m.by}` }); }
         this.text(s, () => m.text ?? "", (v) => { if (v.trim()) m.text = v; else delete m.text; }, { area: true, placeholder: m.kind === "note" ? "What to look at, what to change…" : m.kind === "area" ? "A name: thumb zone, hero, the eye goes here…" : "A name: content edge, baseline…", title: names[m.kind] });
-        this.chips(s, Object.keys(MARK_COLORS).map((k) => [k, k] as [string, string]), m.color ?? "yellow", (v) => { if (v === "yellow") delete m.color; else m.color = v; }, (v) => MARK_COLORS[v], true);
-        const r = s.createDiv({ cls: "vl-nums" });
-        if (m.kind === "line") {
-            this.chips(s, [["y", "Across", "move-horizontal"], ["x", "Down", "move-vertical"]], m.axis === "x" ? "x" : "y", (v) => { m.axis = v; });
-            if (m.axis === "x") this.num(r, "X", () => m.x, (v) => { m.x = v; }); else this.num(r, "Y", () => m.y, (v) => { m.y = v; });
-        } else {
-            this.num(r, "X", () => m.x, (v) => { m.x = v; }); this.num(r, "Y", () => m.y, (v) => { m.y = v; });
+        // what it is, as its colour says it (the meanings the agent guide gives each colour)
+        const ms = this.section(body, "Meaning");
+        const mg = ms.createDiv({ cls: "vl-mmean" }), now = m.color ?? "yellow";
+        for (const [c, word, icon] of MARK_MEANINGS) {
+            const b = mg.createEl("button", { cls: "vl-mmeant" + (c === now ? " is-on" : ""), attr: { "aria-label": `${word} (${c})` } });
+            b.style.setProperty("--mc", MARK_COLORS[c]);
+            const ic = b.createSpan({ cls: "vl-mmeani" });
+            for (const n of icon.split("|")) { setIcon(ic, n); if (ic.querySelector("svg")) break; }   // the newer Lucide name, else the older one b.createSpan({ text: word });
+            b.addEventListener("click", () => this.edit(() => { if (c === "yellow") delete m.color; else m.color = c; }));
         }
-        // its text: the size, and a note's width (Auto: as wide as its text)
-        const r3 = s.createDiv({ cls: "vl-nums" });
-        this.num(r3, "Text size", () => m.size ?? editCfg.markSize, (v) => { if (v === editCfg.markSize) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
-        if (m.kind === "note") this.num(r3, "Width", () => m.w ?? (editCfg.noteW || 200), (v) => { if (v === editCfg.noteW) delete m.w; else m.w = v; }, { min: 60, max: 600, unit: "px" });
         if (m.kind === "note") {
-            // where its text box sits: beside the pin on one side, or placed by hand (a drag on the box; no side lit)
-            const side = m.tx === undefined && m.ty === undefined ? "right" : m.tx === -12 && m.ty === 0 ? "left" : m.tx === 0 && m.ty === -12 ? "above" : m.tx === 0 && m.ty === 12 ? "below" : "hand";
-            const at: Record<string, [number, number] | null> = { right: null, left: [-12, 0], above: [0, -12], below: [0, 12] };
-            const row = this.frow(s, side === "hand" ? "Text: placed by hand" : "Text");
-            this.chips(row, [["right", "Right"], ["left", "Left"], ["above", "Above"], ["below", "Below"]] as [string, string][], side, (v) => { const o = at[v]; if (o) [m.tx, m.ty] = o; else { delete m.tx; delete m.ty; } });
+            // where its text box sits: on a side of the pin (centred on it), or where a drag left it
+            const t = this.section(body, "Text box"), side = noteSide(m);
+            this.seg(t, [["right", "Right", "arrow-right"], ["left", "Left", "arrow-left"], ["above", "Above", "arrow-up"], ["below", "Below", "arrow-down"]], side, (v) => { const o = NOTE_SIDES[v]; if (o) [m.tx, m.ty] = o; else { delete m.tx; delete m.ty; } }).addClass("is-stack");
+            t.createDiv({ cls: "vl-frameinfo", text: side === "hand" ? "Placed by hand. Pick a side to put it back beside the pin." : "Or drag the text box anywhere: the pin stays on what the note is about." });
+            const wr = this.frow(t, "Width");
+            this.seg(wr, [["auto", editCfg.noteW ? "Default" : "Fit the text"], ["set", "Set"]], m.w ? "set" : "auto", (v) => { if (v === "auto") delete m.w; else m.w = m.w ?? (editCfg.noteW || 200); });
+            if (m.w) this.num(t.createDiv({ cls: "vl-nums" }), "Width", () => m.w ?? 200, (v) => { m.w = v; }, { min: 60, max: 600, unit: "px" });
         }
-        if (m.kind === "note" && m.w) this.actions(s, [["move-horizontal", editCfg.noteW ? "Width: the default" : "Width: as wide as the text", () => this.edit(() => { delete m.w; })]]);
+        if (m.kind === "line") this.seg(this.section(body, "Direction"), [["y", "Across", "move-horizontal"], ["x", "Down", "move-vertical"]], m.axis === "x" ? "x" : "y", (v) => { m.axis = v as "x" | "y"; }).addClass("is-stack");
         if (m.kind === "area") {
-            const r2 = s.createDiv({ cls: "vl-nums" });
-            this.num(r2, "W", () => m.w ?? 100, (v) => { m.w = v; }, { min: 8 }); this.num(r2, "H", () => m.h ?? 100, (v) => { m.h = v; }, { min: 8 });
             const g = this.section(body, "Guide in it");
-            this.chips(g, [["none", "None"], ["thirds", "Thirds"], ["phi", "Golden grid"], ["spiral", "Spiral"], ["diag", "Triangles"], ["center", "Centre"]] as [string, string][], m.guide ?? "none", (v) => { if (v === "none") delete m.guide; else m.guide = v as Guide; });
-            if (m.guide === "spiral") this.chips(g, [["tl", "↖"], ["tr", "↗"], ["bl", "↙"], ["br", "↘"]] as ["tl" | "tr" | "bl" | "br", string][], m.corner ?? "br", (v) => { if (v === "br") delete m.corner; else m.corner = v; });
+            this.seg(g, [["none", "None", "square"], ["thirds", "Thirds", "grid-3x3"], ["phi", "Golden", "layout-grid"], ["spiral", "Spiral", "shell"], ["diag", "Triangles", "triangle"], ["center", "Centre", "crosshair"]], m.guide ?? "none", (v) => { if (v === "none") delete m.guide; else m.guide = v as Guide; }).addClass("is-stack", "is-grid3");
+            if (m.guide === "spiral") this.seg(this.frow(g, "Turns into"), [["tl", "Top left", "arrow-up-left"], ["tr", "Top right", "arrow-up-right"], ["bl", "Bottom left", "arrow-down-left"], ["br", "Bottom right", "arrow-down-right"]], m.corner ?? "br", (v) => { if (v === "br") delete m.corner; else m.corner = v as "tl" | "tr" | "bl" | "br"; }, true);
             const { W, H } = this.screen(p), PHI = (1 + Math.sqrt(5)) / 2;
             this.actions(g, [
                 ["ratio", "Golden shape", () => this.edit(() => { const w = m.w ?? 100, h = m.h ?? 100; if (w >= h) m.h = Math.round(w / PHI); else m.w = Math.round(h / PHI); })],
@@ -669,6 +691,14 @@ class Editor {
                 ["maximize", "The whole screen", () => this.edit(() => { m.x = 0; m.y = 0; m.w = W; m.h = H; })],
             ]);
         }
+        // numbers, rarely typed (a drag on the screen sets them): folded
+        const pl = this.section(body, "Size and place", true, { shut: true, hint: m.kind === "line" ? `${m.axis === "x" ? "x" : "y"} ${Math.round(m.axis === "x" ? m.x : m.y)}` : `${Math.round(m.x)}, ${Math.round(m.y)}` });
+        const r = pl.createDiv({ cls: "vl-nums" });
+        if (m.kind === "line") { if (m.axis === "x") this.num(r, "X", () => m.x, (v) => { m.x = v; }); else this.num(r, "Y", () => m.y, (v) => { m.y = v; }); }
+        else { this.num(r, "X", () => m.x, (v) => { m.x = v; }); this.num(r, "Y", () => m.y, (v) => { m.y = v; }); }
+        if (m.kind === "area") { const r2 = pl.createDiv({ cls: "vl-nums" }); this.num(r2, "W", () => m.w ?? 100, (v) => { m.w = v; }, { min: 8 }); this.num(r2, "H", () => m.h ?? 100, (v) => { m.h = v; }, { min: 8 }); }
+        this.num(pl.createDiv({ cls: "vl-nums" }), "Text size", () => m.size ?? editCfg.markSize, (v) => { if (v === editCfg.markSize) delete m.size; else m.size = v; }, { min: 8, max: 40, unit: "px" });
+        this.actions(body, [["trash-2", `Delete the ${names[m.kind].toLowerCase()}`, () => this.remove()]]);
         if (this.focusMark) { this.focusMark = false; window.setTimeout(() => body.querySelector<HTMLElement>("textarea.vl-text")?.focus()); }
     }
     // several blocks chosen at once (an area dragged out, Shift+click, Ctrl+A): kept for the page selection it was made

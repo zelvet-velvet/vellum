@@ -36,8 +36,8 @@ export interface Block { id: string; name: string; kind: string; x: number; y: n
 // across (axis y, at y) or down (axis x, at x) with a label. Drags snap to lines and areas. by: who wrote it ("agent")
 export type Guide = "thirds" | "phi" | "spiral" | "diag" | "center";
 // size: its text's size (11 if not set); a note's w: its bubble's width (else as wide as its text, up to 200)
-// a note's tx ty: its text box placed apart from the pin, in screen points from it: tx >= 0 puts the box's left edge
-// there, below 0 its right edge; ty >= 0 its top edge, below 0 its bottom. Neither: the box beside the pin, on its right
+// a note's tx ty: its text box apart from the pin: the point (in screen points from the pin) it hangs from, centred on
+// it, on the side the point is on (the larger of tx and ty: right, left, below or above). Neither: on the pin's right
 export interface Mark { id: string; kind: "note" | "area" | "line"; x: number; y: number; w?: number; h?: number; size?: number; tx?: number; ty?: number; axis?: "x" | "y"; text?: string; color?: string; guide?: Guide; corner?: "tl" | "tr" | "bl" | "br"; land?: boolean; by?: string }
 // parent: the page it is opened from (none = a main page, a tab); link: how you get there ("tap a row"); the map draws the tree
 // inherit: the parent is its frame (a layout template): the parent's blocks are drawn under its own, a block of its own with
