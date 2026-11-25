@@ -4,6 +4,27 @@ You are helping someone design an app's screens with **Vellum**, an Obsidian plu
 vault; they edit them on a phone frame in Obsidian, you read and write the same files. Field by field, the format is in
 the [Field reference](../README.md#-file-format).
 
+## The workflow
+Design and code meet in the same files. One round goes like this:
+
+1. **Frame first.** Find or make the app's folder (section 1), set its device and colours in `_doc.json` (section 2).
+2. **Draft the screens.** One JSON file per screen, one item per part (section 5), each block named. Link them with
+   `parent` and `link` so the Map shows the flow. Tell the user which files you wrote and where.
+3. **The user looks and edits.** In Vellum they drag and restyle in **Edit**, tap through in **Show**, see every screen
+   as a tree in the **Map**. They change things by hand, leave **marks** (notes) on the screen, or press **Copy
+   reference** on a block and paste it to you with what to change.
+4. **You answer.** Read the files again first: the user may have moved things since. Change only what a reference or a
+   mark points at. Options are mock sub screens (section 3); a change to a real screen waits for review (`_before/`,
+   section 3). Answer marks with marks of your own (section 6).
+5. **The user keeps or undoes** each change in the Map, keeps one option, and you delete the other options.
+6. **Build from the screens** (section 8) once the user says a screen is ready. Ask before building a screen that
+   still has open marks, mock options, or a change waiting for review (its copy in `_before/`).
+7. **Keep them in step.** When the built app changes, change its screens too, so the next round starts from what is
+   real.
+
+Read a screen's file again before each change, never from memory of an earlier turn. If the user has the editor open,
+Vellum reloads what you write; their unsaved edits are kept.
+
 ## 1. Set up the folder
 Every app is its own folder, inside one **Vellum folder** that holds this guide:
 
@@ -45,7 +66,9 @@ Vellum/
 ## 2. Set up the frame, before the first screen
 Every screen is drawn on the app's frame: its size, corner, status bar and safe areas. Set them in `_doc.json` to match
 the real app, before drawing anything; blocks are placed inside the safe areas, so a wrong frame moves every screen.
-Ask the user which device or window size they target if you can't tell.
+Ask the user which device or window size they target if you can't tell; if you can't ask now, pick the likeliest,
+say which in your reply, and leave an `orange` mark asking. Each device's size and safe areas are in **Devices** at the
+end of this file: place blocks inside them.
 
 | The app | In `_doc.json` |
 | :--- | :--- |
@@ -89,17 +112,26 @@ before the first screen:
   (the palette button in its top bar), and switches between themes there; switching does not change the file. Read
   `_doc.json` again before you build: the colours may have changed.
 - When you build, each theme is one of the app's colour sets (light, dark…), and each name is a colour token in it.
+- Settings → Vellum → **Editor theme** colours only the editor around the screens (its panels, the stage). It is never
+  the app's look: don't read it, and don't build from it.
 
 ## 3. When the user wants options: mocks, not an artifact
 For "show me a few ways this could look", make the options **in Vellum**, not as an HTML page or image: they land on the
 phone frame, next to the real screens, in the same format you will build from.
-- Write two or three sub screens: `"parent": "<the screen's id>"`, `"mock": true`, names like `Home · option A`.
+- Write two or three sub screens: `"parent": "<the screen's id>"`, `"mock": true`, names like `Home · option A`, ids
+  like `home-option-a`, each file named after its screen (`Home · option A.json`). Put them in `order` right after the
+  screen. No `link` is needed: they are options for that screen, not a way to it.
 - Each is a whole screen. The user compares them in the editor and the **Map**, keeps one, and you delete the rest.
+- **The one kept becomes the real screen**: copy the screen to `_before/` (a change, as below), put the option's blocks
+  in it (the screen keeps its own `id`, `name`, `parent`, `link`; no `mock`), then delete every option's file and take
+  them out of `order`. The user reviews it as any change.
 
 ### A change to a screen that exists: it waits for review
 For "change it", change the real screen, and leave its old version where Vellum can show it:
 - Before you change a screen, copy its file to `_before/<the same file name>` in the app folder, unless a copy is
   already there (that copy is the version the user last approved; keep it). Then edit the screen in place.
+- Every change of yours to a screen goes through this, whatever the reason: the user's request, a fix you make on your
+  own, both at once. One copy covers them all; say in your reply what changed, so the user knows what Keep accepts.
 - Never keep the old version in a temporary folder or anywhere else: Vellum can't see it, and the next session won't
   know it is there.
 - Vellum marks the screen **Changed**; the user holds **B** to see it as it was, then keeps the change (the copy goes)
@@ -108,6 +140,27 @@ For "change it", change the real screen, and leave its old version where Vellum 
 - Options stay mock sub screens, as above.
 
 ## 4. What a screen can hold
+A screen file, whole (the file is named after the screen: `Home.json`):
+
+```json
+{"id": "home", "name": "Home", "note": "What this screen is for.", "marks": [], "blocks": [
+  {"id": "header", "name": "Header", "kind": "nav", "x": 0, "y": 59, "w": 393, "h": 56, "items": [{"id": "title", "type": "text", "v": "Home", "size": 28, "wt": 700, "font": "display", "g": "l", "dx": 20}, {"id": "settings", "type": "icon", "name": "settings", "g": "r", "dx": 20}]},
+  {"id": "balance-card", "name": "Balance card", "kind": "card", "x": 16, "y": 127, "w": 361, "h": 120, "fill": "tile", "r": 16, "items": [{"id": "label", "type": "text", "v": "Balance", "size": 13, "color": "dim", "g": "tl", "dx": 16, "dy": 16}, {"id": "amount", "type": "text", "v": "$4,210", "size": 34, "wt": 700, "g": "bl", "dx": 16, "dy": 16}, {"id": "divider", "type": "line", "w": 329, "h": 1, "fill": "line", "g": "b", "dy": 0}, {"id": "send", "type": "text", "v": "Send", "size": 15, "color": "paper", "fill": "accent", "r": 10, "pad": 10, "g": "br", "dx": 16, "dy": 16}]}
+]}
+```
+
+- **Every screen, block and item has an `id`**: a screen without one isn't loaded; `order` in `_doc.json` lists the
+  screens' `id`s; references and marks point at block and item ids. Unique within the screen, readable, never changed.
+- **An item's kind is its `type`**: `text rect ellipse line img icon row col group`.
+- **A block's `kind`** is one of `hero` (a summary or a big number), `nav` (a title or navigation bar), `card`, `list`,
+  `tiles` (a grid), `action` (inputs and buttons), `float` (floating over the rest). Another value shows as `hero`.
+- **A `line` is a thin box**: `w` long and `h: 1` across (or `w: 1`, `h` long down), its colour in `fill`. `h: 0` draws
+  nothing.
+- **A text lines up by its anchor**: `g` `t c b` centre it, `tr r br` set it right; there is no other alignment field.
+  Give it a `w` (or `"fill"`) to centre it across a width. On a centred anchor `dx` moves it from the middle (negative:
+  left); on `l` / `r` anchors it is the distance in from that side, as `dy` is for `t` / `b`.
+- **Marks** are in screen points, anywhere on the screen.
+
 | Want | Use |
 | :--- | :--- |
 | A card, a bar, a list | A **block**: a box at `x y w h` (points) with a `kind` and its own look: `fill stroke sw r`, `sides` |
@@ -151,7 +204,7 @@ ask you to change that one thing. They can only do that to a part that is **its 
 
 ## 6. Talking to the user
 - **References**: the user may paste `[Vellum/Remote/Home.json › Card (card-1)]`: the file, the block (and item) they
-  mean. Change only that.
+  mean, by name and `(id)`. Change only that. If the id isn't in the file, match the name, and say so.
 - **Marks** are notes on the screen, never part of the design: read the user's (`marks` on a page), and answer with your
   own, `"by": "agent"`: a `note` pinned at `x y`, an `area` (`w h`), a guide `line`.
 - A mark's `color` tells the user what it is at a glance: `yellow` (the default) a remark, `red` a problem or something
@@ -165,13 +218,37 @@ ask you to change that one thing. They can only do that to a part that is **its 
 
 ## 7. Rules
 - Keep `id`s stable: the user's references and marks point at them.
-- Keep each file's layout: the screen's own fields on the first line, then one block per line.
+- Keep each file's layout: the screen's own fields (`id name note parent link mock marks`…) on the first line, then
+  one block per line, as in the example in section 4.
 - A block wholly outside the screen is a **draft** the user parked there: leave it, don't build it.
 - `"lock": true` on a block or an item means the user locked it so clicks on the screen go through it (a background, a
   picture under the content). Keep it, and lock a full-screen background or backdrop you draw yourself.
 - The user may have the editor open. Write the files; Vellum reloads them and never overwrites unsaved edits.
 
-## 8. Before you finish
+## 8. Build the app from the screens
+- **Sizes are points** (iOS points, Android dp, CSS px at 1×) on the device in `_doc.json`. A block's `x y` count from
+  the screen's top left, and blocks keep out of the safe areas unless `bleed`: build with the platform's safe-area
+  insets (a block at `y` = `safe.top` sits right under the inset), not fixed offsets.
+- **A block is a component or a section** (its name is a good type name: `BalanceCard`, `TabBar`); its `kind` says
+  what sort (`hero nav card list tiles action float`, section 4). Its items are the component's parts.
+- **Anchors are alignment**, `dx dy` padding from that edge (section 4). `"hug"` is wrap-content, `"fill"` fills the
+  block. A `row` / `col` is a stack (`HStack`, `Row`, flex) with its `gap pad main cross`.
+- **Colours and fonts are tokens**: the names in `_doc.json`'s `themes` / `colors` and `ui display mono`. Make them the
+  app's theme, then use the names, never the hex values, so light and dark both work. `ui` is the body text, `display`
+  the headings and big numbers, `mono` figures that line up; use the app's own fonts for them (ask if it has none).
+- **Layout is the intent, not the coordinates**: blocks one under another are a stack, the gaps between them its
+  spacing; a `float` block is an overlay. Use absolute positions only where the design is really free-placed.
+- **Icons** are Lucide names: use the app's icon set if it has Lucide, else the platform's closest (SF Symbols, Material
+  Symbols) and keep the meaning.
+- **A `nav` block or a tab bar** is the platform's own bar when the app uses one: the block says what it holds and where
+  it sits.
+- **`parent` and `link` are navigation**: a child screen opens from its parent, the `link` says how (a tap on a row,
+  a tab).
+- `mock` screens, drafts (blocks outside the screen), marks and `_before/` copies are never built.
+- When the code can't do something a screen shows, or needs a choice the screen leaves open, leave a `blue` or
+  `orange` mark on the screen saying so, rather than guessing.
+
+## 9. Before you finish
 Check each screen you wrote:
 - `_doc.json` has the frame for this app (section 2).
 - Every block has a name the user would say.

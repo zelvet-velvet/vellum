@@ -10,7 +10,13 @@ const guide = (() => {
     const fields = r.slice(r.indexOf("\n", a) + 1, b).trim();
     const body = g.replace("the [Field reference](../README.md#-file-format)", "the Field reference at the end of this file");
     if (body === g) throw new Error("docs/for-agents.md: the link to the Field reference is missing");
-    return `${body.trim()}\n\n## Field reference\n\n${fields}\n`;
+    // the devices, from the plugin's own list: their size and safe areas, so an agent can place blocks without guessing
+    const devs = [...readFileSync("src/devices.ts", "utf8").matchAll(/\{ id: "([^"]+)", brand: "[^"]*", name: "([^"]+)", w: (\d+), h: (\d+), radius: (\d+), kind: "phone", cut: "[^"]*", top: (\d+), bottom: (\d+)/g)];
+    if (devs.length < 5) throw new Error("src/devices.ts: the device list could not be read for the agent guide");
+    const table = ["| `device` | Phone | Screen (points) | Corner | Safe areas top / bottom |", "| :--- | :--- | :--- | :--- | :--- |",
+        ...devs.map(([, id, name, w, h, r, t, b]) => `| \`${id}\` | ${name} | ${w} × ${h} | ${r} | ${t} / ${b} |`)].join("\n");
+    const custom = "A custom size `custom-<w>x<h>`: a phone has a 40 pt corner and 44 / 24 safe areas; `-tablet` an 18 pt corner and 24 / 20; `-window` and `-web` none. Set `safe` in `_doc.json` to differ.";
+    return `${body.trim()}\n\n## Devices\n\n${table}\n\n${custom}\n\n## Field reference\n\n${fields}\n`;
 })();
 
 const prod = process.argv[2] === "production";
