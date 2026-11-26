@@ -145,8 +145,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-mapbox { position: absolute; left: 0; top: 0; transform-origin: 0 0; }   /* laid out once, scaled for the zoom */
 .vl-thumb .vl-tphone { content-visibility: auto; }   /* a screen off the window isn't painted (with many screens, the cost of a zoom) */
 .vl-tname { transform-origin: 50% 0; }   /* the Map zoomed as a picture: names, link labels and tags scaled back round where they hold on */
-.vl-maplink { transform-origin: 50% 100%; }
-.vl-ttags { transform-origin: 100% 100%; }
+.vl-maplink { transform-origin: 0 100%; }   /* (its own translate puts its middle at 0) */
 .vl-maplines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .vl-maplines path { fill: none; stroke: var(--text-faint); stroke-width: 1.5; stroke-linejoin: round; }
 .vl-maplink { position: absolute; transform: translateX(-50%); font-size: 10px; line-height: 1.3; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; background: var(--background-primary); border-radius: 3px; pointer-events: none; }
