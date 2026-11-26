@@ -255,8 +255,9 @@ ask you to change that one thing. They can only do that to a part that is **its 
 When the user saves a change to a screen in Vellum, Vellum copies the screen as it was into `_edited/<its file name>`
 (once: later saves keep that first copy). Vellum marks it **Edited** and offers "N edits to build". When asked to build
 the user's edits (or "read my Vellum edits"):
-- The user may paste Vellum's message ("Build my Vellum edits in …"): it lists each screen's changes, block by block,
-  `field: old → new`. Build from it; read the screen's file for anything it shortens with "…".
+- The user may paste what Vellum copied (**Copy the changes**): each screen's path and kind (edited, new, deleted), then
+  its changes block by block, `field: old → new`. Build from it; read the screen's file for anything shortened with "…".
+  The copies in `_edited/` still go once built.
 - Each `.json` in the app's `_edited/` is one screen to build; its `id` says which. Three kinds:
   - a copy of the screen: it was **edited**. Compare it with the screen's file now and build only the difference (moved,
     resized, restyled, added or removed blocks and items, text). The copy is the state the code matches.

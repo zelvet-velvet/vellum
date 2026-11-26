@@ -3,7 +3,7 @@ import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type D
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
 import { getLocal, setLocal } from "./local";
-import { EDITED, FolderStore, srcOf } from "./store";
+import { FolderStore, srcOf } from "./store";
 import { describeEdit } from "./diff";
 import { canUngroup, ungroupBlock } from "./flatten";
 import { Box, Edges, gapStops, GapStop, nearStop, sameGaps, sameSize } from "./snapgap";
@@ -536,22 +536,22 @@ class Editor {
     // ---- the user's edits waiting to be built: a screen edited since it was built has its copy in _edited/ (the store reads them)
     edited(p: Page) { return !!this.store?.edits.has(p.id); }
     edits() { return [...(this.store?.edits.entries() ?? [])].map(([id, e]) => ({ id, ...e })); }
-    // a message for the agent: each screen edited since it was built, with what changed (its copy against the screen now),
-    // enough to build from as it is; then delete the copies
+    // what changed: each screen edited since it was built (its copy against the screen now), facts only: what to do with
+    // them is the user's to say, and the agent guide's
     copyEdits(at?: HTMLElement) {
         const st = this.store, l = this.edits(); if (!st || !l.length) return;
-        const file = (path?: string) => (path ?? "").split("/").pop() ?? "";
+        const file = (path?: string) => path ?? "";
         const parts = l.map((e) => {
             const p = this.doc.pages.find((q) => q.id === e.id);
-            if (e.kind === "removed") return `${e.name}: deleted. Take it out of the app.`;
+            if (e.kind === "removed") return `${e.name} (${e.path}): deleted`;
             if (!p) return "";
-            if (e.kind === "new") return `${p.name} (${file(st.files.get(p.id))}): new. Build the whole screen from its file.`;
+            if (e.kind === "new") return `${p.name} (${file(st.files.get(p.id))}): new`;
             const was = parseDoc(`{"pages": [${e.text}]}`).doc.pages[0];
             const lines = was ? describeEdit(was, p) : [];
-            return `${p.name} (${file(st.files.get(p.id))}): edited.\n${lines.length ? lines.join("\n") : "- nothing that changes the design (saved as it was)"}`;
+            return `${p.name} (${file(st.files.get(p.id))}): edited\n${lines.length ? lines.join("\n") : "- no change to the design"}`;
         }).filter(Boolean);
-        const text = `Build my Vellum edits in ${st.dir}. What changed on each screen since it was last built:\n\n${parts.join("\n\n")}\n\nPositions follow the Vellum format (VELLUM.md). When a screen is built, delete its copy in ${st.dir}/${EDITED}/ (only that file): Vellum clears its Edited mark.\n`;
-        (this.root?.win ?? window).navigator.clipboard.writeText(text).then(() => this.hint("Copied for the agent", at), () => this.writer("Copy this for the agent", text, () => { /* */ }));
+        const text = parts.join("\n\n") + "\n";
+        (this.root?.win ?? window).navigator.clipboard.writeText(text).then(() => this.hint("Changes copied", at), () => this.writer("Copy the changes", text, () => { /* */ }));
     }
     async markBuilt(ids: string[]) {
         if (!this.store) return;
@@ -1202,7 +1202,7 @@ class Editor {
         }
         const ned = this.edits().length;
         if (ned) {
-            const eb = r.createEl("button", { cls: "vl-review is-edited", attr: { "aria-label": "Your edits since the screens were last built: copy a message asking the agent to build them" } });
+            const eb = r.createEl("button", { cls: "vl-review is-edited", attr: { "aria-label": "Your edits since the screens were last built: copy what changed, screen by screen" } });
             setIcon(eb.createSpan(), "hammer"); eb.appendText(`${ned} ${ned === 1 ? "edit" : "edits"} to build`);
             eb.addEventListener("click", () => this.copyEdits(eb));
         }
@@ -4298,7 +4298,7 @@ class Editor {
             const n = this.edits().length;
             const cp: HTMLElement[] = [];
             this.actions(c, [
-                ["clipboard-copy", n > 1 ? `Copy all ${n} for the agent` : "Copy for the agent", () => this.copyEdits(cp[0])],
+                ["clipboard-copy", n > 1 ? `Copy the changes (${n} screens)` : "Copy the changes", () => this.copyEdits(cp[0])],
                 ["check", "Mark as built", () => { void this.markBuilt([p.id]); }],
                 ...(n > 1 ? [["check-check", `Mark all ${n} as built`, () => { void this.markBuilt(this.edits().map((e) => e.id)); }] as [string, string, () => void]] : []),
             ]);
