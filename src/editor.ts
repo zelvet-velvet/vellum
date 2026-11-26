@@ -1110,7 +1110,6 @@ class Editor {
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
-            this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             // where you are: the app (a folder; a click switches), then the screen (none in the Map)
             if (this.store) this.drawAppBtn(l);
             if (!this.store || (cur && !this.v.map)) {
@@ -1142,8 +1141,13 @@ class Editor {
         const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": `Save into the note (${keyText(keyOf("save"))})` } });
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
-        if (!Platform.isMobile && !this.v.show && !this.v.map) {   // Show and Map have no settings panel
+        // the two sides' toggles as a pair at the right end, just before the window's own buttons: one place for both
+        // in every window and on every system (Show and the Map have no settings panel)
+        if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
+            this.btn(r, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+        }
+        if (!Platform.isMobile && !this.v.show && !this.v.map) {
             this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
         this.winButtons(b, r);
