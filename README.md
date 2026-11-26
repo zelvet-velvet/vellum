@@ -14,6 +14,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
 </p>
 
+<p align="center">
+  <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
+</p>
+
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
 
 <p align="center">
@@ -44,10 +48,6 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> How it works
 
-<p align="center">
-  <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
-</p>
-
 1. **You lay out** a screen on the phone, or ask the agent to draft it.
 2. **Vellum keeps it** as one small file per screen, one block per line: easy to read, small diffs.
 3. **The agent reads and writes** the same files, and builds the app from them. Its changes wait for your review.
@@ -56,11 +56,6 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 ### Lay out
 
-<table>
-  <tr>
-    <td width="50%" valign="top"><img src="assets/measure.gif" alt="Measure: M held and a drag over the buttons at the foot of Holdings shows each button's size, the gaps between them and the block's size"></td>
-    <td valign="top">
-
 - <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **Real devices**: iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar. Portrait and landscape.
 - <img src="assets/icons/blocks.svg" width="16" height="16" alt=""> **Blocks and anchors**: items hold on to a point of their block, with an offset and hug / fixed / fill sizes, as native layouts do.
 - <img src="assets/icons/magnet.svg" width="16" height="16" alt=""> **Snapping**: edges, middles, margins, equal gaps and sizes, with guide lines.
@@ -68,9 +63,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/overlays.svg" width="16" height="16" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
 - <img src="assets/icons/picture.svg" width="16" height="16" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
 
-</td>
-  </tr>
-</table>
+<p align="center"><img src="assets/measure.gif" width="705" alt="Measure: M held and a drag over the cost, net profit and realized row of Holdings shows each text's size, the gaps between them and the padding to the block"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
 
 <table>
   <tr>

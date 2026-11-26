@@ -14,6 +14,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT 授權"></a>
 </p>
 
+<p align="center">
+  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
+</p>
+
 <p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
 
 <p align="center">
@@ -44,10 +48,6 @@
 
 ## <img src="assets/icons/star.svg" width="24" height="24" alt=""> 運作方式
 
-<p align="center">
-  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
-</p>
-
 1. **排版**：於手機外框上排版畫面，或請 agent 產生草稿
 2. **存檔**：Vellum 將每個畫面存為一個小檔案，一個區塊一行，易讀且 diff 簡潔
 3. **agent 讀寫**：agent 讀寫同一批檔案，並據此實作 app。agent 的修改需經你確認
@@ -56,11 +56,6 @@
 
 ### 排版
 
-<table>
-  <tr>
-    <td width="50%" valign="top"><img src="assets/measure.gif" alt="測量：按住 M 並拖曳框選 Holdings 底部的按鈕，顯示各按鈕的尺寸、相互間距與區塊尺寸"></td>
-    <td valign="top">
-
 - <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **真實機型**：iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。支援直向與橫向
 - <img src="assets/icons/blocks.svg" width="16" height="16" alt=""> **區塊與錨點**：項目固定於區塊的某一點，保留位移，尺寸可設為 hug、固定或 fill，與原生版面相同
 - <img src="assets/icons/magnet.svg" width="16" height="16" alt=""> **對齊吸附**：邊緣、中線、邊距、等距與等尺寸，並顯示參考線
@@ -68,9 +63,7 @@
 - <img src="assets/icons/overlays.svg" width="16" height="16" alt=""> **輔助線**：格線、欄位、三分法、黃金比例與螺旋、消失點
 - <img src="assets/icons/picture.svg" width="16" height="16" alt=""> **圖片與圖示**：圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱
 
-</td>
-  </tr>
-</table>
+<p align="center"><img src="assets/measure.gif" width="705" alt="測量：按住 M 並拖曳框選 Holdings 的成本、淨利與已實現一列，顯示各文字的尺寸、相互間距與到區塊邊緣的內距"><br><sub><b>測量</b>：按住 <kbd>M</kbd> 拖曳，顯示框內所有尺寸、間距與內距</sub></p>
 
 <table>
   <tr>
