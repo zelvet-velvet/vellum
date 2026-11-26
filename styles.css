@@ -204,6 +204,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-yellow, #e0ac00)); box-shadow: none; background: transparent; color: var(--text-normal); border-radius: 6px; }
 .vl .vl-review.is-edited { border-color: var(--vlu-edited, var(--color-green, #08b94e)); background: transparent; }   /* an outline only: no fill */
 .vl .vl-review.is-edited svg { color: var(--vlu-edited, var(--color-green, #08b94e)); }
+.vl .vl-review.is-mock { border-color: var(--vlu-mock, var(--color-orange, #ec7500)); }
+.vl .vl-review.is-mock svg { color: var(--vlu-mock, var(--color-orange, #ec7500)); }
 .vl .vl-review svg { width: 15px; height: 15px; color: var(--vlu-changed, var(--color-yellow, #e0ac00)); }
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
