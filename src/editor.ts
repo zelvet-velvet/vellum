@@ -223,12 +223,23 @@ class VellumWindow extends ItemView {
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
             const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
-            if (ed) { ed.mount(this.contentEl); this.raiseAfterReload(); }
+            if (ed) { this.frame(); ed.mount(this.contentEl); this.raiseAfterReload(); }
             else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
         }
         return super.setState(state, result);
     }
     async onClose() { if (windows.get(this.key) === this) windows.delete(this.key); editors.get(this.key)?.unmount(); }
+    async onOpen() { this.registerEvent(this.app.workspace.on("layout-change", () => { if (this.frame()) editors.get(this.key)?.drawBar(); })); }
+    // Vellum alone in its window: Obsidian's tab bar and the view's back / forward row are hidden and the editor's top bar
+    // is the window's bar (it drags the window, with its own window buttons when Obsidian draws the frame). Another tab
+    // put in the window brings them back. True when that changed
+    frame(): boolean {
+        const w = this.containerEl.win, body = w.document.body;
+        if (w === window || Platform.isMobile) return false;
+        const alone = w.document.querySelectorAll(".workspace-leaf").length === 1, was = body.hasClass("vl-own-window");
+        body.toggleClass("vl-own-window", alone);
+        return was !== alone;
+    }
     // a reload (Ctrl+R) with the editor's window in front: Obsidian opens the main window on top of it again. As the main
     // window unloads (noteFocus) the editor's notes on the device that it had the focus; once Obsidian has put it back,
     // its window is raised (#98)
@@ -1118,7 +1129,6 @@ class Editor {
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
             rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
         } else {
-            this.btn(l, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
             // where you are: the app (a folder; a click switches), then the screen (none in the Map)
             if (this.store) this.drawAppBtn(l);
             if (!this.store || (cur && !this.v.map)) {
@@ -1150,11 +1160,32 @@ class Editor {
         const sv = r.createEl("button", { cls: "vl-save is-savebtn" + (this.dirty ? " is-dirty" : ""), attr: { "aria-label": `Save into the note (${keyText(keyOf("save"))})` } });
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
-        if (!Platform.isMobile && !this.v.show && !this.v.map) {   // Show and Map have no settings panel
+        // the two sides' toggles as a pair at the right end, just before the window's own buttons: one place for both
+        // in every window and on every system (Show and the Map have no settings panel)
+        if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
+            this.btn(r, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+        }
+        if (!Platform.isMobile && !this.v.show && !this.v.map) {
             this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
         }
+        this.winButtons(b, r);
         this.drawZoom();
+    }
+    // in Vellum's own window (Obsidian's bars hidden): the top bar drags the window (a double click maximises it, as any
+    // title bar does) and, when Obsidian draws the window's frame, holds minimise, maximise and close. A Mac keeps its own
+    // buttons at the left: room is left for them
+    winButtons(b: HTMLElement, r: HTMLElement) {
+        const body = b.doc.body, own = !Platform.isMobile && body.hasClass("vl-own-window"), framed = own && body.hasClass("is-frameless");
+        b.toggleClass("is-titlebar", framed);
+        if (!framed || Platform.isMacOS) return;
+        const ew = (b.win as Window & { electronWindow?: { minimize?(): void; maximize?(): void; unmaximize?(): void; isMaximized?(): boolean } }).electronWindow;
+        if (!ew) return;
+        const g = r.createDiv({ cls: "vl-winbtns" }), max = !!ew.isMaximized?.();
+        const wb = (icon: string, label: string, act: () => void) => { const x = g.createEl("button", { cls: "vl-winbtn", attr: { "aria-label": label } }); setIcon(x, icon); x.addEventListener("click", act); return x; };
+        wb("minus", "Minimise", () => { try { ew.minimize?.(); } catch { /* */ } });
+        wb(max ? "copy" : "square", max ? "Restore" : "Maximise", () => { try { if (ew.isMaximized?.()) ew.unmaximize?.(); else ew.maximize?.(); } catch { /* */ } window.setTimeout(() => this.drawBar(), 250); });
+        wb("x", "Close the editor", () => this.closeWs()).addClass("is-close");
     }
     // the pill at the foot of the stage: Edit / Show, zoom, fit
     drawZoom() {
