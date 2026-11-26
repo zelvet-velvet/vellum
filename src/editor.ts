@@ -1411,6 +1411,10 @@ class Editor {
     // at: the pointer (Ctrl+wheel): the spot under it stays under it. Its place in the map or the phone, as a fraction,
     // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
     zoomBy(f: number, at?: { x: number; y: number }) {
+        // the Map: while the steps come (a wheel sends many), the drawn Map is scaled as one picture (no layout: with 40
+        // screens a real layout took ~80 ms a step); laid out for real once they stop
+        const box = this.v.map && this.mapLay ? this.wall?.querySelector<HTMLElement>(".vl-mapbox") : null;
+        if (box) { this.mapZoomSoon(box, f, at); return; }
         const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
         // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
         const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
@@ -1428,6 +1432,37 @@ class Editor {
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
     mapLay: ((zoom: number) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom
+    // a burst of Map zoom steps: the thumbnail width it was laid out at, and the spot kept under the pointer
+    private mapZoom: { box: HTMLElement; laid: number; at?: { x: number; y: number }; under: HTMLElement | null; t: number } | null = null;
+    private mapZoomSoon(box: HTMLElement, f: number, at?: { x: number; y: number }) {
+        const win = box.win;
+        let z = this.mapZoom;
+        if (!z || z.box !== box) {
+            // the first step: where the pointer is in the Map, read once (the layout is clean)
+            const under = at ? (box.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
+            const r = box.getBoundingClientRect(), o = at ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            box.style.transformOrigin = `${o.x - r.left}px ${o.y - r.top}px`;
+            z = this.mapZoom = { box, laid: this.mapW(), at, under, t: 0 };
+        }
+        this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
+        box.style.transform = `scale(${this.mapW() / z.laid})`;
+        this.drawZoom();
+        win.clearTimeout(z.t);
+        z.t = win.setTimeout(() => this.mapZoomDone(), 160);
+    }
+    // the steps stopped: laid out for real at the new zoom, the spot under the pointer kept where it was
+    private mapZoomDone() {
+        const z = this.mapZoom; this.mapZoom = null;
+        if (!z || !z.box.isConnected || !this.mapLay) return;   // redrawn since (another mode, a new Map): drawn at the new zoom already
+        const r0 = (z.under?.isConnected ? z.under : z.box).getBoundingClientRect();
+        z.box.style.transform = ""; z.box.style.transformOrigin = "";
+        this.mapLay(this.mapW()); this.remeasure(false);
+        const r1 = (z.under?.isConnected ? z.under : z.box).getBoundingClientRect();
+        if (!z.at || !r0.width || !r0.height) return;
+        const u = (z.at.x - r0.left) / r0.width, v = (z.at.y - r0.top) / r0.height;
+        this.wall.scrollLeft += r1.left + u * r1.width - z.at.x;
+        this.wall.scrollTop += r1.top + v * r1.height - z.at.y;
+    }
     // the middle button held: the stage scrolls with the pointer
     pan(e: PointerEvent) {
         const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
