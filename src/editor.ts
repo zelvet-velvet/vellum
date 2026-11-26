@@ -2269,7 +2269,10 @@ class Editor {
                 const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
                 t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
                 ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
-                t.style.setProperty("--vl-tr", `${d.d.radius * d.k}px`);   // the tags start where the rounded corner ends
+                // the tags start where the rounded corner ends: set on the tags themselves (a variable on the thumbnail would
+                // pass down to every element of its screen, ~80 ms a zoom step with 40 screens)
+                const rc = `${d.d.radius * d.k}px`;
+                for (const g of Array.from(t.children) as HTMLElement[]) { if (g.hasClass("vl-ttags")) g.style.left = rc; else if (g.hasClass("vl-ttag")) g.style.right = rc; }
                 scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
             });
         };
