@@ -2197,7 +2197,7 @@ class Editor {
         m.empty();
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, size: () => ({ x: 0, w: 0, h: 0 }), thumbs: [] }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
-        const GAP = 40, LABEL = 46;
+        const GAP = 80, LABEL = 46;   // at REF (below): a gap as wide as half a screen
         const devs = new Map(pages.map((p) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius); return [p.id, { d, sc: screenOf(d, this.land) }]; }));
         const dims = (p: Page, TW: number) => { const { d, sc } = devs.get(p.id)!, k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         // a tidy tree: each leaf a slot, a parent centred over its children
@@ -2261,7 +2261,7 @@ class Editor {
         }
         // REF: the screen width the map is laid out at; any zoom is that scaled, names, tags and link labels with their
         // screens (a name is 11 px at REF). Too small to read, they hide (the frames still say what changed)
-        const REF = 72, TINY = 6.5;
+        const REF = 144, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             return { slotW, rowH, W: x * slotW, H: (depthMax + 1) * rowH - GAP + 4 };
