@@ -18,7 +18,7 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it), the Obsidian chip of Editor theme;
 // uiThemes: the editor's named themes (Ledgerline light and dark to start), uiTheme the one in use ("": Obsidian); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; uiThemes: Record<string, Record<string, string>>; uiTheme: string; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; uiThemes: Record<string, Record<string, string>>; uiTheme: string; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string; themeKeys?: string[] }   // news: what's new after an update; seen: the version it was last shown for; themeKeys: the colours of Vellum's own themes the saved copies were offered
 const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, uiThemes: structuredClone(EDITOR_THEMES), uiTheme: "", fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, measure: { ...MEASURE_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
 
 // the folder a path is in; none at the vault's root
@@ -43,6 +43,16 @@ export default class VellumPlugin extends Plugin {
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
         this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, uiThemes: saved?.uiThemes ? { ...saved.uiThemes } : structuredClone(EDITOR_THEMES), uiTheme: saved?.uiTheme ?? "", fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, measure: measureOf(saved?.measure), edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
+        // colours added to Vellum's own editor themes in an update (Mock, Changed, Edited) go into the saved copies once; one
+        // taken out after that stays out
+        const offered = new Set(saved?.themeKeys ?? (saved?.uiThemes ? Object.keys(EDITOR_THEMES.Light).filter((k) => !["mock", "changed", "edited"].includes(k)) : Object.keys(EDITOR_THEMES.Light)));
+        let added = false;
+        for (const [name, def] of Object.entries(EDITOR_THEMES)) {
+            const t = this.settings.uiThemes[name]; if (!t) continue;
+            for (const [k, v] of Object.entries(def)) if (!offered.has(k) && !(k in t)) { t[k] = v; added = true; }
+        }
+        this.settings.themeKeys = [...new Set(Object.values(EDITOR_THEMES).flatMap((d) => Object.keys(d)))];
+        if (added || !saved?.themeKeys) void this.save();
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => { const t = uiInUse(this.settings); return { theme: this.theme(), ui: t.ui, mode: t.mode, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }; });
