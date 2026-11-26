@@ -2253,6 +2253,7 @@ class Editor {
         const lay = (TW0: number) => {
             const TW = Math.max(TW0, FLOOR), { slotW, rowH, W, H } = natural(TW), k = TW0 / TW;
             box.style.zoom = k < 1 ? String(k) : "";
+            box.style.setProperty("--vl-ls", String(editCfg.labelSize));   // the tags: Label size (Settings → General → Editing)
             box.style.width = `${W}px`; box.style.height = `${H}px`;
             svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
             const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, TW).h }; };
@@ -2268,6 +2269,7 @@ class Editor {
                 const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
                 t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
                 ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
+                t.style.setProperty("--vl-tr", `${d.d.radius * d.k}px`);   // the tags start where the rounded corner ends
                 scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
             });
         };

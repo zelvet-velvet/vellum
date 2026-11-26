@@ -150,11 +150,11 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-thumb:hover .vl-tphone { box-shadow: 0 0 0 2px var(--text-faint); }
 .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
 .vl-thumb.is-mock .vl-tphone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 3px; }
-.vl-ttag { position: absolute; top: -9px; right: -9px; z-index: 1; padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 600; line-height: 16px; color: #fff; background: var(--vlu-mock, var(--color-orange, #ec7500)); box-shadow: 0 0 0 2px var(--background-primary); pointer-events: none; }
-.vl-ttag.is-changed { right: auto; left: -9px; background: var(--vlu-changed, var(--color-yellow, #e0ac00)); color: #111; }
+.vl-ttag { position: absolute; top: 0; right: var(--vl-tr, 0px); z-index: 1; transform: translateY(-50%); padding: 0 0.45em; border-radius: 4px; font: 600 calc(var(--vl-ls, 11) * 1px)/1.5 var(--font-interface); white-space: nowrap; color: #fff; background: var(--vlu-mock, var(--color-orange, #ec7500)); box-shadow: 0 0 0 2px var(--background-primary); pointer-events: none; }   /* centred on the phone's top edge, past its rounded corner; Label size */
+.vl-ttag.is-changed { background: var(--vlu-changed, var(--color-yellow, #e0ac00)); color: #111; }
 .vl-ttag.is-edited { background: var(--vlu-edited, var(--color-green, #08b94e)); color: #111; }
-.vl-ttags { position: absolute; top: -9px; left: -9px; z-index: 1; display: flex; gap: 3px; pointer-events: none; }   /* Changed and Edited side by side on the top left corner (Mock holds the right) */
-.vl-ttags > .vl-ttag { position: static; }
+.vl-ttags { position: absolute; top: 0; left: var(--vl-tr, 0px); z-index: 1; display: flex; gap: 3px; transform: translateY(-50%); pointer-events: none; }   /* Changed and Edited from the left, Mock from the right: one line */
+.vl-ttags > .vl-ttag { position: static; transform: none; }
 .vl-thumb.is-changed:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)); }
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 5px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
