@@ -2255,12 +2255,13 @@ class Editor {
             const scr = ph.createDiv({ cls: "vl-screen is-show", attr: { "data-page": p.id } });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
-            if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
-            // on the other corner, side by side: the agent's change and the user's edit (the name under the phone stays clear)
-            if (this.changed(p) || this.edited(p)) {
+            // words on its top right corner, side by side (a state never relies on colour alone): the agent's change, the
+            // user's edit, a mock
+            if (this.changed(p) || this.edited(p) || p.mock) {
                 const tg = t.createDiv({ cls: "vl-ttags" });
                 if (this.changed(p)) tg.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });
                 if (this.edited(p)) tg.createDiv({ cls: "vl-ttag is-edited", text: "Edited" });
+                if (p.mock) tg.createDiv({ cls: "vl-ttag", text: "Mock" });
             }
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
@@ -2297,8 +2298,13 @@ class Editor {
             const p = pages[i], q = pos.get(p.id)!, d = dims(p, REF);
             t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
             ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
+            // the tags start where the rounded corner ends: set on the tags themselves (a variable on the thumbnail would
+            // pass down to every element of its screen)
+            const rc = `${d.d.radius * d.k}px`;
+            for (const g of Array.from(t.children) as HTMLElement[]) if (g.hasClass("vl-ttags")) g.style.right = rc;
             scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
         });
+        box.style.setProperty("--vl-ls", String(editCfg.labelSize));   // the tags: Label size (Settings → General → Editing)
         const lay = (TW0: number) => {
             const k = TW0 / REF;
             box.style.transform = `scale(${k})`;
