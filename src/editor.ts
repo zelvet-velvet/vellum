@@ -4,6 +4,7 @@ import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, D
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
 import { getLocal, setLocal } from "./local";
 import { FolderStore, srcOf } from "./store";
+import { describeEdit } from "./diff";
 import { canUngroup, ungroupBlock } from "./flatten";
 import { Box, Edges, gapStops, GapStop, nearStop, sameGaps, sameSize } from "./snapgap";
 import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ratioText } from "./overlay";
@@ -492,9 +493,10 @@ class Editor {
     save() {
         if (this.store) {
             // the colours as last saved in the Colours window: unsaved ones there wait for its own Save
-            const out = putCols({ ...this.doc }, this.colSaved), text = serialiseDoc(out), st = this.store;
+            const out = putCols({ ...this.doc }, this.colSaved), text = serialiseDoc(out), st = this.store, ek = this.beforeKey();
             st.save(out).then(() => {
                 this.saved = text;
+                if (this.beforeKey() !== ek) { this.mapCache = null; this.draw(); }   // an edit to build marked, or one put back
                 this.draftPut();   // gone, unless the Colours window has unsaved colours
                 this.drawBar(); this.drawCard(); this.hint(`Saved to ${st.dir}`);
             }, (e: Error) => new Notice(`Vellum: not saved (${e.message}). Your work is kept.`));
@@ -528,9 +530,35 @@ class Editor {
     }
 
     // ---- changes waiting for review: a screen the agent changed has its copy in _before/ (the store reads them)
-    beforeKey() { return [...(this.store?.befores.keys() ?? [])].sort().join(","); }
+    beforeKey() { return [...(this.store?.befores.keys() ?? [])].sort().join(",") + "|" + [...(this.store?.edits ?? [])].map(([id, e]) => id + e.kind).sort().join(","); }
     changed(p: Page) { return !!this.store?.befores.has(p.id); }
     changes() { return this.doc.pages.filter((p) => this.changed(p)); }
+    // ---- the user's edits waiting to be built: a screen edited since it was built has its copy in _edited/ (the store reads them)
+    edited(p: Page) { return !!this.store?.edits.has(p.id); }
+    edits() { return [...(this.store?.edits.entries() ?? [])].map(([id, e]) => ({ id, ...e })); }
+    // what changed: each screen edited since it was built (its copy against the screen now), facts only: what to do with
+    // them is the user's to say, and the agent guide's
+    copyEdits(at?: HTMLElement) {
+        const st = this.store, l = this.edits(); if (!st || !l.length) return;
+        const file = (path?: string) => path ?? "";
+        const parts = l.map((e) => {
+            const p = this.doc.pages.find((q) => q.id === e.id);
+            if (e.kind === "removed") return `${e.name} (${e.path}): deleted`;
+            if (!p) return "";
+            if (e.kind === "new") return `${p.name} (${file(st.files.get(p.id))}): new`;
+            const was = parseDoc(`{"pages": [${e.text}]}`).doc.pages[0];
+            const lines = was ? describeEdit(was, p) : [];
+            return `${p.name} (${file(st.files.get(p.id))}): edited\n${lines.length ? lines.join("\n") : "- no change to the design"}`;
+        }).filter(Boolean);
+        const text = parts.join("\n\n") + "\n";
+        (this.root?.win ?? window).navigator.clipboard.writeText(text).then(() => this.hint("Changes copied", at), () => this.writer("Copy the changes", text, () => { /* */ }));
+    }
+    async markBuilt(ids: string[]) {
+        if (!this.store) return;
+        await this.store.built(ids);
+        this.mapCache = null; this.draw();
+        this.hint(ids.length > 1 ? `${ids.length} screens marked as built` : "Marked as built");
+    }
     holdBefore = false;   // the Before key is held: the changed screen drawn as it was
     // the screen as drawn: its copy from before the change while the Before key is held (a copy: nothing edits it)
     shown(p: Page): Page { const b = this.holdBefore ? this.store?.befores.get(p.id) : undefined; return b ? (JSON.parse(JSON.stringify(b.page)) as Page) : p; }
@@ -1171,6 +1199,12 @@ class Editor {
             const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
             setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
             rv.addEventListener("click", () => this.nextChange());
+        }
+        const ned = this.edits().length;
+        if (ned) {
+            const eb = r.createEl("button", { cls: "vl-review is-edited", attr: { "aria-label": "Your edits since the screens were last built: copy what changed, screen by screen" } });
+            setIcon(eb.createSpan(), "hammer"); eb.appendText(`${ned} ${ned === 1 ? "edit" : "edits"} to build`);
+            eb.addEventListener("click", () => this.copyEdits(eb));
         }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
             // Obsidian's settings on Vellum's tab, above the editor: its own window (newer Obsidian) or the main one, brought to
@@ -1853,6 +1887,7 @@ class Editor {
             const t = w.createDiv({ cls: "vl-ptext" });
             const pn = t.createDiv({ cls: "vl-pn", text: p.name + (p.mock ? " · mock" : "") });
             if (this.changed(p)) pn.createSpan({ cls: "vl-chtag", text: "changed" });
+            if (this.edited(p)) pn.createSpan({ cls: "vl-chtag is-edited", text: "edited" });
             if (p.link && !depth) t.createDiv({ cls: "vl-pl", text: p.link });
             w.addEventListener("click", () => this.openPage(p));
             const add = this.btn(w, "plus", `Add a screen opened from ${p.name}`, () => this.addPage(p));
@@ -2182,13 +2217,18 @@ class Editor {
         const thumbs: Thumb[] = [];
         for (const p of pages) {
             const { sc } = devs.get(p.id)!;
-            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") + (p.parent ? "" : " is-main") });
+            const t = box.createDiv({ cls: "vl-thumb" + (p.mock ? " is-mock" : "") + (this.changed(p) ? " is-changed" : "") + (this.edited(p) ? " is-edited" : "") + (p.parent ? "" : " is-main") });
             const ph = t.createDiv({ cls: "vl-tphone" });
             const scr = ph.createDiv({ cls: "vl-screen is-show", attr: { "data-page": p.id } });
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
             if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
-            if (this.changed(p)) t.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });   // on the other corner
+            // on the other corner, side by side: the agent's change and the user's edit (the name under the phone stays clear)
+            if (this.changed(p) || this.edited(p)) {
+                const tg = t.createDiv({ cls: "vl-ttags" });
+                if (this.changed(p)) tg.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });
+                if (this.edited(p)) tg.createDiv({ cls: "vl-ttag is-edited", text: "Edited" });
+            }
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             const th: Thumb = { id: p.id, t, ph, scr };
@@ -2269,7 +2309,7 @@ class Editor {
         this.mapCentre();
     }
     getMap() {
-        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? "", this.changed(p)])]);
+        const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? "", this.changed(p), this.edited(p)])]);
         const c = this.mapCache;
         if (c && c.skey === skey && c.theme === this.theme) return c;
         const el = this.wall.doc.createElement("div"); el.addClass("vl-stagemap");
@@ -2300,8 +2340,9 @@ class Editor {
     drawPage(p: Page) {
         const dev = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius), { W, H, safe } = this.screen(p), z = this.v.zoom, show = this.v.show;
         const fig = this.wall.createDiv({ cls: "vl-page" + (p.mock ? " is-mock" : "") + (this.sel?.page === p.id ? " is-sel" : "") });
-        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") + (this.holdBefore && this.store?.befores.has(p.id) ? "  · before the change" : this.changed(p) ? "  · changed" : "") });
+        fig.createDiv({ cls: "vl-pname", text: p.name + (p.mock ? "  · mock" : "") + (this.holdBefore && this.store?.befores.has(p.id) ? "  · before the change" : this.changed(p) ? "  · changed" : "") + (this.edited(p) ? "  · edited" : "") });
         if (this.changed(p)) fig.addClass("is-changed");
+        if (this.edited(p)) fig.addClass("is-edited");
         if (this.holdBefore && this.store?.befores.has(p.id)) fig.addClass("is-before");
         // Show: the screen alone, the previous / next screen beside it; its name, the way to it and what it opens are on
         // the screen's name in the top bar (showInfo)
@@ -4252,6 +4293,20 @@ class Editor {
                 ["undo-2", "Undo the change", () => { void this.undoChange(p); }],
                 ...(n > 1 ? [["check-check", `Keep all ${n}`, () => { void this.keepChange(this.changes().map((q) => q.id)); }] as [string, string, () => void]] : []),
             ]);
+        }
+        // edited since it was last built (its copy from then is in _edited/): ask the agent to build it, or mark it built
+        if (this.edited(p)) {
+            const c = this.section(body, "Edited");
+            const k = this.store?.edits.get(p.id)?.kind;
+            c.createDiv({ cls: "vl-frameinfo", text: k === "new" ? "New since the app was last built. The agent builds it, then the mark goes." : "You changed it since it was last built. The agent builds the difference, then the mark goes." });
+            const n = this.edits().length;
+            const cp: HTMLElement[] = [];
+            this.actions(c, [
+                ["clipboard-copy", n > 1 ? `Copy the changes (${n} screens)` : "Copy the changes", () => this.copyEdits(cp[0])],
+                ["check", "Mark as built", () => { void this.markBuilt([p.id]); }],
+                ...(n > 1 ? [["check-check", `Mark all ${n} as built`, () => { void this.markBuilt(this.edits().map((e) => e.id)); }] as [string, string, () => void]] : []),
+            ]);
+            const b0 = c.querySelector<HTMLElement>("button"); if (b0) cp.push(b0);
         }
         const s = this.section(body, "Screen");
         const nr = s.createDiv({ cls: "vl-namerow" });

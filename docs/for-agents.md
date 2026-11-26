@@ -17,7 +17,8 @@ Design and code meet in the same files. One round goes like this:
    mark points at. Options are mock sub screens (section 3); a change to a real screen waits for review (`_before/`,
    section 3). Answer marks with marks of your own (section 6).
 5. **The user keeps or undoes** each change in the Map, keeps one option, and you delete the other options.
-6. **Build from the screens** (section 8) once the user says a screen is ready. Ask before building a screen that
+6. **Build from the screens** (section 8) once the user says a screen is ready. When they ask you to build their
+   edits, the screens they changed since the last build each have a copy in `_edited/` (section 8, Edits to build). Ask before building a screen that
    still has open marks, mock options, or a change waiting for review (its copy in `_before/`).
 7. **Keep them in step.** When the built app changes, change its screens too, so the next round starts from what is
    real.
@@ -248,7 +249,23 @@ ask you to change that one thing. They can only do that to a part that is **its 
   it sits.
 - **`parent` and `link` are navigation**: a child screen opens from its parent, the `link` says how (a tap on a row,
   a tab).
-- `mock` screens, drafts (blocks outside the screen), marks and `_before/` copies are never built.
+- `mock` screens, drafts (blocks outside the screen), marks, `_before/` and `_edited/` copies are never built.
+
+### Edits to build: what the user changed since the last build
+When the user saves a change to a screen in Vellum, Vellum copies the screen as it was into `_edited/<its file name>`
+(once: later saves keep that first copy). Vellum marks it **Edited** and offers "N edits to build". When asked to build
+the user's edits (or "read my Vellum edits"):
+- The user may paste what Vellum copied (**Copy the changes**): each screen's path and kind (edited, new, deleted), then
+  its changes block by block, `field: old → new`. Build from it; read the screen's file for anything shortened with "…".
+  The copies in `_edited/` still go once built.
+- Each `.json` in the app's `_edited/` is one screen to build; its `id` says which. Three kinds:
+  - a copy of the screen: it was **edited**. Compare it with the screen's file now and build only the difference (moved,
+    resized, restyled, added or removed blocks and items, text). The copy is the state the code matches.
+  - `{"id", "name", "new": true}`: a **new** screen, made since. Build all of it.
+  - a copy whose `id` no screen has now: the screen was **deleted**. Take it out of the app too, or ask.
+- Once a screen is built, delete its copy (only that file). Vellum clears the mark. Leave a copy you didn't build, and
+  say why.
+- Never edit a copy, and never treat one as a screen. Your own changes to screens still go through `_before/`.
 - When the code can't do something a screen shows, or needs a choice the screen leaves open, leave a `blue` or
   `orange` mark on the screen saying so, rather than guessing.
 
