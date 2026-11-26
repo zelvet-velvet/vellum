@@ -94,7 +94,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
 - <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
 
-### See the whole app
+### See the whole app, and what changed
 
 <p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens as a tree; two Holdings options tagged Mock, Mix tagged Changed, Watchlist and Alerts tagged Edited"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; tags show mocks, the agent's changes and your edits; a click opens one</sub></p>
 
