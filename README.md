@@ -183,7 +183,7 @@ It ships with Vellum as `VELLUM.md` in the folder that holds your apps (`Vellum/
 <summary><b>The mock workflow</b>: options to compare, one to keep</summary>
 
 1. Ask for two or three options of a screen. The agent writes them as sub screens marked `"mock": true`.
-2. They show as **Mock** everywhere: a dashed outline and its own colour in the Map, a tag in the list.
+2. They show as **Mock** everywhere: a dashed outline and its own colour in the Map, a tag in the list, and **N mocks to choose** in the top bar opens each in turn.
 3. Step through them in **Show** (<kbd>←</kbd> <kbd>→</kbd>), or side by side in the Map.
 4. Say which one to keep. The agent copies it over the real screen (the old one waits in `_before/` for your **Keep**) and deletes the others.
 </details>

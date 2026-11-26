@@ -579,8 +579,10 @@ class Editor {
         this.hint(`${p.name}: back as it was`);
     }
     // the review button: the next changed screen after the one open, opened in Edit
-    nextChange() {
-        const l = this.changes(); if (!l.length) return;
+    nextChange() { this.nextOf(this.changes()); }
+    // the next of these screens after the one open, opened in Edit with its panel
+    nextOf(l: Page[]) {
+        if (!l.length) return;
         const at = l.findIndex((p) => p.id === this.current()?.id), to = l[(at + 1) % l.length];
         if (this.v.map || this.v.show) this.setMode("edit");
         if (!Platform.isMobile) this.setView({ panel: true });   // Keep and Undo are in its panel
@@ -1211,6 +1213,13 @@ class Editor {
             const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
             setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
             rv.addEventListener("click", () => this.nextChange());
+        }
+        // mock screens: options waiting for a choice; a click opens the next one (keep one: tell the agent)
+        const mocks = this.doc.pages.filter((p) => p.mock);
+        if (mocks.length) {
+            const mb = r.createEl("button", { cls: "vl-review is-mock", attr: { "aria-label": "Mock screens: options to compare. Open the next one; tell the agent which to keep" } });
+            setIcon(mb.createSpan(), "git-fork"); mb.appendText(`${mocks.length} ${mocks.length === 1 ? "mock" : "mocks"} to choose`);
+            mb.addEventListener("click", () => this.nextOf(mocks));
         }
         const ned = this.edits().length;
         if (ned) {
@@ -4321,6 +4330,13 @@ class Editor {
                 ["undo-2", "Undo the change", () => { void this.undoChange(p); }],
                 ...(n > 1 ? [["check-check", `Keep all ${n}`, () => { void this.keepChange(this.changes().map((q) => q.id)); }] as [string, string, () => void]] : []),
             ]);
+        }
+        // a mock: an option to choose; the agent makes the one kept the real screen and deletes the rest
+        if (p.mock) {
+            const par = p.parent ? this.doc.pages.find((q) => q.id === p.parent) : undefined;
+            const n = this.doc.pages.filter((q) => q.mock && q.parent === p.parent).length;
+            const c = this.section(body, "Mock");
+            c.createDiv({ cls: "vl-frameinfo", text: `${n > 1 ? `One of ${n} options` : "An option"}${par ? ` for ${par.name}` : ""}. Tell the agent which one to keep: it becomes the real screen, the others go.` });
         }
         // edited since it was last built (its copy from then is in _edited/): ask the agent to build it, or mark it built
         if (this.edited(p)) {
