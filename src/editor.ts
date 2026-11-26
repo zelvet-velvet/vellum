@@ -1419,7 +1419,15 @@ class Editor {
     zoomBy(f: number, at?: { x: number; y: number }) {
         const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
         // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
-        const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
+        // (between screens: the nearest one, so the Map doesn't slide under the pointer)
+        let under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
+        if (this.v.map && at && !under) {
+            let best = Infinity;
+            for (const t of Array.from(this.wall.querySelectorAll<HTMLElement>(".vl-thumb"))) {
+                const r = t.getBoundingClientRect(), dx = Math.max(r.left - at.x, 0, at.x - r.right), dy = Math.max(r.top - at.y, 0, at.y - r.bottom), d = dx * dx + dy * dy;
+                if (d < best) { best = d; under = t; }
+            }
+        }
         const r0 = at ? (under ?? this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (this.v.map) this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
@@ -1429,9 +1437,13 @@ class Editor {
         else this.drawPages();
         const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
-        const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
-        this.wall.scrollLeft += r1.left + u * r1.width - at.x;
-        this.wall.scrollTop += r1.top + v * r1.height - at.y;
+        // the spot's place in the screen (or the phone), as a fraction; in the Map, beside the screen, the gap to its edge
+        // keeps its size (gaps don't scale)
+        const fit = (p: number, lo: number, n: number) => (this.v.map ? Math.min(1, Math.max(0, (p - lo) / n)) : (p - lo) / n);
+        const u = fit(at.x, r0.left, r0.width), v = fit(at.y, r0.top, r0.height);
+        const ox = at.x - (r0.left + u * r0.width), oy = at.y - (r0.top + v * r0.height);
+        this.wall.scrollLeft += r1.left + u * r1.width + ox - at.x;
+        this.wall.scrollTop += r1.top + v * r1.height + oy - at.y;
     }
     mapLay: ((zoom: number, live?: boolean) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom (live: a zoom step)
     // after the last zoom step: the outline width the thumbnails' screens pass down (--vl-iz) is set (a step leaves it:
