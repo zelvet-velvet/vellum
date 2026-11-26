@@ -21,6 +21,7 @@
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
 
 <p align="center">
+  <a href="#-why-not-an-artifact-or-a-canvas">Why Vellum</a> ·
   <a href="#-install">Install</a> ·
   <a href="#-quick-start">Quick start</a> ·
   <a href="#-with-your-agent">With your agent</a> ·
@@ -46,7 +47,7 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> Why not an artifact or a canvas?
+## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> Why not an artifact or a canvas?
 
 Claude artifacts and ChatGPT or Gemini canvas can draw a mockup too. Vellum is made for the part after that: changing it, keeping it, and building from it with your agent.
 

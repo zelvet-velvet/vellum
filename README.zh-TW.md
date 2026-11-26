@@ -21,6 +21,7 @@
 <p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
 
 <p align="center">
+  <a href="#-為何不用-artifact-或-canvas">為何選 Vellum</a> ·
   <a href="#-安裝">安裝</a> ·
   <a href="#-快速開始">快速開始</a> ·
   <a href="#-搭配-agent">搭配 agent</a> ·
@@ -46,7 +47,7 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
-## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> 為何不用 artifact 或 canvas？
+## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> 為何不用 artifact 或 canvas？
 
 Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處理的是之後的部分：修改、保存，並與 agent 一起依畫面實作。
 
