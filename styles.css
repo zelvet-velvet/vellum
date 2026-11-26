@@ -156,6 +156,8 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-ttags { position: absolute; top: 0; right: 0; z-index: 1; display: flex; gap: 3px; transform: translateY(-50%); pointer-events: none; }   /* Changed, Edited, Mock: one line on the top right, past the rounded corner (right: set by the Map) */
 .vl-ttags > .vl-ttag { position: static; transform: none; }
 .vl-thumb.is-changed:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)); }
+.vl-thumb.is-edited:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-edited, var(--color-green, #08b94e)); }   /* edited by the user, waiting for the agent */
+.vl-thumb.is-changed.is-edited:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)), 0 0 0 4px var(--vlu-edited, var(--color-green, #08b94e)); }   /* both: the agent's ring inside, the user's outside */
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 5px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
 .vl-thumb.is-main .vl-tname { color: var(--text-normal); font-weight: 600; }
