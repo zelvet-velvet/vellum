@@ -183,7 +183,7 @@ const near = (pts: number[], lines: number[], reach: number) => {
 // an item's offset from its gravity point, from its box's left (or top) edge in its block
 const toD = (a: number, L: number, W: number, bw: number) => Math.round(a < 0 ? L : a > 0 ? bw - L - W : L + W / 2 - bw / 2);
 type View = { look?: string; zoom: number; fit: boolean; show: boolean; page?: string; rail: boolean; land?: boolean; panel?: boolean; map?: boolean; mapTW?: number; mapFit?: boolean; bars?: boolean; railShow?: boolean; sides?: { rail: boolean; panel?: boolean; fit: boolean; zoom: number } };   // bars: false = the top bar and the pill hidden; railShow: the screens list as it was before Show   // map: the whole tree in the stage; mapTW: a screen's width in the Map, px (its zoom is that over the chosen screen's own width); mapFit: every screen fitted in the window (Full)   // panel: false = folded (computer)
-const view = new Map<string, View>();   // per doc, kept across redraws   // look: the app theme the switch chose (none: the doc's own)
+const view = new Map<string, View>();   // per doc (its folder, or its note and id), kept across redraws   // look: the app theme the switch chose (none: the doc's own)
 type Sel = { page: string; block?: string; item?: string; mark?: string } | null;
 // a thumbnail in the Map; key: what its screen looked like when it was drawn (none: not drawn yet)
 type Thumb = { id: string; t: HTMLElement; ph: HTMLElement; scr: HTMLElement; key?: string };
@@ -223,7 +223,7 @@ class VellumWindow extends ItemView {
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
             const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
-            if (ed) { this.frame(); ed.mount(this.contentEl); }
+            if (ed) { this.frame(); ed.mount(this.contentEl); this.raiseAfterReload(); }
             else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
         }
         return super.setState(state, result);
@@ -240,7 +240,25 @@ class VellumWindow extends ItemView {
         body.toggleClass("vl-own-window", alone);
         return was !== alone;
     }
+    // a reload (Ctrl+R) with the editor's window in front: Obsidian opens the main window on top of it again. As the main
+    // window unloads (noteFocus) the editor's notes on the device that it had the focus; once Obsidian has put it back,
+    // its window is raised (#98)
+    raiseAfterReload() {
+        this.app.workspace.onLayoutReady(() => window.setTimeout(() => {
+            const w = this.containerEl.win;
+            if (w === window) return;
+            const r = ((): { key?: string; at?: number } | null => { try { return JSON.parse(getLocal(RAISE_KEY) ?? "null") as { key?: string; at?: number } | null; } catch { return null; } })();
+            if (!r || r.key !== this.key || Date.now() - (r.at ?? 0) > 60000) return;
+            setLocal(RAISE_KEY, null);
+            raise(w); window.setTimeout(() => raise(w), 900);
+        }, 300));
+    }
 }
+const RAISE_KEY = "vellum:raise-after-reload";
+// the main window unloading (a reload or quit): an editor window that has the focus is noted, to be raised again
+const noteFocus = () => {
+    for (const [key, v] of windows) { const w = v.containerEl.win; if (w !== window && w.document.hasFocus()) { setLocal(RAISE_KEY, JSON.stringify({ key, at: Date.now() })); return; } }
+};
 
 // a window to the front, focused (Electron: shown, raised; restored when minimised)
 type ElectronWin = { isMinimized?(): boolean; restore?(): void; show?(): void; moveTop?(): void; focus?(): void };
@@ -356,9 +374,9 @@ class Editor {
     // ---- state, undo, drafts, save
     // the editor opens in the Map (when there are screens); an app's folder remembers its last screen on the device, so
     // switching back (or reopening Obsidian) has it chosen
-    get v(): View { const map = this.doc.pages.length > 0; return view.get(this.doc.id) ?? { zoom: 0.75, fit: true, show: false, rail: false, railShow: map ? false : undefined, panel: Platform.isMobile ? undefined : false, map, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
+    get v(): View { const map = this.doc.pages.length > 0; return view.get(this.draftKey()) ?? { zoom: 0.75, fit: true, show: false, rail: false, railShow: map ? false : undefined, panel: Platform.isMobile ? undefined : false, map, page: this.store ? getLocal(`vellum:page:${this.store.dir}`) ?? undefined : undefined }; }
     setView(p: Partial<View>) {
-        view.set(this.doc.id, { ...this.v, ...p });
+        view.set(this.draftKey(), { ...this.v, ...p });
         if (p.page && this.store) try { setLocal(`vellum:page:${this.store.dir}`, p.page); } catch { /* */ }
     }
     snap() { return JSON.stringify(this.doc); }
@@ -923,13 +941,14 @@ class Editor {
         // the mouse's back button: one level up, as Esc (Obsidian never hears it, so it does not go back in its history)
         const back = (e: MouseEvent) => { if (e.button !== 3) return; e.preventDefault(); e.stopPropagation(); if (e.type === "mouseup") this.up(); };
         for (const t of ["mousedown", "mouseup", "auxclick"] as const) R.addEventListener(t, back, true);
-        {   // the editor resized (its window, full screen, a side folded): Fit fits again
+        {   // the editor resized (its window, full screen, a side folded): Fit fits again, and the Map's Full (a new window
+            // is drawn before it has its size)
             let raf = 0;
             new ResizeObserver(() => {
                 if (!R.isConnected) return;
                 window.cancelAnimationFrame(raf);
                 raf = window.requestAnimationFrame(() => {
-                    if (this.v.fit && this.pending === null) this.drawPages();
+                    if ((this.v.fit || (this.v.map && this.v.mapFit !== false)) && this.pending === null) this.drawPages();
                 });
             }).observe(R);
         }
@@ -1417,7 +1436,7 @@ class Editor {
                 // room for Show's arrows beside it in Edit too: the screen keeps its size and place when the mode changes
                 const ph = Platform.isMobile, bare = this.bare();
                 const sw = this.wall.clientWidth - (ph ? 44 : 64) - (ph ? 72 : 112), sh = this.wall.clientHeight - (bare ? 48 : ph ? 100 : 120);
-                if (sw > 0 && sh > 0) view.set(this.doc.id, { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
+                if (sw > 0 && sh > 0) view.set(this.draftKey(), { ...this.v, zoom: Math.max(0.2, Math.min(2, Math.floor(Math.min(sw / W, sh / H) * 100) / 100)) });
             }
             this.drawPage(this.shown(cur));
         }
@@ -1439,14 +1458,25 @@ class Editor {
         b.createSpan({ cls: "vl-pg", text: dir.split("/").pop() || dir });
         if (!many) { b.disabled = true; setTooltip(b, dir); return; }
         setIcon(b.createSpan({ cls: "vl-chev" }), "chevron-down");
-        setTooltip(b, `${dir}: switch to another app`, { placement: "bottom" });
+        setTooltip(b, `${dir}: switch to another app (Ctrl+click one: in a new window)`, { placement: "bottom" });
         // one list at a time: a click on the name again closes it. The editor keeps its clicks to itself (so Obsidian's menu
         // never hears a click elsewhere): a press anywhere but the list closes it, caught first on the window
         b.addEventListener("click", (e) => {
             e.stopPropagation();
             if (this.appMenu) { this.appMenu.hide(); return; }
             const m = (this.appMenu = new Menu()), doc = b.doc;
-            for (const a of apps) m.addItem((i) => i.setTitle(a.split("/").pop() || a).setChecked(a === dir).onClick(() => { void this.switchApp(a); }));
+            // an app open in another window is raised (never opened twice); Ctrl (Cmd) + click, or the list under the line:
+            // in a new window, this one staying as it is
+            const name = (a: string) => a.split("/").pop() || a, open = (a: string) => windows.has(`vellum:${a}`);
+            for (const a of apps) m.addItem((i) => {
+                i.setTitle(name(a)).setChecked(a === dir).onClick((ev) => { if (a !== dir && (ev.ctrlKey || ev.metaKey)) void this.appWindow(a); else void this.switchApp(a); });
+                if (a !== dir && open(a)) i.setIcon("app-window");
+            });
+            const others = apps.filter((a) => a !== dir && !open(a));
+            if (!Platform.isMobile && others.length) {
+                m.addSeparator();
+                for (const a of others) m.addItem((i) => i.setTitle(`Open ${name(a)} in a new window`).setIcon("external-link").onClick(() => { void this.appWindow(a); }));
+            }
             const out = (ev: PointerEvent) => { const t = ev.target as HTMLElement | null; if (!t?.closest(".menu, .vl-appbtn")) m.hide(); };
             doc.addEventListener("pointerdown", out, true);
             m.onHide(() => { doc.removeEventListener("pointerdown", out, true); if (this.appMenu === m) this.appMenu = null; b.removeClass("is-on"); });
@@ -1701,6 +1731,12 @@ class Editor {
         for (const a of apps) m.createEl("option", { value: a, text: a.split("/").pop() || a, attr: { title: a } });
         m.value = dir;
         m.addEventListener("change", () => { void this.switchApp(m.value); });
+    }
+    // another app in its own window (a computer), beside this one; already open: its window is raised
+    async appWindow(dir: string) {
+        if (Platform.isMobile) { await this.switchApp(dir); return; }
+        ref?.host().onFolder?.(dir);
+        (await folderEditor(dir))?.openWs();
     }
     // the editor in this window (or over the phone's screen) moves to another app's folder; this one keeps its state in
     // memory (and its unsaved edits on the device) for when it comes back. Already open in another window: that one is raised
@@ -2302,7 +2338,7 @@ class Editor {
     roomAround(fig: HTMLElement, phone: HTMLElement) {
         const pr = phone.getBoundingClientRect();
         let x = 0, y = 0;
-        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block").forEach((el) => {
+        phone.querySelectorAll<HTMLElement>(":scope > .vl-marks > .vl-mark > *, :scope > .vl-marks > .vl-mark.is-area, :scope > .vl-spill > .vl-block, :scope > .vl-spill > .vl-block > .vl-it[data-top]").forEach((el) => {
             const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
             x = Math.max(x, pr.left - q.left, q.right - pr.right); y = Math.max(y, pr.top - q.top, q.bottom - pr.bottom);
         });
@@ -2457,10 +2493,22 @@ class Editor {
         if (!phone?.hasClass("vl-phone")) return;
         phone.querySelector(":scope > .vl-spill")?.remove();
         const W = parseFloat(scr.style.width), H = parseFloat(scr.style.height), px = (el: HTMLElement, k: "left" | "top" | "width" | "height") => parseFloat(el.style[k]) || 0;
-        // a chosen block, or one holding chosen items, shows its items past its own edge: those past the screen's count too
+        // items past their own block's edge, the block not showing them (not chosen): a faded copy of the block over it with
+        // its inside cut away, so they show, dashed in the block's colour, and a press there takes the block as on it
+        scr.querySelectorAll(":scope > .vl-past").forEach((e) => e.remove());
+        const outOf = (r: DOMRect, q: DOMRect) => q.width > 0 && (q.left < r.left - 0.5 || q.top < r.top - 0.5 || q.right > r.right + 0.5 || q.bottom > r.bottom + 0.5);
+        const blocks = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block"));
+        for (const el of blocks) {
+            if (el.hasClass("is-inh") || getComputedStyle(el).overflow !== "hidden") continue;
+            const br = el.getBoundingClientRect();
+            if (!Array.from(el.querySelectorAll<HTMLElement>(".vl-it[data-top]")).some((i) => outOf(br, i.getBoundingClientRect()))) continue;
+            const c = scr.appendChild(el.cloneNode(true) as HTMLElement);
+            c.removeClasses(["is-sel", "is-many", "is-hit", "is-hl"]); c.addClass("vl-past");
+        }
+        // every block shows its items past the screen's edge there, faded
         const sr = scr.getBoundingClientRect();
-        const itemsOut = (el: HTMLElement) => (el.hasClass("is-sel") || el.hasClass("is-holds")) && Array.from(el.querySelectorAll<HTMLElement>(".vl-it")).some((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && (r.left < sr.left || r.top < sr.top || r.right > sr.right || r.bottom > sr.bottom); });
-        const out = Array.from(scr.querySelectorAll<HTMLElement>(":scope > .vl-block")).filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
+        const itemsOut = (el: HTMLElement) => !el.hasClass("is-inh") && Array.from(el.querySelectorAll<HTMLElement>(".vl-it[data-top]")).some((i) => outOf(sr, i.getBoundingClientRect()));
+        const out = blocks.filter((el) => px(el, "left") < 0 || px(el, "top") < 0 || px(el, "left") + px(el, "width") > W || px(el, "top") + px(el, "height") > H || itemsOut(el));
         if (!out.length) return;
         const g = createDiv({ cls: "vl-spill" });
         Object.assign(g.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
@@ -4940,6 +4988,9 @@ export function registerVellum(plugin: Plugin, host: VellumHost | (() => VellumH
     addIcon("vellum-side-left", frame(7));    // the line near the edge: the sidebar is folded in (a click opens it)
     addIcon("vellum-side-right", frame(17));
     plugin.registerView(VIEW, (leaf: WorkspaceLeaf) => new VellumWindow(leaf));
+    // straight on the window, not registerDomEvent: Obsidian may let go of a plugin's listeners before the window unloads
+    window.addEventListener("beforeunload", noteFocus);
+    plugin.register(() => window.removeEventListener("beforeunload", noteFocus));
     plugin.registerMarkdownCodeBlockProcessor("vellum", async (source, el, ctx) => {
         const h = typeof host === "function" ? host() : host, dir = srcOf(source);
         if (!dir) { new Editor(plugin, h, source, el, ctx); return; }
