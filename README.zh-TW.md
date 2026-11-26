@@ -96,7 +96,7 @@
 
 ### 檢視整個 app
 
-<p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面，往下兩層，以樹狀顯示"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
+<p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面以樹狀顯示；兩個 Holdings 選項標為 Mock，Mix 標為 Changed，Watchlist 與 Alerts 標為 Edited"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式；標籤顯示 mock、agent 的變更與你的編輯；點選即開啟</sub></p>
 
 - <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
 - <img src="assets/icons/h/frames.svg" width="12" height="13" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分

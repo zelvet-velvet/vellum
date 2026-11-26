@@ -96,7 +96,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 ### See the whole app
 
-<p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens, two rows down, as a tree"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
+<p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens as a tree; two Holdings options tagged Mock, Mix tagged Changed, Watchlist and Alerts tagged Edited"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; tags show mocks, the agent's changes and your edits; a click opens one</sub></p>
 
 - <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **Map and Show**: the screens as a tree, or one at a time as a preview with <kbd>←</kbd> <kbd>→</kbd> to the next.
 - <img src="assets/icons/h/frames.svg" width="12" height="13" alt=""> **Frames**: screens share a layout and store only what they change.
