@@ -1055,6 +1055,7 @@ class Editor {
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
         if (toMap) this.setView({ mapFit: true });   // the Map opens in Full: the chosen screen's whole tree; Fit then shows its row
+        if (m === "edit" && !wasEdit) this.setView({ fit: true });   // Edit opens fitted: the whole screen in the window
         this.draw();
     }
     // Fit in the Map: the chosen screen's row as tall as the window allows, its
