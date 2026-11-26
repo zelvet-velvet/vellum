@@ -188,6 +188,10 @@ chevron or a switch at the right edge takes `r` (or `tr` / `br`), a centred titl
 that edge or corner, not coordinates. An item the user moved to the far side while its anchor stayed `tl` is still
 meant to sit where it is drawn: ask, or set the anchor that matches before you build.
 
+**A `"fill"` size ignores the anchor on that side**: the item stretches across the block (or its group), and `dx`
+(for `w`) or `dy` (for `h`) is the margin kept at both ends, as the Place panel's **Margin** shows it. A divider across
+a card with 16 pt each side is `"w": "fill", "dx": 16`; a full-width bar is `"w": "fill"` with no `dx`.
+
 ## 5. One item per part: draw it the way the user will edit it
 The user changes your screens by hand: they choose an item, drag it, restyle it, or press **Copy reference** on it and
 ask you to change that one thing. They can only do that to a part that is **its own item**. So:
