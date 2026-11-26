@@ -243,16 +243,29 @@ class VellumWindow extends ItemView {
     }
     // a reload (Ctrl+R) with the editor's window in front: Obsidian opens the main window on top of it again. As the main
     // window unloads (noteFocus) the editor's notes on the device that it had the focus; once Obsidian has put it back,
-    // its window is raised (#98)
+    // its window is raised (#98). Only when the main window really took the focus, and once: raising it on a timer (twice)
+    // swapped the two windows back and forth, and they blinked
     raiseAfterReload() {
-        this.app.workspace.onLayoutReady(() => window.setTimeout(() => {
+        this.app.workspace.onLayoutReady(() => {
             const w = this.containerEl.win;
             if (w === window) return;
             const r = ((): { key?: string; at?: number } | null => { try { return JSON.parse(getLocal(RAISE_KEY) ?? "null") as { key?: string; at?: number } | null; } catch { return null; } })();
             if (!r || r.key !== this.key || Date.now() - (r.at ?? 0) > 60000) return;
             setLocal(RAISE_KEY, null);
-            raise(w); window.setTimeout(() => raise(w), 900);
-        }, 300));
+            // watched for 3 s: the main window taking the focus → the editor's to the front, once (focused, not shown again)
+            const t0 = Date.now();
+            const tick = () => {
+                if (!this.containerEl.isConnected) return;
+                if (window.document.hasFocus() && !w.document.hasFocus()) {
+                    const ew = (w as Window & { electronWindow?: ElectronWin }).electronWindow;
+                    try { ew?.moveTop?.(); ew?.focus?.(); } catch { /* not Electron */ }
+                    w.focus();
+                    return;
+                }
+                if (Date.now() - t0 < 3000) window.setTimeout(tick, 100);
+            };
+            tick();
+        });
     }
 }
 const RAISE_KEY = "vellum:raise-after-reload";
