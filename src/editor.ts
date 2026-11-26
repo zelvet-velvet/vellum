@@ -3031,9 +3031,10 @@ class Editor {
         // every block's and item's box, read once from the page; the drag only does arithmetic and draws, once a frame
         const model = this.measureModel(p, scr);
         let area: Box | null = null, raf = 0;
-        // the drag is followed on the screen, or in the Map on its thumbnail's phone (the screen there takes no pointer)
-        const cap = scr.closest<HTMLElement>(".vl-tphone") ?? scr;
-        cap.setPointerCapture(e.pointerId);
+        // the drag is followed on the whole window: it may start, run and end past the screen's edge (a capture on the
+        // screen alone didn't always hold, and the moves outside it were lost)
+        const cap = scr.closest<HTMLElement>(".vl-tphone") ?? scr, win = scr.win;
+        try { cap.setPointerCapture(e.pointerId); } catch { /* the pointer is gone */ }
         const move = (m: PointerEvent) => {
             const [x1, y1] = at(m.clientX, m.clientY);
             if (!area && (Math.abs(x1 - x0) + Math.abs(y1 - y0)) * k < 4) return;
@@ -3041,7 +3042,7 @@ class Editor {
             if (!raf) raf = scr.win.requestAnimationFrame(() => { raf = 0; if (area) this.drawMeasure(p, scr, area, k, model); });
         };
         const up = () => {
-            cap.removeEventListener("pointermove", move); cap.removeEventListener("pointerup", up); cap.removeEventListener("pointercancel", up);
+            win.removeEventListener("pointermove", move, true); win.removeEventListener("pointerup", up, true); win.removeEventListener("pointercancel", up, true);
             if (raf) { scr.win.cancelAnimationFrame(raf); raf = 0; }
             if (!area) { this.unmeasure(); return; }
             this.drawMeasure(p, scr, area, k, model);
@@ -3050,7 +3051,7 @@ class Editor {
             scr.win.addEventListener("click", eat, true);
             scr.win.setTimeout(() => scr.win.removeEventListener("click", eat, true), 0);
         };
-        cap.addEventListener("pointermove", move); cap.addEventListener("pointerup", up); cap.addEventListener("pointercancel", up);
+        win.addEventListener("pointermove", move, true); win.addEventListener("pointerup", up, true); win.addEventListener("pointercancel", up, true);
     }
     // the Map: the screen of the thumbnail nearest a point (a measure begun in the space between them)
     nearestThumb(x: number, y: number): HTMLElement | null {
