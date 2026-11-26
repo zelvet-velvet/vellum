@@ -14,27 +14,22 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
 </p>
 
-<p align="center">
-  <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
-</p>
-
-A light plugin for UI drafts that never leaves your vault: no design app, no website, no account. Lay screens out on a real device frame (a phone, a tablet, a desktop window or any size you set); each one is a small JSON file, so any agent that can open the vault reads exactly where everything is and edits the same files. No screenshots, no long descriptions.
-
-- **Any app, any screen**: a phone app, a desktop window, a web page or an Obsidian plugin; a side project or a work project. Several apps share a vault, each in its own folder with its own device. If your notes live in Obsidian, its screens can too.
-- **Point at a piece, ask for a change**: copy a block or an item for the agent in one click, say what to change, see it on the phone.
-- **Talk through the flow, not just the pixels**: the Map shows how the screens connect, so you and the agent can work out the app's logic and UX together.
-
-Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup already looks like the plugin.
-
-<sub>The JSON is a layout intent, not native layout code. It maps directly to HTML and CSS, so to Obsidian plugins; for SwiftUI or Compose, see the [FAQ](#-faq).</sub>
+<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens list with the device's corner, status bar and safe areas under it, the phone, and the chosen block's settings"></p>
 
 <p align="center">
   <a href="#-install">Install</a> ·
   <a href="#-quick-start">Quick start</a> ·
   <a href="#-with-your-agent">With your agent</a> ·
   <a href="#-file-format">File format</a> ·
+  <a href="#-shortcuts">Shortcuts</a> ·
   <a href="#-faq">FAQ</a>
 </p>
+
+Lay out an app's screens on a real device frame, in your vault: no design app, no website, no account. Each screen is a small JSON file, so your agent reads exactly where everything is and edits the same files you do.
+
+- **Any app**: a phone app, a desktop window, a web page or an Obsidian plugin. Several apps share a vault, each in its own folder.
+- **Point and ask**: copy a block for the agent in one click, say what to change, watch the phone update.
+- **The whole flow**: the Map shows how the screens connect, so you and the agent work out the app's logic, not just its pixels.
 
 <table>
   <tr>
@@ -47,41 +42,58 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens list with the device's corner, status bar and safe areas under it, the phone, and the chosen block's settings"></p>
+## <img src="assets/icons/star.svg" width="24" height="24" alt=""> How it works
 
-## <img src="assets/icons/star.svg" width="24" height="24" alt=""> Features
+<p align="center">
+  <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
+</p>
+
+1. **You lay out** a screen on the phone, or ask the agent to draft it.
+2. **Vellum keeps it** as one small file per screen, one block per line: easy to read, small diffs.
+3. **The agent reads and writes** the same files, and builds the app from them. Its changes wait for your review.
+
+Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup already looks like the plugin.
+
+### Lay out
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>Real devices</b><br><sub>iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a desktop window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar.</sub></td>
-    <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>Portrait and landscape</b><br><sub>A layout for each, one switch for the whole editor.</sub></td>
-    <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>Blocks and gravity</b><br><sub>Text and shapes keep an anchor point, an offset, and hug / fixed / fill sizes.</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/picture.svg" width="32" height="32" alt=""><br><b>Pictures and icons</b><br><sub>Images by address or vault path; Lucide icons by name.</sub></td>
-    <td valign="top"><img src="assets/icons/frames.svg" width="32" height="32" alt=""><br><b>Frames</b><br><sub>Screens share a layout and store only what they change.</sub></td>
-    <td valign="top"><img src="assets/icons/magnet.svg" width="32" height="32" alt=""><br><b>Snapping</b><br><sub>Edges, middles, margins and neighbours, with guide lines.</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/map.svg" width="32" height="32" alt=""><br><b>Screen map</b><br><sub>Every screen as a tree, joined by how you get there.</sub></td>
-    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>Its own window</b><br><sub>A full editor on a computer, a bottom sheet on a phone. Show walks the screens as a preview.</sub></td>
-    <td valign="top"><img src="assets/icons/text.svg" width="32" height="32" alt=""><br><b>Plain JSON</b><br><sub>One file per screen, one block per line. Small diffs.</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>Marks</b><br><sub>Notes, named areas and guide lines on the screen, for you and the agent.</sub></td>
-    <td valign="top"><img src="assets/icons/overlays.svg" width="32" height="32" alt=""><br><b>Overlays</b><br><sub>Grids, columns, thirds, the golden ratio and spiral, vanishing points.</sub></td>
-    <td valign="top"><img src="assets/icons/select.svg" width="32" height="32" alt=""><br><b>Choose and group</b><br><sub>Drag an area over blocks or items, move them together, group them.</sub></td>
+    <td width="50%" valign="top"><img src="assets/measure.gif" alt="Measure: M held and a drag over the Holdings list shows each item's size, the gaps between them and their padding to the block"></td>
+    <td valign="top">
+
+- <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **Real devices**: iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar. Portrait and landscape.
+- <img src="assets/icons/blocks.svg" width="16" height="16" alt=""> **Blocks and anchors**: items hold on to a point of their block, with an offset and hug / fixed / fill sizes, as native layouts do.
+- <img src="assets/icons/magnet.svg" width="16" height="16" alt=""> **Snapping**: edges, middles, margins, equal gaps and sizes, with guide lines.
+- <img src="assets/icons/ruler.svg" width="16" height="16" alt=""> **Measure**: hold <kbd>M</kbd> and drag over an area for every size, gap and padding in it.
+- <img src="assets/icons/overlays.svg" width="16" height="16" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
+- <img src="assets/icons/picture.svg" width="16" height="16" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
+
+</td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; the list's names start on column 1, its prices end on column 2, its values end on the right margin"><br><sub><b>Overlays</b>: three columns; the list's names, prices and values line up with them</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; the list's names start on column 1, its prices end on column 2, its values end on the right margin"><br><sub><b>Overlays</b>: the list's names, prices and values on three columns</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
   </tr>
 </table>
 
+### Work with your agent
+
+- <img src="assets/icons/copy.svg" width="16" height="16" alt=""> **Copy reference**: one key copies the chosen screen, block or item as `[file › block (id)]`, ready to paste with what to change.
+- <img src="assets/icons/marks.svg" width="16" height="16" alt=""> **Marks**: pinned notes, named areas and guide lines on the screen, for you and the agent. The agent can answer with marks of its own.
+- <img src="assets/icons/review.svg" width="16" height="16" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
+- <img src="assets/icons/select.svg" width="16" height="16" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
+
+### See the whole app
+
 <p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
+
+- <img src="assets/icons/map.svg" width="16" height="16" alt=""> **Map and Show**: the screens as a tree, or one at a time as a preview with <kbd>←</kbd> <kbd>→</kbd> to the next.
+- <img src="assets/icons/frames.svg" width="16" height="16" alt=""> **Frames**: screens share a layout and store only what they change.
+- <img src="assets/icons/window.svg" width="16" height="16" alt=""> **Its own window**: the editor in a window of its own, one per app, its top bar as the window's bar; a bottom sheet on a phone.
+- <img src="assets/icons/palette.svg" width="16" height="16" alt=""> **Themes**: an app's own colours and themes (light, dark, any name) for its screens, and a theme for the editor itself.
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> Install
 
@@ -102,8 +114,9 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plugin API, no server.
 
 1. **The agent drafts** your app's screens, or proposes new ones.
-2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen: a pinned note, a named area, a guide line. The agent can answer with marks of its own.
-3. **The agent builds** from the screens you changed.
+2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen.
+3. **You review**: the changed screen shows **Changed**; hold <kbd>B</kbd> for how it was, then **Keep** or **Undo**.
+4. **The agent builds** from the screens you kept.
 
 <p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Sort block, its hint showing. 2: the reference pasted into Claude Code with what to change, a two-line reply, the next request typed. 3: an arrow to the block on the phone, now with VALUE in the accent colour"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the phone updates as the file changes.</sub></p>
 
@@ -138,12 +151,12 @@ Write each page of my app as a Vellum screen in Vellum/<app name>, then tell me 
 When I ask for options, make them as Vellum mocks, not as a web page.
 ```
 
-The guide also ships with Vellum, so the agent needs no link. It sits as `VELLUM.md` in the folder that holds your apps, one subfolder per app beside it (`Vellum/VELLUM.md`, `Vellum/Remote/`, `Vellum/Console/`). Vellum writes it when you make an app in a folder that has none; for apps made before, run **Vellum: Add the agent guide**. Point your agent to it once, e.g. a line in your `AGENTS.md` or `CLAUDE.md`. For Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`) loads it by itself. Each copy matches the Vellum you have and is written again when Vellum updates; a `VELLUM.md` you wrote yourself is left alone.
+The guide also ships with Vellum, so the agent needs no link. It sits as `VELLUM.md` in the folder that holds your apps (`Vellum/VELLUM.md`, beside `Vellum/Remote/`, `Vellum/Console/`). Vellum writes it when you make an app in a folder that has none; for apps made before, run **Vellum: Add the agent guide**. Point your agent to it once, e.g. a line in your `AGENTS.md` or `CLAUDE.md`. For Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`) loads it by itself. Each copy matches the Vellum you have and is written again when Vellum updates; a `VELLUM.md` you wrote yourself is left alone.
 
 > [!TIP]
-> Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.
+> The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
 >
-> Ask for two or three **mocks** (`"mock": true`) as sub screens and keep the one you like. The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
+> Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.
 
 <sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and Ledgerline were designed this way, with Claude Code.</sub>
 
@@ -202,6 +215,9 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 | | |
 | :--- | :--- |
+| Click · <kbd>Ctrl</kbd> <kbd>Shift</kbd> click | An item, straight away (a block's empty space or its name tag: the block) · the block, even over its items |
+| <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add an item or a block to the chosen, or take it out · every block |
+| <kbd>Esc</kbd> | Let go of what is chosen, one level at a time (never closes the editor) |
 | <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Nudge 1 pt, with <kbd>Shift</kbd> one grid step |
 | <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | Undo · redo |
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | Duplicate · delete |
@@ -210,11 +226,11 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 | <kbd>M</kbd> or <kbd>Alt</kbd> held, then drag | Measure the area: sizes, gaps and paddings (a click or <kbd>M</kbd> clears it) |
 | Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
 | Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
-| <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add to the chosen or take out · every block |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup (a group, row or column: its items stay where they are) |
 | <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the marks |
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
+| <kbd>B</kbd> held | On a screen the agent changed: see it as it was |
 | <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
 | Arrows · <kbd>Enter</kbd> in the Map | Choose the screen beside, above (the one it opens from) or below (the first it opens) · open it |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |

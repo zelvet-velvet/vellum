@@ -14,27 +14,22 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT 授權"></a>
 </p>
 
-<p align="center">
-  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
-</p>
-
-輕量外掛，UI 草稿全在儲存庫內完成，不需另開設計工具、網站或註冊帳號。以真實裝置外框排版（手機、平板、桌面視窗或任意尺寸），每個畫面存為一個 JSON 檔，可存取儲存庫的 agent 皆能得知每個元件的位置與尺寸，並修改同一份檔案。不需截圖或額外說明。
-
-- **不限 app 類型與畫面尺寸**：手機 app、桌面視窗、網頁與 Obsidian 外掛皆可，個人專案或工作專案皆適用。同一儲存庫可放多個 app，各自一個資料夾與裝置設定。筆記在 Obsidian，畫面也能放在同一處
-- **指定元件請 agent 修改**：一鍵複製 block 或 item 給 agent，說明要改的地方，於手機外框上確認結果
-- **討論流程，而非只有排版**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯與 UX
-
-顏色、字型與圖示依據 Obsidian 主題，外掛的排版結果與實際外觀一致。
-
-<sub>JSON 描述的是排版意圖，不是原生版面程式碼。可直接對應 HTML 與 CSS，適用於 Obsidian 外掛；SwiftUI 與 Compose 的對應方式請參考[常見問題](#-常見問題)。</sub>
+<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表與其下方的裝置圓角、狀態列、安全區域設定，手機，以及所選區塊的設定"></p>
 
 <p align="center">
   <a href="#-安裝">安裝</a> ·
   <a href="#-快速開始">快速開始</a> ·
   <a href="#-搭配-agent">搭配 agent</a> ·
   <a href="#-檔案格式">檔案格式</a> ·
+  <a href="#-快捷鍵">快捷鍵</a> ·
   <a href="#-常見問題">常見問題</a>
 </p>
+
+於儲存庫內以真實裝置外框排版 app 畫面，不需另開設計工具、網站或註冊帳號。每個畫面存為一個小型 JSON 檔，agent 可得知每個元件的位置，並與你修改同一批檔案。
+
+- **不限 app 類型**：手機 app、桌面視窗、網頁與 Obsidian 外掛皆可。同一儲存庫可放多個 app，各自一個資料夾
+- **指定元件提出修改**：一鍵複製 block 給 agent，說明要改的地方，於手機外框上確認結果
+- **完整流程**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯，而非只有排版
 
 <table>
   <tr>
@@ -47,41 +42,58 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
-<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表與其下方的裝置圓角、狀態列、安全區域設定，手機，以及所選區塊的設定"></p>
+## <img src="assets/icons/star.svg" width="24" height="24" alt=""> 運作方式
 
-## <img src="assets/icons/star.svg" width="24" height="24" alt=""> 功能
+<p align="center">
+  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
+</p>
+
+1. **排版**：於手機外框上排版畫面，或請 agent 產生草稿
+2. **存檔**：Vellum 將每個畫面存為一個小檔案，一個區塊一行，易讀且 diff 簡潔
+3. **agent 讀寫**：agent 讀寫同一批檔案，並據此實作 app。agent 的修改需經你確認
+
+顏色、字型與圖示依據 Obsidian 主題，外掛的排版結果與實際外觀一致。
+
+### 排版
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="assets/icons/devices.svg" width="32" height="32" alt=""><br><b>真實機型</b><br><sub>支援 iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（桌面視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。</sub></td>
-    <td width="33%" valign="top"><img src="assets/icons/orientation.svg" width="32" height="32" alt=""><br><b>直向與橫向</b><br><sub>兩種方向各自排版，整個編輯器統一切換。</sub></td>
-    <td width="33%" valign="top"><img src="assets/icons/blocks.svg" width="32" height="32" alt=""><br><b>區塊與錨點</b><br><sub>文字與圖形保留錨點與位移，尺寸可設為 hug、固定或 fill。</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/picture.svg" width="32" height="32" alt=""><br><b>圖片與圖示</b><br><sub>圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱。</sub></td>
-    <td valign="top"><img src="assets/icons/frames.svg" width="32" height="32" alt=""><br><b>共用版型</b><br><sub>多個畫面共用同一版型，各畫面僅儲存修改的部分。</sub></td>
-    <td valign="top"><img src="assets/icons/magnet.svg" width="32" height="32" alt=""><br><b>對齊吸附</b><br><sub>拖曳時對齊邊緣、中線、邊距與相鄰元件，並顯示參考線。</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/map.svg" width="32" height="32" alt=""><br><b>畫面地圖</b><br><sub>所有畫面以樹狀顯示，並標示各畫面的進入方式。</sub></td>
-    <td valign="top"><img src="assets/icons/window.svg" width="32" height="32" alt=""><br><b>獨立視窗</b><br><sub>電腦上為完整編輯器，手機上設定收於底部面板。Show 模式可逐一預覽畫面。</sub></td>
-    <td valign="top"><img src="assets/icons/text.svg" width="32" height="32" alt=""><br><b>純 JSON</b><br><sub>一個畫面一個檔案，一個區塊一行，diff 簡潔。</sub></td>
-  </tr>
-  <tr>
-    <td valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>標註</b><br><sub>在畫面上加註記、命名區域與參考線，給你與 agent 溝通。</sub></td>
-    <td valign="top"><img src="assets/icons/overlays.svg" width="32" height="32" alt=""><br><b>輔助線</b><br><sub>格線、欄位、三分法、黃金比例與螺旋、消失點。</sub></td>
-    <td valign="top"><img src="assets/icons/select.svg" width="32" height="32" alt=""><br><b>框選與群組</b><br><sub>拖曳框選區塊或項目，一起移動，組成群組。</sub></td>
+    <td width="50%" valign="top"><img src="assets/measure.gif" alt="測量：按住 M 並拖曳框選 Holdings 列表，顯示各項目的尺寸、相互間距與到區塊邊緣的內距"></td>
+    <td valign="top">
+
+- <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **真實機型**：iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。支援直向與橫向
+- <img src="assets/icons/blocks.svg" width="16" height="16" alt=""> **區塊與錨點**：項目固定於區塊的某一點，保留位移，尺寸可設為 hug、固定或 fill，與原生版面相同
+- <img src="assets/icons/magnet.svg" width="16" height="16" alt=""> **對齊吸附**：邊緣、中線、邊距、等距與等尺寸，並顯示參考線
+- <img src="assets/icons/ruler.svg" width="16" height="16" alt=""> **測量**：按住 <kbd>M</kbd> 拖曳框選，顯示框內所有尺寸、間距與內距
+- <img src="assets/icons/overlays.svg" width="16" height="16" alt=""> **輔助線**：格線、欄位、三分法、黃金比例與螺旋、消失點
+- <img src="assets/icons/picture.svg" width="16" height="16" alt=""> **圖片與圖示**：圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱
+
+</td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；列表的名稱對齊第一欄，價格對齊第二欄右緣，金額對齊右側邊距"><br><sub><b>輔助線</b>：三欄格線，列表的名稱、價格與金額皆對齊欄位</sub></td>
+    <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；列表的名稱對齊第一欄，價格對齊第二欄右緣，金額對齊右側邊距"><br><sub><b>輔助線</b>：列表的名稱、價格與金額對齊三欄格線</sub></td>
     <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：Holdings 畫面的預覽，上方是進入的路徑，兩側是切換畫面的箭頭"><br><sub><b>Show</b>：預覽畫面，上方是進入的路徑，兩側切換畫面</sub></td>
   </tr>
 </table>
 
+### 與 agent 協作
+
+- <img src="assets/icons/copy.svg" width="16" height="16" alt=""> **Copy reference**：一鍵將所選畫面、block 或 item 複製為 `[檔案 › block (id)]`，貼給 agent 並說明要改的地方
+- <img src="assets/icons/marks.svg" width="16" height="16" alt=""> **標註**：在畫面上加圖釘註記、命名區域與參考線，給你與 agent 溝通。agent 也能以標註回覆
+- <img src="assets/icons/review.svg" width="16" height="16" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
+- <img src="assets/icons/select.svg" width="16" height="16" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
+
+### 檢視整個 app
+
 <p align="center"><img src="assets/map.png" alt="地圖：所有畫面以樹狀顯示，並標示各畫面的進入方式"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
+
+- <img src="assets/icons/map.svg" width="16" height="16" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
+- <img src="assets/icons/frames.svg" width="16" height="16" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分
+- <img src="assets/icons/window.svg" width="16" height="16" alt=""> **獨立視窗**：編輯器於獨立視窗開啟，每個 app 一個視窗，頂列即視窗標題列；手機上設定收於底部面板
+- <img src="assets/icons/palette.svg" width="16" height="16" alt=""> **主題**：每個 app 可有自己的顏色與主題（淺色、深色或自訂名稱），編輯器本身也可另設主題
 
 ## <img src="assets/icons/download.svg" width="24" height="24" alt=""> 安裝
 
@@ -102,8 +114,9 @@
 可讀寫檔案的 agent 皆可使用，例如 Claude Code、Codex 與 Cursor。不需外掛 API 或伺服器。
 
 1. **agent 產生草稿**：依 app 現有頁面繪製畫面，或提出新畫面
-2. **指定並提出修改**：選取 block 後按 **Copy reference**（<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>），貼給 agent 並說明要改的地方。或直接在畫面上加 **mark**：圖釘註記、命名的區域、參考線。agent 也能用 mark 回覆
-3. **agent 實作**：依修改後的畫面實作
+2. **指定並提出修改**：選取 block 後按 **Copy reference**（<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>），貼給 agent 並說明要改的地方。或直接在畫面上加 **mark**
+3. **確認修改**：修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
+4. **agent 實作**：依保留的畫面實作
 
 <p align="center"><img src="assets/agent.png" alt="1：對 Sort block 按 Copy reference，顯示提示。2：參照貼到 Claude Code 並說明要改的地方，兩行回覆，下一個要求已輸入。3：箭頭指向手機上的 block，VALUE 已改為強調色"><br><sub><b>1</b> 對 block 按 Copy reference，<b>2</b> 貼給 agent 並說明要改的地方，<b>3</b> 檔案修改後手機畫面隨即更新。</sub></p>
 
@@ -130,8 +143,6 @@
   </tr>
 </table>
 
-給 agent 的指示範例：
-
 以下列內容開始；[給 agent 的說明](docs/for-agents.md)列出 Vellum 支援的功能：
 
 ```text
@@ -140,12 +151,12 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 需要多個方案時，以 Vellum 的 mock 製作，不要做成網頁。
 ```
 
-Vellum 亦內建此說明，agent 無須連結即可讀取。說明為 `VELLUM.md`，置於存放各 app 的資料夾中，每個 app 為其旁的子資料夾（`Vellum/VELLUM.md`、`Vellum/Remote/`、`Vellum/Console/`）。於尚無說明的資料夾新建 app 時，Vellum 會自動寫入；既有的 app 請執行 **Vellum: Add the agent guide**。於自己的 `AGENTS.md` 或 `CLAUDE.md` 加一行指向此檔即可。Claude Code 可執行 **Add the agent guide as a Claude Code skill**（寫入 `.claude/skills/vellum/`），會自動載入。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫；自行撰寫的 `VELLUM.md` 不會被覆寫。
+Vellum 亦內建此說明，agent 無須連結即可讀取。說明為 `VELLUM.md`，置於存放各 app 的資料夾中（`Vellum/VELLUM.md`，旁邊為 `Vellum/Remote/`、`Vellum/Console/`）。於尚無說明的資料夾新建 app 時，Vellum 會自動寫入；既有的 app 請執行 **Vellum: Add the agent guide**。於自己的 `AGENTS.md` 或 `CLAUDE.md` 加一行指向此檔即可。Claude Code 可執行 **Add the agent guide as a Claude Code skill**（寫入 `.claude/skills/vellum/`），會自動載入。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫；自行撰寫的 `VELLUM.md` 不會被覆寫。
 
 > [!TIP]
-> 外框屬於被框住的元件：區塊有自己的 `fill`、`stroke` 與 `sides`，文字也有自己的外框。舊畫面中以矩形當外框的，選取時會顯示 **Make it the block's look** 或 **Make it the text's box** 以轉換。
+> 編輯器開啟時 agent 仍可寫入檔案，Vellum 會重新載入，且不會覆蓋尚未儲存的修改。
 >
-> 可請 agent 產生兩到三個 **mock**（`"mock": true`）作為子畫面，再保留選定的版本。編輯器開啟時 agent 仍可寫入檔案，Vellum 會重新載入，且不會覆蓋尚未儲存的修改。
+> 外框屬於被框住的元件：區塊有自己的 `fill`、`stroke` 與 `sides`，文字也有自己的外框。舊畫面中以矩形當外框的，選取時會顯示 **Make it the block's look** 或 **Make it the text's box** 以轉換。
 
 <sub>[Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) 與 Ledgerline 的畫面皆以此方式與 Claude Code 協作設計。</sub>
 
@@ -204,6 +215,9 @@ Vellum/
 
 | | |
 | :--- | :--- |
+| 點選 · <kbd>Ctrl</kbd> <kbd>Shift</kbd> 點選 | 直接選取項目（點區塊空白處或名稱標籤：選取區塊）· 選取區塊，即使點在項目上 |
+| <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 將項目或區塊加入或移出選取 · 全部區塊 |
+| <kbd>Esc</kbd> | 取消選取，一次退一層（不會關閉編輯器） |
 | <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | 移動 1 pt，按住 <kbd>Shift</kbd> 移動一格 |
 | <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | 復原 · 重做 |
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | 複製 · 刪除 |
@@ -212,11 +226,11 @@ Vellum/
 | 按住 <kbd>M</kbd> 或 <kbd>Alt</kbd> 再拖曳 | 測量框內的尺寸、間距與內距（點一下或按 <kbd>M</kbd> 清除） |
 | 按住滑鼠中鍵拖曳 · <kbd>Ctrl</kbd> + 滾輪 | 移動視野 · 以游標為中心縮放（最大 1600 %） |
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
-| <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 加入或移出選取 · 全部區塊 |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組、列或欄（項目留在原位） |
 | <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏標註 |
 | <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選畫面、block 或 item 的參照，供 agent 使用 |
+| 按住 <kbd>B</kbd> | agent 修改過的畫面：檢視修改前 |
 | Show 模式下 <kbd>←</kbd> <kbd>→</kbd> | 上一個 · 下一個畫面 |
 | Map 模式下方向鍵 · <kbd>Enter</kbd> | 選取同一列的相鄰畫面、上層畫面或第一個下層畫面 · 開啟該畫面 |
 | 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
