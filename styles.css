@@ -140,8 +140,11 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl .vl-save.is-on { color: var(--text-normal); border-color: var(--text-faint); }
 /* the map of screens */
 .vl-map { overflow-x: auto; padding: 16px 12px; display: flex; }
-.vl-map > .vl-mapbox { margin: 0 auto; flex: none; }
-.vl-mapbox { position: relative; }
+.vl-map > .vl-mapsizer { margin: 0 auto; flex: none; }
+.vl-mapsizer { position: relative; }   /* as big as the map at this zoom: the stage scrolls over all of it */
+.vl-mapbox { position: absolute; left: 0; top: 0; transform-origin: 0 0; }   /* laid out once, scaled for the zoom */
+.vl-mapbox.is-tiny :is(.vl-tname, .vl-maplink, .vl-ttags, .vl-thumb > .vl-ttag) { visibility: hidden; }   /* too small to read */
+.vl-thumb .vl-tphone { content-visibility: auto; }   /* a screen off the window isn't painted (with many screens, the cost of a zoom) */
 .vl-maplines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .vl-maplines path { fill: none; stroke: var(--text-faint); stroke-width: 1.5; stroke-linejoin: round; }
 .vl-maplink { position: absolute; transform: translateX(-50%); font-size: 10px; line-height: 1.3; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; background: var(--background-primary); border-radius: 3px; pointer-events: none; }
@@ -207,6 +210,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-yellow, #e0ac00)); box-shadow: none; background: transparent; color: var(--text-normal); border-radius: 6px; }
 .vl .vl-review.is-edited { border-color: var(--vlu-edited, var(--color-green, #08b94e)); background: transparent; }   /* an outline only: no fill */
 .vl .vl-review.is-edited svg { color: var(--vlu-edited, var(--color-green, #08b94e)); }
+.vl .vl-review.is-mock { border-color: var(--vlu-mock, var(--color-orange, #ec7500)); }
+.vl .vl-review.is-mock svg { color: var(--vlu-mock, var(--color-orange, #ec7500)); }
 .vl .vl-review svg { width: 15px; height: 15px; color: var(--vlu-changed, var(--color-yellow, #e0ac00)); }
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
