@@ -31,7 +31,7 @@ export const UI_COLORS: { id: string; name: string; group: string; vars: string[
     { id: "guide", name: "Snap guides", group: "Signals", vars: ["--vlu-guide"], follow: "var(--color-pink, #e93147)" },   // its own variable: block kinds use Obsidian's pink too
     { id: "measure", name: "Measure", group: "Signals", vars: ["--vlu-measure"], follow: "var(--interactive-accent)" },   // M + drag: the area, frames, gaps and sizes
     { id: "mock", name: "Mock screens", group: "Signals", vars: ["--vlu-mock"], follow: "var(--color-orange, #ec7500)" },   // a proposal's frame, tag and name, everywhere it shows
-    { id: "changed", name: "Changed screens", group: "Signals", vars: ["--vlu-changed"], follow: "var(--color-cyan, #00bfbc)" },   // a screen the agent changed, waiting for Keep or Undo
+    { id: "changed", name: "Changed screens", group: "Signals", vars: ["--vlu-changed"], follow: "var(--color-purple, #a882ff)" },   // a screen the agent changed, waiting for Keep or Undo
 ];
 
 // the editor themes Vellum starts with (Settings → Editor theme), beside Obsidian's own: Light and Dark, Ledgerline's warm
@@ -95,7 +95,7 @@ export const applyLook = (t: Theme, s: CSSStyleDeclaration, o: { fill?: string; 
     if (o.r) s.borderRadius = radiusOf(o.r);
     if (o.sw) {
         const c = colorOf(t, o.stroke ?? "line"), w = px(o.sw), sd = o.sides || "trbl";
-        if (["t", "r", "b", "l"].every((x) => sd.includes(x))) { s.boxShadow = `inset 0 0 0 ${w} ${c}`; return; }
+        if (["t", "r", "b", "l"].every((x) => sd.includes(x))) { s.boxShadow = `inset 0 0 0 ${w} ${c}`; s.setProperty("--vl-own", s.boxShadow); return; }   // --vl-own: the editor's hover and chosen frames draw it too
         const at = { t: `top / 100% ${w}`, b: `bottom / 100% ${w}`, l: `left / ${w} 100%`, r: `right / ${w} 100%` } as const;
         const lines = (["t", "b", "l", "r"] as const).filter((x) => sd.includes(x)).map((x) => `linear-gradient(${c}, ${c}) ${at[x]} no-repeat`);
         s.background = [...lines, fill].filter(Boolean).join(", ");
