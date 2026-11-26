@@ -72,12 +72,12 @@
 .vl-anchor { position: absolute; width: calc(9px * var(--vl-iz, 1)); height: calc(9px * var(--vl-iz, 1)); margin: calc(-4.5px * var(--vl-iz, 1)) 0 0 calc(-4.5px * var(--vl-iz, 1)); box-sizing: border-box; border-radius: 50%; background: transparent; border: calc(2px * var(--vl-iz, 1)) solid var(--vl-sel, var(--interactive-accent)); box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) var(--background-primary), inset 0 0 0 calc(1px * var(--vl-iz, 1)) var(--background-primary); z-index: 6; pointer-events: none; }
 
 /* items */
-.vl-it { box-sizing: border-box; }
+.vl-it { box-sizing: border-box; --vl-own: 0 0 transparent; }   /* --vl-own: set on an item with its own outline; not taken from a group around it */
 .vl-it.is-abs { position: absolute; }
-.vl-screen:not(.is-show) .vl-it:hover { box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 50%, transparent); }
-.vl-screen:not(.is-show) .vl-it.is-sel { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) var(--vl-sel, var(--interactive-accent)), 0 0 0 calc(2.5px * var(--vl-iz, 1)) rgba(0, 0, 0, 0.45); }
+.vl-screen:not(.is-show) .vl-it:hover { box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 50%, transparent), var(--vl-own, 0 0 transparent) !important; }   /* !important: over an item's own outline (an inline inset shadow), kept in it */
+.vl-screen:not(.is-show) .vl-it.is-sel { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) var(--vl-sel, var(--interactive-accent)), 0 0 0 calc(2.5px * var(--vl-iz, 1)) rgba(0, 0, 0, 0.45), var(--vl-own, 0 0 transparent) !important; }
 .vl-accentprobe { display: none; color: var(--interactive-accent); }
-.vl-it.is-typing { outline: none; box-shadow: 0 0 0 1.5px var(--interactive-accent); cursor: text; user-select: text; -webkit-user-select: text; }
+.vl-it.is-typing { outline: none; box-shadow: 0 0 0 1.5px var(--interactive-accent), var(--vl-own, 0 0 transparent) !important; cursor: text; user-select: text; -webkit-user-select: text; }
 
 /* the panel: right side on a computer, a bottom sheet on a phone */
 .vl-panel { position: relative; flex: none; width: 300px; display: flex; flex-direction: column; min-height: 0; background: var(--background-primary); border-left: 1px solid var(--background-modifier-border); font-size: var(--font-ui-small); }
