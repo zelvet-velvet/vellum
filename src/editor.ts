@@ -2497,7 +2497,7 @@ class Editor {
         const inGroup = !show && this.sel?.page === p.id && this.many.includes(b);
         // holds some of several chosen items: they show past its edge while they move, as one chosen item does
         const holds = !show && this.sel?.page === p.id && this.manyItems.some((x) => x.b === b);
-        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (inGroup ? " is-many" : "") + (holds ? " is-holds" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
+        const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (sel && this.sel?.item ? " is-host" : "") + (inGroup ? " is-many" : "") + (holds ? " is-holds" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
@@ -2666,14 +2666,17 @@ class Editor {
         // item at the level that is open (in an open group: its item, alone)
         if (b && itEl) { const r = this.pickLevel(b, itEl); pickId = r.pick; dragId = r.drag ?? dragId; }
         const before = this.sel;
+        // Ctrl (Cmd) + Shift on a block: the block itself, never an item in it (a drag moves it), as a press on its name tag
+        const wholeBlock = (!!b && (e.ctrlKey || e.metaKey) && e.shiftKey) || !!t.closest(".vl-tag");
         // empty space on the screen: a drag chooses the blocks in its area, a tap the page; Ctrl (Cmd): the items, anywhere
-        if (!bEl || ((e.ctrlKey || e.metaKey) && !t.closest("[data-grip], [data-igrip]"))) { this.marquee(e, p, scr, false); return; }
-        // an item of the item group: they move together; Shift+click on an item, with items chosen: in or out
+        if (!bEl || ((e.ctrlKey || e.metaKey) && !wholeBlock && !t.closest("[data-grip], [data-igrip]"))) { this.marquee(e, p, scr, false); return; }
+        // an item of the item group: they move together; Shift+click on an item: in or out of the items chosen, in any
+        // block (with an item chosen, it starts them with that one)
         const mi = this.manyItems;
-        if (b && dragId && mi.some((x) => x.it.id === dragId) && !e.shiftKey) { this.dragItems(e, p, scr, b, dragId); return; }
-        if (b && dragId && e.shiftKey && b.items.some((i) => i.id === dragId) && (mi.length || (this.sel?.item && this.sel.page === p.id))) {
+        if (b && dragId && mi.some((x) => x.it.id === dragId) && !e.shiftKey && !wholeBlock) { this.dragItems(e, p, scr, b, dragId); return; }
+        if (b && dragId && e.shiftKey && !wholeBlock && !b.lock && b.items.some((i) => i.id === dragId)) {
             const list = mi.map((x) => ({ block: x.b.id, item: x.it.id }));
-            if (!list.length) { const cb = this.block(), top = cb?.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (cb && top) list.push({ block: cb.id, item: top.id }); }
+            if (!list.length && this.sel?.item) { const cb = this.block(), top = cb?.items.find((i) => i.id === this.sel!.item || !!findItem([i], this.sel!.item!)); if (cb && top) list.push({ block: cb.id, item: top.id }); }
             const i = list.findIndex((x) => x.item === dragId);
             if (i >= 0) list.splice(i, 1); else list.push({ block: b.id, item: dragId });
             this.chooseItems(p, list);
@@ -2687,7 +2690,7 @@ class Editor {
             return;
         }
         // Shift+click: a block in or out of the group (the block chosen alone starts it)
-        if (e.shiftKey && !this.sel?.item) {
+        if (e.shiftKey && !wholeBlock && !this.sel?.item) {
             const ids = this.many.map((x) => x.id);
             if (!ids.length && this.sel?.page === p.id && this.sel.block && this.sel.block !== b.id && this.blocks(p).some((x) => x.id === this.sel!.block)) ids.push(this.sel.block);
             const i = ids.indexOf(b.id);
@@ -2698,11 +2701,9 @@ class Editor {
         if (this.many.includes(b)) { this.dragMany(e, p, scr, b); return; }
         const ig = t.closest<HTMLElement>("[data-igrip]");
         if (ig && this.sel?.item && this.sel.block === b.id) { this.resizeItem(e, p, b, scr, ig.dataset.igrip as "bl" | "br"); return; }
-        // first tap on a block chooses the block; an item is chosen once its block is (or straight away with a double tap)
+        // a click on an item chooses it straight away (a drag moves it); on the block's own space, the block
         const blockChosen = before?.page === p.id && before.block === b.id;
-        // Ctrl / Cmd + click, or a press on the block's name tag: the block itself (a drag moves it), never an item in it
-        const wholeBlock = e.ctrlKey || e.metaKey || !!t.closest(".vl-tag");
-        const target: Sel = pickId && blockChosen && !wholeBlock ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
+        const target: Sel = pickId && !wholeBlock ? { page: p.id, block: b.id, item: pickId } : { page: p.id, block: b.id };
         const dragItem = target?.item ? findItem(b.items, dragId!)?.item : undefined;
         const holder = dragItem ? parentOf(b.items, dragItem.id) : null, inGroup = holder?.type === "group";   // in a group: grid steps, then the group fits its items again
         const x0 = e.clientX, y0 = e.clientY, z = this.v.zoom, start = { ...b }, istart = dragItem ? { dx: dragItem.dx ?? 0, dy: dragItem.dy ?? 0 } : null;
@@ -3365,13 +3366,15 @@ class Editor {
         if (it?.type === "text") this.writer("Text", it.v ?? "", (v) => this.edit(() => { it.v = v; }));
     }
 
-    // one level up (Esc, the mouse's back button): several chosen or a mark → the page; an item in a group / row → that; an
-    // item → its block; a block → the page; the page → nothing
+    // one level up (Esc, the mouse's back button): several chosen or a mark → the page; an item in a group → the group;
+    // any other item, or a block → the page; the page → nothing
     up() {
         const s = this.sel; if (!s) return;
         if (s.mark || this.many.length || this.manyItems.length) { this.choose({ page: s.page }); return; }
+        // a click chooses an item straight away, so one level up from it is where that click started: nothing chosen on
+        // the screen (an item in a group: the group first, as a click in a group goes)
         const b = this.block(), par = s.item && b ? parentOf(b.items, s.item) : null;
-        this.choose(par ? { page: s.page, block: s.block, item: par.id } : s.item ? { page: s.page, block: s.block } : s.block ? { page: s.page } : null);
+        this.choose(par?.type === "group" ? { page: s.page, block: s.block, item: par.id } : s.block ? { page: s.page } : null);
     }
     // ---- keys (only when not typing in a field)
     key(e: KeyboardEvent) {
