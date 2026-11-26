@@ -2224,9 +2224,10 @@ class Editor {
             svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
             const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, TW).h }; };
             for (const { par, p, path, label } of links) {
-                // from under the parent's name, down, across, down to the sub page (its link label sits just above it)
+                // from under the parent's name (room for two lines), down, across, down to the sub page (its link label sits
+                // just above it)
                 const a = at(par), b = at(p);
-                const y0 = a.top + a.h + 26, midY = y0 + 8;
+                const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
                 path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
                 if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
             }
