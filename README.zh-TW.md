@@ -47,7 +47,7 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
-## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> 為何不用 artifact 或 canvas？
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> 為何不用 artifact 或 canvas
 
 **可以直接動手修改、保存並據以實作的 mockup。** Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup；Vellum 處理的是之後的部分：親手修改、與程式碼放在一起，並與 agent 一起實作。
 

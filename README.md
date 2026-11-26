@@ -47,7 +47,7 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> Why not an artifact or a canvas?
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> Why not an artifact or a canvas
 
 **A mockup you can grab, keep and build from.** Claude artifacts and ChatGPT or Gemini canvas draw one too; Vellum is made for what comes after: changing it by hand, keeping it next to your code, and building it with your agent.
 
