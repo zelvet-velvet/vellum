@@ -2223,8 +2223,12 @@ class Editor {
             Object.assign(scr.style, { width: `${sc.W}px`, height: `${sc.H}px` });
             t.createDiv({ cls: "vl-tname", text: p.name });
             if (p.mock) t.createDiv({ cls: "vl-ttag", text: "Mock" });   // a word on its corner: a mock never relies on colour alone
-            if (this.changed(p)) t.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });   // on the other corner
-            if (this.edited(p)) t.createDiv({ cls: "vl-ttag is-edited", text: "Edited" });   // at the foot
+            // on the other corner, side by side: the agent's change and the user's edit (the name under the phone stays clear)
+            if (this.changed(p) || this.edited(p)) {
+                const tg = t.createDiv({ cls: "vl-ttags" });
+                if (this.changed(p)) tg.createDiv({ cls: "vl-ttag is-changed", text: "Changed" });
+                if (this.edited(p)) tg.createDiv({ cls: "vl-ttag is-edited", text: "Edited" });
+            }
             t.addEventListener("click", () => pick(p));
             if (p.id === cur?.id) t.addClass("is-on");
             const th: Thumb = { id: p.id, t, ph, scr };
