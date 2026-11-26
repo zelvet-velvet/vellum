@@ -127,7 +127,7 @@ Vellum is built for working with a coding agent: you and the agent edit the same
     <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · Point</b><br><sub>You choose a block, <b>Copy reference</b>, say what to change</sub></td>
     <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · Mark</b><br><sub>Or pin a note on the screen; the agent answers with its own</sub></td>
     <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · Review</b><br><sub>Its change shows <b>Changed</b>: hold <kbd>B</kbd>, then <b>Keep</b> or <b>Undo</b></sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · Build</b><br><sub>It builds from the screens you kept, anchors as alignment</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · Build</b><br><sub>It builds from the screens you kept, and your own edits: <b>N edits to build</b></sub></td>
   </tr>
 </table>
 
@@ -172,6 +172,7 @@ When I ask for options, make them as Vellum mocks, not as a web page.
 - **Read before writing**: the file again before each change, and change only what a reference or a mark points at.
 - **Options are mocks**, sub screens you compare in Vellum, not a web page.
 - **A change to a real screen waits for you**: its old copy goes in `_before/` until you keep or undo it.
+- **Your edits wait for the agent**: a screen you change keeps its last built copy in `_edited/`, so "build my Vellum edits" is enough.
 - **Build from the screens**: anchors are alignment, `dx dy` padding, `hug` / `fill` wrap and fill; colours and fonts are tokens.
 - **Keep them in step**: when the built app changes, its screens change too.
 
@@ -200,7 +201,8 @@ Vellum/
    ├─ _doc.json       the device: size, safe areas, corner, status bar; the app's colours; the screen order
    ├─ Home.json       a screen
    ├─ Settings.json   another screen
-   └─ _before/        screens as they were before the agent changed them, until you keep or undo the change
+   ├─ _before/        screens as they were before the agent changed them, until you keep or undo the change
+   └─ _edited/        screens as they were last built, before you edited them, until the agent builds your edits
 ```
 
 A screen is a few **blocks**, boxes on the phone. Each block holds **items**, placed by an anchor:
