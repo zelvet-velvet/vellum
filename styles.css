@@ -63,7 +63,7 @@
 .vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
 .vl-screen:not(.is-show) .vl-block.is-sel { outline: calc(2px * var(--vl-iz, 1)) solid var(--k); overflow: visible; z-index: 2; }
 /* an item of it chosen: the block a thin dashed line, so the item's own ring is what reads as chosen; its tag still drags it */
-.vl-screen:not(.is-show) .vl-block.is-sel.is-host { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); }
+.vl-screen:not(.is-show) .vl-block.is-sel.is-host, .vl-spill > .vl-block.is-sel.is-host { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block.is-holds { overflow: visible; z-index: 2; }   /* some of several chosen items: they show past its edge */
 .vl-tag { position: absolute; left: 0; top: 0; transform: translateY(-100%); font: 600 calc(10px * var(--vl-iz, 1))/1 var(--font-interface); color: var(--k); padding: 0 calc(2px * var(--vl-iz, 1)) calc(2px * var(--vl-iz, 1)); white-space: nowrap; pointer-events: none; opacity: 0; }
 .vl-block.is-sel > .vl-tag, .vl-screen:not(.is-show) .vl-block:hover > .vl-tag { opacity: 1; }
@@ -958,7 +958,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); }
 .vl-spill > .vl-block.is-draft { opacity: 0.6; }   /* a draft: beside the screen, never part of it */
 .vl-spill > .vl-block.is-sel { opacity: 0.75; outline: calc(2px * var(--vl-iz, 1)) solid var(--k); }
-.vl-spill > .vl-block.is-sel.is-host { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); }
 .vl-spill > .vl-block:is(.is-sel, .is-holds):not(.is-inh) { overflow: visible; }   /* its chosen items past the screen show faded, as inside it */
 .vl-spill > .vl-block:hover > .vl-tag, .vl-spill > .vl-block.is-sel > .vl-tag, .vl-spill > .vl-block.is-draft > .vl-tag { opacity: 1; }
 .vl-marq.is-mark { border: calc(1.5px * var(--vl-iz, 1)) dashed #f5c84b; background: color-mix(in srgb, #f5c84b 10%, transparent); }
