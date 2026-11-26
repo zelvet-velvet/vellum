@@ -2259,9 +2259,9 @@ class Editor {
             if (!lazy) this.fillThumb(th);
             thumbs.push(th);
         }
-        // REF: the screen width the map is laid out at; gaps and lines are scaled with it, the text keeps its own size at
-        // any zoom (scaled back by the zoom: a handful of labels, no layout)
-        const REF = 48;
+        // REF: the screen width the map is laid out at; any zoom is that scaled, names, tags and link labels with their
+        // screens (a name is 11 px at REF). Too small to read, they hide (the frames still say what changed)
+        const REF = 72, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             return { slotW, rowH, W: x * slotW, H: (depthMax + 1) * rowH - GAP + 4 };
@@ -2290,19 +2290,11 @@ class Editor {
             ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
             scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
         });
-        const labels = Array.from(box.querySelectorAll<HTMLElement>(".vl-tname, .vl-maplink, .vl-ttags, .vl-thumb > .vl-ttag"));
-        // names wrap in their slot as it is on the monitor (they keep their size while the slot grows and shrinks)
-        const names = thumbs.map(({ t }, i) => ({ n: t.querySelector<HTMLElement>(".vl-tname"), w: dims(pages[i], REF).w }));
-        let shown = "";
         const lay = (TW0: number) => {
-            const k = TW0 / REF, t = 1 / k;
+            const k = TW0 / REF;
             box.style.transform = `scale(${k})`;
             sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
-            const ts = Math.abs(t - 1) < 1e-3 ? "" : String(t);
-            if (ts !== shown) { shown = ts; for (const l of labels) l.style.scale = ts; }
-            const room = slotW * k - 6;   // in px on the monitor, which is what the text is
-            for (const { n, w } of names) if (n) { n.style.width = `${room}px`; n.style.marginLeft = `${(w - room) / 2}px`; }
-            for (const { label } of links) if (label) label.style.maxWidth = `${slotW * k}px`;
+            box.toggleClass("is-tiny", 11 * k < TINY);
         };
         lay(TW);
         return { slots: x, rows: depthMax + 1, lay, size, thumbs };
