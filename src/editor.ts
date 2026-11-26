@@ -354,6 +354,8 @@ class Editor {
         const at = own ? e.closest<HTMLElement>(".workspace-leaf-content") ?? e : null;
         // a theme of the other kind than Obsidian's (Dark in a light Obsidian): the editor takes Obsidian's own light or
         // dark variables too, so the controls the theme doesn't name (buttons, menus, scrollbars) match it
+        // light or dark as the editor is drawn (its theme's, else Obsidian's): text in a state's colour is darker on light
+        if (own) e.toggleClass("is-light", (this.host.mode ?? (this.dark() ? "dark" : "light")) === "light");
         if (at) {
             at.toggleClass("theme-dark", this.host.mode === "dark"); at.toggleClass("theme-light", this.host.mode === "light");
             for (const [name, v] of Object.entries(UI_DERIVED)) { if (this.host.mode) at.style.setProperty(name, v); else at.style.removeProperty(name); }

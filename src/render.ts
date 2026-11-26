@@ -42,11 +42,13 @@ export const EDITOR_THEMES: Record<string, Record<string, string>> = {
         panels: "#ECE9E1", side: "#E3DFD5", hover: "#1C1B1914", device: "#E3DFD5", field: "#F6F3EC",
         border: "#D5D1C7", borderh: "#6D6A63", text: "#1C1B19", muted: "#6D6A63", faint: "#8C887F", onaccent: "#F6F3EC",
         accent: "#E8461F", accenth: "#D13C17", red: "#C4314B",
+        mock: "#4F7FEA", changed: "#D69E00", edited: "#2C9A55",   // apart from the accent; darkened where they are text (styles.css)
     },
     Dark: {
         panels: "#1F1F22", side: "#18181B", hover: "#E6E3DC14", device: "#18181B", field: "#18181B",
         border: "#36363B", borderh: "#96969B", text: "#E6E3DC", muted: "#96969B", faint: "#77777C", onaccent: "#1F1F22",
         accent: "#FF5C38", accenth: "#FF7552", red: "#E5484D",
+        mock: "#7FA6FF", changed: "#F2C94C", edited: "#5DD39E",
     },
 };
 // Obsidian works these out from its own colours once, on the page: with a theme of Vellum's they are worked out again on
