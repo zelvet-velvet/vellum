@@ -46,6 +46,20 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
+## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> 為何不用 artifact 或 canvas？
+
+Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處理的是之後的部分：修改、保存，並與 agent 一起依畫面實作。
+
+| | artifact 或 canvas | Vellum |
+| :--- | :--- | :--- |
+| **修改一處** | 重新要求，或編輯 HTML | 直接拖曳、調整樣式、輸入數值 |
+| **存放位置** | 對話中 | 儲存庫或專案中，每個畫面一個小檔案，可用 git 管理 |
+| **agent 讀回的內容** | 自己的程式碼，不含你的手動修改 | 你留下的檔案：每個區塊、位置與尺寸 |
+| **整個 app** | 一次一頁 | 所有畫面，以 Map 串連，於真實裝置外框上 |
+| **多個方案** | 對話中的新版本 | 與正式畫面並列的 mock，保留其一 |
+| **agent 的下一次修改** | 直接取代頁面 | 等你確認：按住 <kbd>B</kbd>，再選 Keep 或 Undo |
+| **適用的 agent** | 該對話中的那一個 | 可讀寫檔案的任一個：Claude Code、Codex、Cursor |
+
 ## <img src="assets/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> 運作方式
 
 1. **排版**：於手機外框上排版畫面，或請 agent 產生草稿
@@ -78,8 +92,6 @@
 - <img src="assets/icons/marks.svg" width="16" height="16" align="absmiddle" alt=""> **標註**：在畫面上加圖釘註記、命名區域與參考線，給你與 agent 溝通。agent 也能以標註回覆
 - <img src="assets/icons/review.svg" width="16" height="16" align="absmiddle" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
 - <img src="assets/icons/select.svg" width="16" height="16" align="absmiddle" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
-
-<p align="center"><img src="assets/review.gif" width="640" alt="確認修改：agent 依 issue 18 修改 Holdings；按住 B 顯示修改前（7566 整列紅底），放開顯示修改後（細邊條與紅色價格），再按 Keep"><br><sub><b>確認修改</b>：agent 將整列紅底改為邊條；按住 <kbd>B</kbd> 檢視修改前，再選 <b>Keep</b> 或 <b>Undo</b></sub></p>
 
 ### 檢視整個 app
 

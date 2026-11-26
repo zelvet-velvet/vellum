@@ -46,6 +46,20 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
+## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> Why not an artifact or a canvas?
+
+Claude artifacts and ChatGPT or Gemini canvas can draw a mockup too. Vellum is made for the part after that: changing it, keeping it, and building from it with your agent.
+
+| | An artifact or a canvas | Vellum |
+| :--- | :--- | :--- |
+| **Change one thing** | Ask again, or edit its HTML | Drag it, restyle it, type a number |
+| **Where it lives** | In the conversation | In your vault or repo, one small file per screen, in git |
+| **What the agent reads back** | Its own code, not your hand edits | The file as you left it: every block, position and size |
+| **A whole app** | One page at a time | Every screen, joined in the Map, on a real device frame |
+| **Options** | New versions down the chat | Mocks beside the real screen; keep one |
+| **The agent's next change** | Replaces the page | Waits for your review: hold <kbd>B</kbd>, then Keep or Undo |
+| **Any agent** | The one in that chat | Any that reads files: Claude Code, Codex, Cursor |
+
 ## <img src="assets/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> How it works
 
 1. **You lay out** a screen on the phone, or ask the agent to draft it.
@@ -78,8 +92,6 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/marks.svg" width="16" height="16" align="absmiddle" alt=""> **Marks**: pinned notes, named areas and guide lines on the screen, for you and the agent. The agent can answer with marks of its own.
 - <img src="assets/icons/review.svg" width="16" height="16" align="absmiddle" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
 - <img src="assets/icons/select.svg" width="16" height="16" align="absmiddle" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
-
-<p align="center"><img src="assets/review.gif" width="640" alt="Review: Holdings changed by the agent for issue 18; B held shows it as it was (the whole 7566 row flat red), let go shows the change (a thin edge bar and a red price), then Keep"><br><sub><b>Review</b>: the agent turned a heavy red row into an edge bar; hold <kbd>B</kbd> to see the screen as it was, then <b>Keep</b> or <b>Undo</b></sub></p>
 
 ### See the whole app
 
