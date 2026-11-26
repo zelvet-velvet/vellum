@@ -123,7 +123,7 @@ export default class VellumPlugin extends Plugin {
 // word on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
 const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["measure", "Measure", "ruler"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"]] as const;
 type Tab = (typeof TABS)[number][0];
-const TAB_KEY = "vellum:settab";   // the last tab used, kept on the device
+const TAB_KEY = "vellum:settab";   // the tab on show (General → Screens again each time the settings open)
 const APP_KEY = "vellum:setapp";   // the app whose colours the Screen colours tab shows (none: every app)
 class VellumSettings extends PluginSettingTab {
     constructor(app: App, readonly plugin: VellumPlugin) { super(app, plugin); }
@@ -222,7 +222,8 @@ class VellumSettings extends PluginSettingTab {
     // saved and shown a moment after the last change (a drag in the colour picker makes many)
     lookT = 0;
     queueLook() { window.clearTimeout(this.lookT); this.lookT = window.setTimeout(() => { this.save(); refreshLook(); }, 120); }
-    hide() { this.pickerOff?.(); this.uiDrafts.clear(); super.hide(); }
+    // closed: the next time it opens on General → Screens (a tab chosen lasts while the settings are open)
+    hide() { this.pickerOff?.(); this.uiDrafts.clear(); try { setLocal(TAB_KEY, "general"); setLocal("vellum:setgeneral", "screens"); } catch { /* */ } super.hide(); }
     syncs: (() => void)[] = [];
     // a list of colours: a tile (Vellum's picker), the name, the value ("Obsidian" while it follows), a way back. Follow Obsidian
     // sets the list back, with an undo; rules: pairs [text, background, least contrast, name] that warn on the text's row
