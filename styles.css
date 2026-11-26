@@ -32,8 +32,8 @@
 .vl-page.is-mock .vl-pname { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
 .vl-phone { position: relative; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
 .vl-page.is-mock .vl-phone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 7px; }   /* a mock (a proposal): dashed (not real yet), in the Mock screens colour */
-.vl-page.is-changed .vl-pname { color: var(--vlu-changed, var(--color-cyan, #00bfbc)); }   /* changed by the agent, waiting for Keep or Undo */
-.vl-page.is-changed .vl-phone { box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 0 0 10px var(--vlu-changed, var(--color-cyan, #00bfbc)), 0 12px 30px rgba(0, 0, 0, 0.35); }
+.vl-page.is-changed .vl-pname { color: var(--vlu-changed, var(--color-purple, #a882ff)); }   /* changed by the agent, waiting for Keep or Undo */
+.vl-page.is-changed .vl-phone { box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 0 0 10px var(--vlu-changed, var(--color-purple, #a882ff)), 0 12px 30px rgba(0, 0, 0, 0.35); }
 .vl-page.is-before .vl-phone { box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 0 0 10px var(--text-faint), 0 12px 30px rgba(0, 0, 0, 0.35); }   /* B held: the screen as it was */
 .vl-screen { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; background: var(--vl-paper); color: var(--vl-text); touch-action: none; }
 .vl-screen.is-show { touch-action: auto; }
@@ -151,8 +151,8 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
 .vl-thumb.is-mock .vl-tphone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 3px; }
 .vl-ttag { position: absolute; top: -9px; right: -9px; z-index: 1; padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 600; line-height: 16px; color: #fff; background: var(--vlu-mock, var(--color-orange, #ec7500)); box-shadow: 0 0 0 2px var(--background-primary); pointer-events: none; }
-.vl-ttag.is-changed { right: auto; left: -9px; background: var(--vlu-changed, var(--color-cyan, #00bfbc)); color: #111; }
-.vl-thumb.is-changed:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-cyan, #00bfbc)); }
+.vl-ttag.is-changed { right: auto; left: -9px; background: var(--vlu-changed, var(--color-purple, #a882ff)); color: #111; }
+.vl-thumb.is-changed:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-purple, #a882ff)); }
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 5px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
 .vl-thumb.is-main .vl-tname { color: var(--text-normal); font-weight: 600; }
@@ -198,8 +198,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-railbtn svg { width: 17px; height: 17px; flex: none; }
 .vl-pg { font-weight: 600; font-size: var(--font-ui-medium); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl-tr .vl-save { margin-left: 6px; }
-.vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-cyan, #00bfbc)); box-shadow: none; background: color-mix(in srgb, var(--vlu-changed, var(--color-cyan, #00bfbc)) 14%, transparent); color: var(--text-normal); border-radius: 6px; }
-.vl .vl-review svg { width: 15px; height: 15px; color: var(--vlu-changed, var(--color-cyan, #00bfbc)); }
+.vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-purple, #a882ff)); box-shadow: none; background: color-mix(in srgb, var(--vlu-changed, var(--color-purple, #a882ff)) 14%, transparent); color: var(--text-normal); border-radius: 6px; }
+.vl .vl-review svg { width: 15px; height: 15px; color: var(--vlu-changed, var(--color-purple, #a882ff)); }
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
 /* the stage: the phone in its middle; margin auto keeps it centred and still scrollable when zoomed past the stage */
@@ -219,7 +219,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-prow.is-on { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 .vl-prow.is-on .vl-pn { color: var(--interactive-accent); font-weight: 600; }
 .vl-prow.is-mock .vl-pn { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
-.vl-chtag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--vlu-changed, var(--color-cyan, #00bfbc)); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--vlu-changed, var(--color-cyan, #00bfbc)); vertical-align: 1px; font-style: normal; }
+.vl-chtag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--vlu-changed, var(--color-purple, #a882ff)); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--vlu-changed, var(--color-purple, #a882ff)); vertical-align: 1px; font-style: normal; }
 .vl-mocktag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--vlu-mock, var(--color-orange, #ec7500)); border-radius: 4px; font-size: 0.8em; font-weight: 500; line-height: 1.4; color: var(--vlu-mock, var(--color-orange, #ec7500)); vertical-align: 1px; }
 .vl-ptext { flex: 1; min-width: 0; padding: 5px 0; }
 .vl-pn { font-size: var(--font-ui-small); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -865,7 +865,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vlsd-dev { display: flex; flex-direction: column; padding: 5px 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); }
 .vlsd-dev span:last-child { font-size: 10px; color: var(--text-muted); }
 .vlsd-r.is-mock { color: var(--vlu-mock, var(--color-orange, #ec7500)); font-style: italic; }
-.vlsd-r.is-changed { color: var(--vlu-changed, var(--color-cyan, #00bfbc)); }
+.vlsd-r.is-changed { color: var(--vlu-changed, var(--color-purple, #a882ff)); }
 /* the stage in the Editor theme preview: a screen's outline with what the editor draws on it */
 .vlsd-frame { position: relative; width: 112px; height: 168px; border: 1px dashed var(--background-modifier-border); border-radius: 16px; }
 .vlsd-fg { position: absolute; left: -14px; right: -14px; top: 46px; border-top: 1px solid var(--vlu-guide, var(--color-pink, #e93147)); }
