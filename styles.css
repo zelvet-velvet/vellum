@@ -290,7 +290,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-peek .vl-pthumb { box-shadow: 0 0 0 1px var(--background-modifier-border); }
 .vl-stage > .vl-stagemap { margin: auto; padding: 32px 32px 96px; display: flex; }
 .vl-stagemap .vl-thumb .vl-tname { font-size: 12px; width: calc(100% + 36px); margin-left: -18px; overflow-wrap: break-word; }   /* into the 40 px between phones: names break between words, not inside them */
-.vl-stagemap .vl-thumb.is-on .vl-tphone { box-shadow: 0 0 0 2px var(--interactive-accent); }
+.vl-stagemap .vl-thumb.is-on .vl-tphone { box-shadow: var(--vl-st), 0 0 0 6px var(--background-primary), 0 0 0 8px var(--interactive-accent); }   /* as in the note's map: further out, its state's ring still shows */
 /* while the tree's border is dragged its pictures scale with it */
 .vl-rail .vl-pthumb { zoom: var(--vl-pz, 1); }
 .vl-prow { align-items: center; }
