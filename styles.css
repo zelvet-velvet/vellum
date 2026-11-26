@@ -197,7 +197,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-railbtn svg { width: 17px; height: 17px; flex: none; }
 .vl-pg { font-weight: 600; font-size: var(--font-ui-medium); color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vl-tr .vl-save { margin-left: 6px; }
-.vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-yellow, #e0ac00)); box-shadow: none; background: color-mix(in srgb, var(--vlu-changed, var(--color-yellow, #e0ac00)) 14%, transparent); color: var(--text-normal); border-radius: 6px; }
+.vl .vl-review { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin-right: 6px; font-size: var(--font-ui-small); border: 1px solid var(--vlu-changed, var(--color-yellow, #e0ac00)); box-shadow: none; background: transparent; color: var(--text-normal); border-radius: 6px; }
 .vl .vl-review svg { width: 15px; height: 15px; color: var(--vlu-changed, var(--color-yellow, #e0ac00)); }
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
