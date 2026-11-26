@@ -94,21 +94,6 @@ export const comboOf = (e: KeyboardEvent): string => {
 };
 // a key as the user reads it: Ctrl or Cmd
 export const keyText = (k: string) => k.split("+").map((p) => (p === "Mod" ? (Platform.isMacOS ? "Cmd" : "Ctrl") : p)).join("+");
-// the selection's colour: the accent, unless it is too close to the colour of what is chosen (an orange handle on a
-// red shape); then whichever of a few clear colours stands out most from it. Set on the block as --vl-sel (and --vl-sel-ink,
-// the text on it), for the outline, the gravity ring, the corner handles and the size tag
-const rgbOf = (c: string): number[] | null => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [v[0], v[1], v[2], v[3] ?? 1]; };
-const far = (a: number[], b: number[]) => { const r = (a[0] + b[0]) / 2, dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2]; return Math.sqrt((2 + r / 256) * dr * dr + 4 * dg * dg + (2 + (255 - r) / 256) * db * db); };
-function selInk(blockEl: HTMLElement, itemEl: HTMLElement) {
-    const win = blockEl.win, cs = win.getComputedStyle(itemEl);
-    let c = rgbOf(cs.backgroundColor);
-    if (!c || c[3] < 0.3) c = rgbOf(cs.color);   // a text or an icon: its ink
-    if (itemEl.hasClass("vl-i-img")) c = null;      // a picture: any colour; the halo keeps the handles seen
-    const probe = blockEl.createDiv({ cls: "vl-accentprobe" }); const acc = rgbOf(win.getComputedStyle(probe).color); probe.remove();
-    if (!c || !acc) return;
-    const base = c, pick = far(acc, base) > 220 ? acc : [acc, [34, 211, 238], [163, 230, 53], [255, 255, 255], [139, 92, 246], [20, 20, 24]].sort((a, b) => far(b, base) - far(a, base))[0];
-    blockEl.setCssProps({ "--vl-sel": `rgb(${pick[0]}, ${pick[1]}, ${pick[2]})`, "--vl-sel-ink": 0.299 * pick[0] + 0.587 * pick[1] + 0.114 * pick[2] > 150 ? "#111" : "#fff" });
-}
 type Lines = { x: number[]; y: number[] };
 // measure: a screen's blocks as boxes (screen points), each with its items (every: all of them; all: the outer ones)
 // kids: a group's, row's or column's parts
@@ -2601,7 +2586,6 @@ class Editor {
             if (id) {
                 const selEl = el.querySelector<HTMLElement>(`[data-id="${id}"]`);
                 selEl?.addClass("is-sel");
-                if (selEl) selInk(el, selEl);
                 const it = findItem(b.items, id)?.item;
                 // the gravity point the item keeps, on the block
                 if (it && b.items.includes(it)) { const [ax, ay] = axes(it.g); const d = el.createDiv({ cls: "vl-anchor" }); d.style.left = `${(ax + 1) * 50}%`; d.style.top = `${(ay + 1) * 50}%`; }
