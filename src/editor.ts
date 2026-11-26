@@ -3,7 +3,8 @@ import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type D
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
 import { getLocal, setLocal } from "./local";
-import { FolderStore, srcOf } from "./store";
+import { EDITED, FolderStore, srcOf } from "./store";
+import { describeEdit } from "./diff";
 import { canUngroup, ungroupBlock } from "./flatten";
 import { Box, Edges, gapStops, GapStop, nearStop, sameGaps, sameSize } from "./snapgap";
 import { anyOn, compOn, drawOverlay, OvlCfg, overlayLines, ovlOf, OVL_COLORS, ratioText } from "./overlay";
@@ -535,11 +536,21 @@ class Editor {
     // ---- the user's edits waiting to be built: a screen edited since it was built has its copy in _edited/ (the store reads them)
     edited(p: Page) { return !!this.store?.edits.has(p.id); }
     edits() { return [...(this.store?.edits.entries() ?? [])].map(([id, e]) => ({ id, ...e })); }
-    // a message for the agent: which screens, where their copies are, what to do with them
+    // a message for the agent: each screen edited since it was built, with what changed (its copy against the screen now),
+    // enough to build from as it is; then delete the copies
     copyEdits(at?: HTMLElement) {
         const st = this.store, l = this.edits(); if (!st || !l.length) return;
-        const what = { edited: "edited", new: "new", removed: "deleted" } as const;
-        const text = `Build my Vellum edits in ${st.dir}:\n${l.map((e) => `- ${e.name} (${what[e.kind]})`).join("\n")}\n\nEach one's copy as last built is in ${st.dir}/_edited/ (see "Edits to build" in VELLUM.md): compare it with the screen, build the difference, then delete the copy.\n`;
+        const file = (path?: string) => (path ?? "").split("/").pop() ?? "";
+        const parts = l.map((e) => {
+            const p = this.doc.pages.find((q) => q.id === e.id);
+            if (e.kind === "removed") return `${e.name}: deleted. Take it out of the app.`;
+            if (!p) return "";
+            if (e.kind === "new") return `${p.name} (${file(st.files.get(p.id))}): new. Build the whole screen from its file.`;
+            const was = parseDoc(`{"pages": [${e.text}]}`).doc.pages[0];
+            const lines = was ? describeEdit(was, p) : [];
+            return `${p.name} (${file(st.files.get(p.id))}): edited.\n${lines.length ? lines.join("\n") : "- nothing that changes the design (saved as it was)"}`;
+        }).filter(Boolean);
+        const text = `Build my Vellum edits in ${st.dir}. What changed on each screen since it was last built:\n\n${parts.join("\n\n")}\n\nPositions follow the Vellum format (VELLUM.md). When a screen is built, delete its copy in ${st.dir}/${EDITED}/ (only that file): Vellum clears its Edited mark.\n`;
         (this.root?.win ?? window).navigator.clipboard.writeText(text).then(() => this.hint("Copied for the agent", at), () => this.writer("Copy this for the agent", text, () => { /* */ }));
     }
     async markBuilt(ids: string[]) {
