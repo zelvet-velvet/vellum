@@ -127,7 +127,7 @@ Vellum 為與 coding agent 協作而設計：你與 agent 修改同一批檔案�
     <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · 指定</b><br><sub>選取 block，按 <b>Copy reference</b>，說明要改的地方</sub></td>
     <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · 標註</b><br><sub>或在畫面上釘註記；agent 也以標註回覆</sub></td>
     <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · 確認</b><br><sub>修改過的畫面標示 <b>Changed</b>：按住 <kbd>B</kbd>，再選 <b>Keep</b> 或 <b>Undo</b></sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · 實作</b><br><sub>依保留的畫面實作，錨點即對齊方式</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · 實作</b><br><sub>依保留的畫面與你自己的修改實作：<b>N edits to build</b></sub></td>
   </tr>
 </table>
 
@@ -172,6 +172,7 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 - **寫入前先讀取**：每次修改前重新讀取檔案，只修改參照或標註指出的部分
 - **方案以 mock 呈現**：以子畫面在 Vellum 中比較，不做成網頁
 - **修改正式畫面需經確認**：舊版本存於 `_before/`，直到你選擇 Keep 或 Undo
+- **你的修改等 agent 實作**：你修改過的畫面，上次實作時的版本存於 `_edited/`，只需說「實作我在 Vellum 的修改」
 - **依畫面實作**：錨點即對齊，`dx dy` 為內距，`hug` / `fill` 對應包覆與填滿；顏色與字型為 token
 - **保持同步**：實作的 app 變更時，畫面一併更新
 
@@ -200,7 +201,8 @@ Vellum/
    ├─ _doc.json       裝置：尺寸、安全區域、圓角、狀態列；App 的顏色；畫面順序
    ├─ Home.json       一個畫面
    ├─ Settings.json   另一個畫面
-   └─ _before/        agent 修改前的畫面，保留到你接受或復原該修改
+   ├─ _before/        agent 修改前的畫面，保留到你接受或復原該修改
+   └─ _edited/        你修改前、上次實作時的畫面，保留到 agent 實作你的修改
 ```
 
 畫面由數個 **block** 組成，即手機上的方框。每個 block 內放 **item**，依錨點定位：

@@ -32,6 +32,7 @@ export const UI_COLORS: { id: string; name: string; group: string; vars: string[
     { id: "measure", name: "Measure", group: "Signals", vars: ["--vlu-measure"], follow: "var(--interactive-accent)" },   // M + drag: the area, frames, gaps and sizes
     { id: "mock", name: "Mock screens", group: "Signals", vars: ["--vlu-mock"], follow: "var(--color-orange, #ec7500)" },   // a proposal's frame, tag and name, everywhere it shows
     { id: "changed", name: "Changed screens", group: "Signals", vars: ["--vlu-changed"], follow: "var(--color-yellow, #e0ac00)" },   // a screen the agent changed, waiting for Keep or Undo
+    { id: "edited", name: "Edited screens", group: "Signals", vars: ["--vlu-edited"], follow: "var(--color-green, #08b94e)" },   // a screen the user edited since it was built, waiting for the agent
 ];
 
 // the editor themes Vellum starts with (Settings → Editor theme), beside Obsidian's own: Light and Dark, Ledgerline's warm

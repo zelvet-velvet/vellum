@@ -410,7 +410,7 @@ class VellumSettings extends PluginSettingTab {
         const body = div(d, "vlsd-body");
         const rail = div(body, "vlsd-rail is-area", "", "panels border");
         div(rail, "vlsd-h", "Screens · 6", "faint");
-        div(rail, "vlsd-r", "Home", "text"); div(rail, "vlsd-r is-sub", "Search", "muted"); div(rail, "vlsd-r is-on", "Plans", "accent"); div(rail, "vlsd-r is-sub is-mock", "Plans B · mock", "mock"); div(rail, "vlsd-r", "Detail", "hover text").setAttr("data-state", "hover"); div(rail, "vlsd-r is-sub is-changed", "Log · changed", "changed");
+        div(rail, "vlsd-r", "Home", "text"); div(rail, "vlsd-r is-sub", "Search", "muted"); div(rail, "vlsd-r is-on", "Plans", "accent"); div(rail, "vlsd-r is-sub is-mock", "Plans B · mock", "mock"); div(rail, "vlsd-r", "Detail", "hover text").setAttr("data-state", "hover"); div(rail, "vlsd-r is-sub is-changed", "Log · changed", "changed"); div(rail, "vlsd-r is-edited", "Goals · edited", "edited");
         // the device, at the rail's foot: a side area with a button in the panels' colour
         const foot = div(rail, "vlsd-rfoot is-area", "", "device border");
         div(foot, "vlsd-h", "Device", "faint");
