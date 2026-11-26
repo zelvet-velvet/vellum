@@ -63,7 +63,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/overlays.svg" width="16" height="16" align="absmiddle" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
 - <img src="assets/icons/picture.svg" width="16" height="16" align="absmiddle" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
 
-<p align="center"><img src="assets/measure.gif" width="600" alt="Measure: M held and a drag over the top half of Holdings shows every block's and item's size, the gaps between them and their padding"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
+<p align="center"><img src="assets/measure.gif" width="600" alt="Measure: M held and a drag from beside the screen's bottom left to past its top right shows every block's and item's size, the gaps between them and their padding"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
 
 <table>
   <tr>

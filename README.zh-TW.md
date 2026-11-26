@@ -63,7 +63,7 @@
 - <img src="assets/icons/overlays.svg" width="16" height="16" align="absmiddle" alt=""> **輔助線**：格線、欄位、三分法、黃金比例與螺旋、消失點
 - <img src="assets/icons/picture.svg" width="16" height="16" align="absmiddle" alt=""> **圖片與圖示**：圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱
 
-<p align="center"><img src="assets/measure.gif" width="600" alt="測量：按住 M 並拖曳框選 Holdings 上半部，顯示每個區塊與項目的尺寸、相互間距與內距"><br><sub><b>測量</b>：按住 <kbd>M</kbd> 拖曳，顯示框內所有尺寸、間距與內距</sub></p>
+<p align="center"><img src="assets/measure.gif" width="600" alt="測量：按住 M，從畫面左下外側拖曳到右上外側，顯示每個區塊與項目的尺寸、相互間距與內距"><br><sub><b>測量</b>：按住 <kbd>M</kbd> 拖曳，顯示框內所有尺寸、間距與內距</sub></p>
 
 <table>
   <tr>
