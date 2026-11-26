@@ -2454,6 +2454,9 @@ class Editor {
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
         if (!show) {
+            // the name tag starts where the top edge is straight: past a rounded corner, not floating off its curve
+            const rtl = Array.isArray(b.r) ? Number(b.r[0]) || 0 : b.r ?? 0;
+            if (rtl > 0) el.style.setProperty("--vl-rtl", `${Math.min(rtl, b.w / 2, b.h / 2)}px`);
             const tag = el.createDiv({ cls: "vl-tag" });
             if (inh) setIcon(tag.createSpan({ cls: "vl-tagi" }), "lock");
             tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));

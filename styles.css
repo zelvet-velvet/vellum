@@ -63,7 +63,7 @@
 .vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
 .vl-screen:not(.is-show) .vl-block.is-sel { outline: calc(2px * var(--vl-iz, 1)) solid var(--k); overflow: visible; z-index: 2; }
 .vl-screen:not(.is-show) .vl-block.is-holds { overflow: visible; z-index: 2; }   /* some of several chosen items: they show past its edge */
-.vl-tag { position: absolute; left: 0; top: 0; font: 600 10px/1.4 var(--font-interface); color: var(--k); padding: 0 2px; white-space: nowrap; pointer-events: none; opacity: 0; transform-origin: 0 0; transform: scale(var(--vl-iz, 1)) translateY(-100%); }   /* drawn at monitor size, then scaled as a whole (as the size label): the text stays centred at any zoom */
+.vl-tag { position: absolute; left: var(--vl-rtl, 0px); top: 0; font: 600 11px/1.4 var(--font-interface); color: var(--k); padding: 0 2px; white-space: nowrap; pointer-events: none; opacity: 0; transform-origin: 0 0; transform: scale(var(--vl-iz, 1)) translateY(-100%); }   /* drawn at monitor size, then scaled as a whole (as the size label): the text stays centred at any zoom */
 .vl-block.is-sel > .vl-tag, .vl-screen:not(.is-show) .vl-block:hover > .vl-tag { opacity: 1; }
 .vl-grip { position: absolute; right: calc(-6px * var(--vl-iz, 1)); bottom: calc(-6px * var(--vl-iz, 1)); width: calc(12px * var(--vl-iz, 1)); height: calc(12px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--k); cursor: nwse-resize; z-index: 5; }
 /* the gravity point: a ring, hollow, so what sits under it (an icon in the corner) still shows */
@@ -926,7 +926,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ovl { position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none; overflow: visible; }
 .vl-ovl text { font-family: var(--font-interface); font-weight: 600; stroke: var(--background-primary); stroke-linejoin: round; paint-order: stroke; }
 .vl-ovl .vl-vp { pointer-events: all; cursor: move; stroke: var(--background-primary); }
-.vl-ratio { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; margin-top: calc(4px * var(--vl-iz, 1)); padding: 1px 5px; border-radius: 4px; font: 600 10px/1.4 var(--font-interface); font-variant-numeric: tabular-nums; color: var(--vl-sel-ink, var(--text-on-accent)); background: var(--vl-sel, var(--interactive-accent)); transform-origin: 0 0; transform: scale(var(--vl-iz, 1)); }   /* monitor size, scaled down: stays centred at any zoom */
+.vl-ratio { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; margin-top: calc(4px * var(--vl-iz, 1)); padding: 1px 6px; border-radius: 4px; font: 600 11px/1.4 var(--font-interface); font-variant-numeric: tabular-nums; color: var(--vl-sel-ink, var(--text-on-accent)); background: var(--vl-sel, var(--interactive-accent)); transform-origin: 0 0; transform: scale(var(--vl-iz, 1)); }   /* monitor size, scaled down: stays centred at any zoom */
 .vl-menu.is-ovl { width: 300px; max-height: min(640px, calc(100% - 120px)); overflow-y: auto; }
 .vl-ovhead { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
 .vl .vl-ovtog, .vl .vl-ovflag { height: 24px; padding: 0 10px; border: 1px solid var(--background-modifier-border); box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -1030,7 +1030,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ws.is-phone .vl-showrow { gap: 8px; }
 .vl-ws.is-phone .vl-shownav { width: 32px; height: 32px; }
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
-.vl-ratio.is-under { left: 0; top: 100%; }
+.vl-ratio.is-under { left: 50%; top: 100%; transform: scale(var(--vl-iz, 1)) translateX(-50%); }   /* centred under the block, clear of rounded corners */
 .vl-ratio.is-item { transform: scale(var(--vl-iz, 1)) translateX(-50%); }   /* centred under the chosen item */
 .tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
 
