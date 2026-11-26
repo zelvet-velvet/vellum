@@ -65,7 +65,7 @@
 /* an item of it chosen: the block a thin dashed line, so the item's own ring is what reads as chosen; its tag still drags it */
 .vl-screen:not(.is-show) .vl-block.is-sel.is-host, .vl-spill > .vl-block.is-sel.is-host { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block.is-holds { overflow: visible; z-index: 2; }   /* some of several chosen items: they show past its edge */
-.vl-tag { position: absolute; left: 0; top: 0; transform: translateY(-100%); font: 600 calc(10px * var(--vl-iz, 1))/1 var(--font-interface); color: var(--k); padding: 0 calc(2px * var(--vl-iz, 1)) calc(2px * var(--vl-iz, 1)); white-space: nowrap; pointer-events: none; opacity: 0; }
+.vl-tag { position: absolute; left: var(--vl-rtl, 0px); top: 0; font: 600 calc(var(--vl-ls, 11) * 1px)/1.4 var(--font-interface); color: var(--k); padding: 0 2px; white-space: nowrap; pointer-events: none; opacity: 0; transform-origin: 0 0; transform: scale(var(--vl-iz, 1)) translateY(-100%); }   /* drawn at monitor size, then scaled as a whole (as the size label): the text stays centred at any zoom */
 .vl-block.is-sel > .vl-tag, .vl-screen:not(.is-show) .vl-block:hover > .vl-tag { opacity: 1; }
 .vl-grip { position: absolute; right: calc(-6px * var(--vl-iz, 1)); bottom: calc(-6px * var(--vl-iz, 1)); width: calc(12px * var(--vl-iz, 1)); height: calc(12px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--k); cursor: nwse-resize; z-index: 5; }
 /* the gravity point: a ring, hollow, so what sits under it (an icon in the corner) still shows */
@@ -363,7 +363,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .vl-block.is-inh { opacity: 0.5; cursor: pointer; outline-style: dotted; }
 .vl-screen:not(.is-show) .vl-block.is-inh.is-sel { opacity: 0.75; z-index: 1; overflow: hidden; }   /* chosen, it stays under the page's own blocks */
 .vl-screen:not(.is-show) .vl-block.is-inh .vl-it:hover { box-shadow: none; }
-.vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: 9px; --icon-stroke: 2.5px; }
+.vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: calc(var(--vl-ls, 11) * 0.82px); --icon-stroke: 2.5px; }
 .vl-overmark { position: absolute; right: calc(3px * var(--vl-iz, 1)); top: calc(3px * var(--vl-iz, 1)); width: calc(14px * var(--vl-iz, 1)); height: calc(14px * var(--vl-iz, 1)); border-radius: calc(4px * var(--vl-iz, 1)); display: flex; align-items: center; justify-content: center; background: var(--k); color: var(--background-primary); pointer-events: none; z-index: 4; --icon-size: calc(10px * var(--vl-iz, 1)); --icon-stroke: 2.5px; }
 .vl-frameinfo { font-size: var(--font-ui-smaller); line-height: 1.4; color: var(--text-muted); }
 /* a chosen picture / shape: resize handles at its bottom corners */
@@ -632,7 +632,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
   background: linear-gradient(var(--c, transparent), var(--c, transparent)), repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 6px 6px; }
 .vl .vl-cdot.is-none { background: linear-gradient(135deg, transparent 44%, var(--color-red) 44% 56%, transparent 56%), var(--background-primary); }
 /* a chosen block's name tag is a handle: a press chooses the block (not an item in it), a drag moves it */
-.vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px 2px; border-radius: 4px 4px 0 0; background: var(--k); color: var(--background-primary); transform: translate(-1px, -100%); }
+.vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px; border-radius: 4px 4px 0 0; background: var(--k); color: var(--background-primary); transform: scale(var(--vl-iz, 1)) translate(-1px, -100%); }
 /* a number box's label is a drag handle (a mouse: drag up or right for more) */
 .vl .vl-drag { cursor: ns-resize; touch-action: none; -webkit-user-select: none; user-select: none; }
 .vl .vl-num .vl-drag:hover { color: var(--text-normal); }
@@ -928,7 +928,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ovl { position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none; overflow: visible; }
 .vl-ovl text { font-family: var(--font-interface); font-weight: 600; stroke: var(--background-primary); stroke-linejoin: round; paint-order: stroke; }
 .vl-ovl .vl-vp { pointer-events: all; cursor: move; stroke: var(--background-primary); }
-.vl-ratio { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; margin-top: calc(4px * var(--vl-iz, 1)); padding: 1px 5px; border-radius: 4px; font: 600 10px/1.4 var(--font-interface); font-variant-numeric: tabular-nums; color: var(--vl-sel-ink, var(--text-on-accent)); background: var(--vl-sel, var(--interactive-accent)); transform-origin: 0 0; transform: scale(var(--vl-iz, 1)); }   /* monitor size, scaled down: stays centred at any zoom */
+.vl-ratio { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; margin-top: calc(4px * var(--vl-iz, 1)); padding: 1px 6px; border-radius: 4px; font: 600 calc(var(--vl-ls, 11) * 1px)/1.4 var(--font-interface); font-variant-numeric: tabular-nums; color: var(--vl-sel-ink, var(--text-on-accent)); background: var(--vl-sel, var(--interactive-accent)); transform-origin: 0 0; transform: scale(var(--vl-iz, 1)); }   /* monitor size, scaled down: stays centred at any zoom */
 .vl-menu.is-ovl { width: 300px; max-height: min(640px, calc(100% - 120px)); overflow-y: auto; }
 .vl-ovhead { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
 .vl .vl-ovtog, .vl .vl-ovflag { height: 24px; padding: 0 10px; border: 1px solid var(--background-modifier-border); box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -980,7 +980,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-medge { position: absolute; pointer-events: auto; cursor: move; }
 .vl-medge.is-t, .vl-medge.is-b { left: 0; right: 0; height: calc(8px * var(--u)); } .vl-medge.is-t { top: calc(-4px * var(--u)); } .vl-medge.is-b { bottom: calc(-4px * var(--u)); }
 .vl-medge.is-l, .vl-medge.is-r { top: 0; bottom: 0; width: calc(8px * var(--u)); } .vl-medge.is-l { left: calc(-4px * var(--u)); } .vl-medge.is-r { right: calc(-4px * var(--u)); }
-.vl-mtag { position: absolute; left: calc(-1.5px * var(--u)); bottom: 100%; padding: calc(2px * var(--u)) calc(6px * var(--u)); border-radius: calc(4px * var(--u)) calc(4px * var(--u)) 0 0; background: var(--mc); color: #111; font: 600 calc((var(--ms, 11) - 1) * 1px * var(--u))/1.3 var(--font-interface); white-space: nowrap; pointer-events: auto; cursor: move; }
+.vl-mtag { position: absolute; left: calc(-1.5px * var(--u)); bottom: 100%; padding: 2px 6px; border-radius: 4px 4px 0 0; background: var(--mc); color: #111; font: 600 calc((var(--ms, 11) - 1) * 1px)/1.3 var(--font-interface); white-space: nowrap; pointer-events: auto; cursor: move; transform-origin: 0 100%; transform: scale(var(--u, 1)); }   /* monitor size, scaled as a whole: centred at any zoom */
 .vl-mgrip { position: absolute; right: calc(-6px * var(--u)); bottom: calc(-6px * var(--u)); width: calc(12px * var(--u)); height: calc(12px * var(--u)); border-radius: calc(3px * var(--u)); background: var(--mc); box-shadow: 0 0 0 calc(1.5px * var(--u)) var(--background-primary); pointer-events: auto; cursor: nwse-resize; }
 .vl-ovl.is-inmark { z-index: 0; width: 100%; height: 100%; }
 .vl-mark.is-line { pointer-events: auto; cursor: move; }
@@ -990,10 +990,11 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-mark.is-line.is-y::after { left: 0; right: 0; top: 50%; height: calc(1px * var(--u)); }
 .vl-mark.is-line.is-x::after { top: 0; bottom: 0; left: 50%; width: calc(1px * var(--u)); }
 .vl-mark.is-line.is-on::after { box-shadow: 0 0 0 calc(1px * var(--u)) var(--mc); }
-.vl-mark.is-line .vl-mtag { bottom: auto; border-radius: calc(4px * var(--u)); }
+.vl-mark.is-line .vl-mtag { bottom: auto; border-radius: 4px; transform-origin: 0 0; }
 .vl-mark.is-line.is-y .vl-mtag { left: calc(4px * var(--u)); top: calc(-14px * var(--u)); }
 .vl-mark.is-line.is-x .vl-mtag { left: calc(6px * var(--u)); top: calc(4px * var(--u)); }
-.vl-mark.is-on .vl-mtag, .vl-mark.is-on .vl-mbub { box-shadow: 0 0 0 calc(2px * var(--u)) var(--interactive-accent); }
+.vl-mark.is-on .vl-mtag { box-shadow: 0 0 0 2px var(--interactive-accent); }
+.vl-mark.is-on .vl-mbub { box-shadow: 0 0 0 calc(2px * var(--u)) var(--interactive-accent); }
 .vl .vl-markrow { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 6px; border: 0; box-shadow: none; background: transparent; border-radius: 6px; font-size: var(--font-ui-small); color: var(--text-normal); justify-content: flex-start; text-align: left; overflow: hidden; white-space: nowrap; }   /* a long note: from its dot, ending in … */
 .vl .vl-markrow > .vl-ovsw { flex: none; }
 .vl .vl-markrow > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -1003,7 +1004,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ovframe { z-index: 7; pointer-events: none; background: transparent !important; border-color: transparent !important; }
 .vl-ovframe.is-moved { border-color: color-mix(in srgb, var(--mc) 60%, transparent) !important; }
 .vl-ovframe .vl-mtag { opacity: 0.85; }
-.vl-ovframe:not(.is-moved) .vl-mtag { bottom: auto; top: 0; border-radius: 0 0 calc(4px * var(--u)) 0; }
+.vl-ovframe:not(.is-moved) .vl-mtag { bottom: auto; top: 0; border-radius: 0 0 4px 0; transform-origin: 0 0; }
 .vl-ovhint { flex-basis: 100%; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 /* the pill's words: heavy enough to read on the accent */
 .vl .vl-zpill .vl-seg > button { font-weight: 600; font-size: var(--font-ui-small); }
@@ -1036,7 +1037,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-ws.is-phone .vl-showrow { gap: 8px; }
 .vl-ws.is-phone .vl-shownav { width: 32px; height: 32px; }
 .vl-railhead > .vl-sech { flex: 1; }   /* the title takes the room: the two toggles sit together at the right */
-.vl-ratio.is-under { left: 0; top: 100%; }
+.vl-ratio.is-under { left: 50%; top: 100%; transform: scale(var(--vl-iz, 1)) translateX(-50%); }   /* centred under the block, clear of rounded corners */
 .vl-ratio.is-item { transform: scale(var(--vl-iz, 1)) translateX(-50%); }   /* centred under the chosen item */
 .tooltip.vl-tip { white-space: pre-line; text-align: center; }   /* the pill's short tooltips: a line or two */
 

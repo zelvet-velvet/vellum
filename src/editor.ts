@@ -42,10 +42,11 @@ const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
 // the overlays of each note (kept on the device)
 const ovls = new Map<string, OvlCfg>();
 // number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
-// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text)
+// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text);
+// labelSize: a block's name tag and size label, in px on the monitor
 // noteStack: notes whose text boxes would overlap are moved apart on screen (a box dragged by hand never moves)
-export interface EditCfg { arrow: number; hold: boolean; markSize: number; noteW: number; noteStack: boolean }
-export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, noteW: 0, noteStack: true };
+export interface EditCfg { arrow: number; hold: boolean; markSize: number; labelSize: number; noteW: number; noteStack: boolean }
+export const EDIT_DEFAULT: EditCfg = { arrow: 1, hold: true, markSize: 11, labelSize: 11, noteW: 0, noteStack: true };
 let editCfg: EditCfg = { ...EDIT_DEFAULT };
 export const setEdit = (c: EditCfg) => { editCfg = c; };
 // the editor's keys: each action and its key, set in Settings → Keys. The editor handles them itself: it runs in its own
@@ -2277,7 +2278,7 @@ class Editor {
         const bg = bgOf(this.doc.pages, p);
         if (bg) { scr.style.background = colorOf(this.theme, bg); phone.style.background = scr.style.background; }
         Object.assign(scr.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${z})`, borderRadius: `${dev.radius}px` });
-        scr.style.setProperty("--vl-iz", String(1 / z));   // handles, outlines and labels keep their size on the monitor at any zoom
+        scr.style.setProperty("--vl-iz", String(1 / z)); scr.style.setProperty("--vl-ls", String(editCfg.labelSize));   // handles, outlines and labels keep their size on the monitor at any zoom
         // the device: status bar, cut-out, home indicator; safe areas shaded while editing
         // the bar is as high as the doc's top safe area when that is set, else the device's
         const bar = this.doc.bar ?? {}, style = bar.style ?? barOf(dev), barH = this.doc.safe?.top ?? dev.top;
@@ -2533,6 +2534,9 @@ class Editor {
         applyLook(this.theme, el.style, b);
         el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
         if (!show) {
+            // the name tag starts where the top edge is straight: past a rounded corner, not floating off its curve
+            const rtl = Array.isArray(b.r) ? Number(b.r[0]) || 0 : b.r ?? 0;
+            if (rtl > 0) el.style.setProperty("--vl-rtl", `${Math.min(rtl, b.w / 2, b.h / 2)}px`);
             const tag = el.createDiv({ cls: "vl-tag" });
             if (inh) setIcon(tag.createSpan({ cls: "vl-tagi" }), "lock");
             tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));
