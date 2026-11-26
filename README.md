@@ -104,12 +104,17 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 
 ## <img src="assets/icons/robot.svg" width="24" height="24" alt=""> With your agent
 
-Any agent that reads and writes files works: Claude Code, Codex, Cursor. No plugin API, no server.
+Vellum is built for working with a coding agent: you and the agent edit the same files. Any agent that reads and writes files works (Claude Code, Codex, Cursor); no plugin API, no server.
 
-1. **The agent drafts** your app's screens, or proposes new ones.
-2. **You point and ask**: choose a block, press **Copy reference** (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>), paste it to the agent with what to change. Or leave a **mark** on the screen.
-3. **You review**: the changed screen shows **Changed**; hold <kbd>B</kbd> for how it was, then **Keep** or **Undo**.
-4. **The agent builds** from the screens you kept.
+<table>
+  <tr>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/robot.svg" width="32" height="32" alt=""><br><b>1 · Draft</b><br><sub>The agent writes the screens, one file each, linked into a flow</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · Point</b><br><sub>You choose a block, <b>Copy reference</b>, say what to change</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · Mark</b><br><sub>Or pin a note on the screen; the agent answers with its own</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · Review</b><br><sub>Its change shows <b>Changed</b>: hold <kbd>B</kbd>, then <b>Keep</b> or <b>Undo</b></sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · Build</b><br><sub>It builds from the screens you kept, anchors as alignment</sub></td>
+  </tr>
+</table>
 
 <p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Sort block, its hint showing. 2: the reference pasted into Claude Code with what to change, a two-line reply, the next request typed. 3: an arrow to the block on the phone, now with VALUE in the accent colour"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the phone updates as the file changes.</sub></p>
 
@@ -144,12 +149,28 @@ Write each page of my app as a Vellum screen in Vellum/<app name>, then tell me 
 When I ask for options, make them as Vellum mocks, not as a web page.
 ```
 
-The guide also ships with Vellum, so the agent needs no link. It sits as `VELLUM.md` in the folder that holds your apps (`Vellum/VELLUM.md`, beside `Vellum/Remote/`, `Vellum/Console/`). Vellum writes it when you make an app in a folder that has none; for apps made before, run **Vellum: Add the agent guide**. Point your agent to it once, e.g. a line in your `AGENTS.md` or `CLAUDE.md`. For Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`) loads it by itself. Each copy matches the Vellum you have and is written again when Vellum updates; a `VELLUM.md` you wrote yourself is left alone.
+<details>
+<summary><b>What the agent guide teaches</b> (<code>VELLUM.md</code>, about 250 lines)</summary>
 
-> [!TIP]
-> The agent can write while the editor is open: Vellum reloads the files and never overwrites your unsaved edits.
->
-> Frames belong to what they frame: a block has its own `fill`, `stroke` and `sides`, a text its own box. A rectangle drawn as a frame (an older screen) shows **Make it the block's look** or **Make it the text's box** when you choose it.
+- **Frame first**: the app's folder, its device and safe areas, its colours as theme names, before any screen.
+- **One item per part**: each label, value, icon and button its own item, every block named, so you can choose and drag any of it.
+- **Read before writing**: the file again before each change, and change only what a reference or a mark points at.
+- **Options are mocks**, sub screens you compare in Vellum, not a web page.
+- **A change to a real screen waits for you**: its old copy goes in `_before/` until you keep or undo it.
+- **Build from the screens**: anchors are alignment, `dx dy` padding, `hug` / `fill` wrap and fill; colours and fonts are tokens.
+- **Keep them in step**: when the built app changes, its screens change too.
+
+It ships with Vellum as `VELLUM.md` in the folder that holds your apps (`Vellum/VELLUM.md`, beside `Vellum/Remote/`, `Vellum/Console/`), written when you make an app in a folder that has none; for apps made before, run **Vellum: Add the agent guide**. Point your agent to it once, e.g. a line in your `AGENTS.md` or `CLAUDE.md`. For Claude Code, **Add the agent guide as a Claude Code skill** (`.claude/skills/vellum/`) loads it by itself. Each copy matches the Vellum you have and is written again when Vellum updates; a `VELLUM.md` you wrote yourself is left alone. Online: [docs/for-agents.md](docs/for-agents.md).
+</details>
+
+<details>
+<summary><b>The mock workflow</b>: options to compare, one to keep</summary>
+
+1. Ask for two or three options of a screen. The agent writes them as sub screens marked `"mock": true`.
+2. They show as **Mock** everywhere: a dashed outline and its own colour in the Map, a tag in the list.
+3. Step through them in **Show** (<kbd>←</kbd> <kbd>→</kbd>), or side by side in the Map.
+4. Say which one to keep. The agent copies it over the real screen (the old one waits in `_before/` for your **Keep**) and deletes the others.
+</details>
 
 <sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and Ledgerline were designed this way, with Claude Code.</sub>
 

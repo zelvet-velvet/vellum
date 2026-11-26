@@ -104,12 +104,17 @@
 
 ## <img src="assets/icons/robot.svg" width="24" height="24" alt=""> 搭配 agent
 
-可讀寫檔案的 agent 皆可使用，例如 Claude Code、Codex 與 Cursor。不需外掛 API 或伺服器。
+Vellum 為與 coding agent 協作而設計：你與 agent 修改同一批檔案。可讀寫檔案的 agent 皆可使用（Claude Code、Codex、Cursor），不需外掛 API 或伺服器。
 
-1. **agent 產生草稿**：依 app 現有頁面繪製畫面，或提出新畫面
-2. **指定並提出修改**：選取 block 後按 **Copy reference**（<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd>），貼給 agent 並說明要改的地方。或直接在畫面上加 **mark**
-3. **確認修改**：修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
-4. **agent 實作**：依保留的畫面實作
+<table>
+  <tr>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/robot.svg" width="32" height="32" alt=""><br><b>1 · 草稿</b><br><sub>agent 寫出畫面，每個畫面一個檔案，串成流程</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · 指定</b><br><sub>選取 block，按 <b>Copy reference</b>，說明要改的地方</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · 標註</b><br><sub>或在畫面上釘註記；agent 也以標註回覆</sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · 確認</b><br><sub>修改過的畫面標示 <b>Changed</b>：按住 <kbd>B</kbd>，再選 <b>Keep</b> 或 <b>Undo</b></sub></td>
+    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · 實作</b><br><sub>依保留的畫面實作，錨點即對齊方式</sub></td>
+  </tr>
+</table>
 
 <p align="center"><img src="assets/agent.png" alt="1：對 Sort block 按 Copy reference，顯示提示。2：參照貼到 Claude Code 並說明要改的地方，兩行回覆，下一個要求已輸入。3：箭頭指向手機上的 block，VALUE 已改為強調色"><br><sub><b>1</b> 對 block 按 Copy reference，<b>2</b> 貼給 agent 並說明要改的地方，<b>3</b> 檔案修改後手機畫面隨即更新。</sub></p>
 
@@ -144,12 +149,28 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 需要多個方案時，以 Vellum 的 mock 製作，不要做成網頁。
 ```
 
-Vellum 亦內建此說明，agent 無須連結即可讀取。說明為 `VELLUM.md`，置於存放各 app 的資料夾中（`Vellum/VELLUM.md`，旁邊為 `Vellum/Remote/`、`Vellum/Console/`）。於尚無說明的資料夾新建 app 時，Vellum 會自動寫入；既有的 app 請執行 **Vellum: Add the agent guide**。於自己的 `AGENTS.md` 或 `CLAUDE.md` 加一行指向此檔即可。Claude Code 可執行 **Add the agent guide as a Claude Code skill**（寫入 `.claude/skills/vellum/`），會自動載入。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫；自行撰寫的 `VELLUM.md` 不會被覆寫。
+<details>
+<summary><b>給 agent 的說明涵蓋哪些內容</b>（<code>VELLUM.md</code>，約 250 行）</summary>
 
-> [!TIP]
-> 編輯器開啟時 agent 仍可寫入檔案，Vellum 會重新載入，且不會覆蓋尚未儲存的修改。
->
-> 外框屬於被框住的元件：區塊有自己的 `fill`、`stroke` 與 `sides`，文字也有自己的外框。舊畫面中以矩形當外框的，選取時會顯示 **Make it the block's look** 或 **Make it the text's box** 以轉換。
+- **先設定外框**：先建立 app 資料夾、裝置與安全區域、以主題名稱定義顏色，再畫畫面
+- **一個部件一個項目**：每個標籤、數值、圖示與按鈕各為一個項目，每個區塊都命名，方便選取與拖曳
+- **寫入前先讀取**：每次修改前重新讀取檔案，只修改參照或標註指出的部分
+- **方案以 mock 呈現**：以子畫面在 Vellum 中比較，不做成網頁
+- **修改正式畫面需經確認**：舊版本存於 `_before/`，直到你選擇 Keep 或 Undo
+- **依畫面實作**：錨點即對齊，`dx dy` 為內距，`hug` / `fill` 對應包覆與填滿；顏色與字型為 token
+- **保持同步**：實作的 app 變更時，畫面一併更新
+
+說明隨 Vellum 提供，為存放各 app 的資料夾中的 `VELLUM.md`（`Vellum/VELLUM.md`，旁邊為 `Vellum/Remote/`、`Vellum/Console/`）。於尚無說明的資料夾新建 app 時自動寫入；既有的 app 請執行 **Vellum: Add the agent guide**。於自己的 `AGENTS.md` 或 `CLAUDE.md` 加一行指向此檔即可。Claude Code 可執行 **Add the agent guide as a Claude Code skill**（寫入 `.claude/skills/vellum/`），會自動載入。內容與目前安裝的 Vellum 版本一致，Vellum 更新時會一併重寫；自行撰寫的 `VELLUM.md` 不會被覆寫。線上版：[docs/for-agents.md](docs/for-agents.md)。
+</details>
+
+<details>
+<summary><b>Mock 流程</b>：比較多個方案，保留其一</summary>
+
+1. 請 agent 為某個畫面提出兩到三個方案，以標示 `"mock": true` 的子畫面寫入
+2. 各處皆標示 **Mock**：Map 中為虛線外框與專屬顏色，列表中有標籤
+3. 於 **Show** 逐一切換（<kbd>←</kbd> <kbd>→</kbd>），或在 Map 中並排比較
+4. 說明要保留哪一個。agent 將其覆蓋到正式畫面（舊版本存於 `_before/`，等你選擇 **Keep**），並刪除其他方案
+</details>
 
 <sub>[Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) 與 Ledgerline 的畫面皆以此方式與 Claude Code 協作設計。</sub>
 
