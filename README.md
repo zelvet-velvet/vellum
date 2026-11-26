@@ -118,7 +118,7 @@ Vellum is built for working with a coding agent: you and the agent edit the same
   </tr>
 </table>
 
-<p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Sort block, its hint showing. 2: the reference pasted into Claude Code with what to change, a two-line reply, the next request typed. 3: an arrow to the block on the phone, now with VALUE in the accent colour"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the phone updates as the file changes.</sub></p>
+<p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Dock block, its hint showing. 2: the reference pasted into Claude Code with what to change, a one-line reply, the next request typed. 3: the Dock on the phone, its search button now solid ink"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the block on the phone changes with its file.</sub></p>
 
 <table>
   <tr>

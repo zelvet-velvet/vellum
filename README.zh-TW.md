@@ -118,7 +118,7 @@ Vellum 為與 coding agent 協作而設計：你與 agent 修改同一批檔案�
   </tr>
 </table>
 
-<p align="center"><img src="assets/agent.png" alt="1：對 Sort block 按 Copy reference，顯示提示。2：參照貼到 Claude Code 並說明要改的地方，兩行回覆，下一個要求已輸入。3：箭頭指向手機上的 block，VALUE 已改為強調色"><br><sub><b>1</b> 對 block 按 Copy reference，<b>2</b> 貼給 agent 並說明要改的地方，<b>3</b> 檔案修改後手機畫面隨即更新。</sub></p>
+<p align="center"><img src="assets/agent.png" alt="1：對 Dock block 按 Copy reference，顯示提示。2：參照貼到 Claude Code 並說明要改的地方，一行回覆，下一個要求已輸入。3：手機上的 Dock，搜尋按鈕已改為實心墨色"><br><sub><b>1</b> 對 block 按 Copy reference，<b>2</b> 貼給 agent 並說明要改的地方，<b>3</b> 檔案修改後手機上的 block 隨即更新。</sub></p>
 
 <table>
   <tr>
