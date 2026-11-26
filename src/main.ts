@@ -119,9 +119,9 @@ export default class VellumPlugin extends Plugin {
     async save() { await this.saveData(this.settings); }
 }
 
-// The settings: tabs (General, Snapping, Keys, Screen colours, Editor theme, Fonts), one shown at a time, each a few cards of compact rows (name and a
+// The settings: tabs (General, with Fonts among its parts, Snapping, Measure, Keys, Screen colours, Editor theme), one shown at a time, each a few cards of compact rows (name and a
 // word on the left, the control on the right, centred); colours and fonts as tokens with a swatch / a sample to try them
-const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["measure", "Measure", "ruler"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"], ["fonts", "Fonts", "type"]] as const;
+const TABS = [["general", "General", "sliders-horizontal"], ["snapping", "Snapping", "magnet"], ["measure", "Measure", "ruler"], ["keys", "Keys", "keyboard"], ["screens", "Screen colours", "palette"], ["editor", "Editor theme", "paintbrush"]] as const;
 type Tab = (typeof TABS)[number][0];
 const TAB_KEY = "vellum:settab";   // the last tab used, kept on the device
 const APP_KEY = "vellum:setapp";   // the app whose colours the Screen colours tab shows (none: every app)
@@ -141,6 +141,7 @@ class VellumSettings extends PluginSettingTab {
         let t: string | null = null;
         try { t = getLocal(TAB_KEY); } catch { /* */ }
         if (t === "colours") t = "screens";   // before the colours had two tabs
+        if (t === "fonts") { t = "general"; try { setLocal("vellum:setgeneral", "fonts"); } catch { /* */ } }   // Fonts is a part of General now
         return TABS.find(([k]) => k === t)?.[0] ?? "general";
     }
     // the row of tabs; arrow keys move between them
@@ -697,6 +698,21 @@ class VellumSettings extends PluginSettingTab {
         if (og.childElementCount) co.querySelector(".vls-colbar")?.prepend(og);
         this.addName(co, (n) => n in s.colors || n in pal(), (n) => { for (const t of names) themes[t][n] = "#888888"; save(false); });
     }
+    // fonts (General → Fonts): a sample in the font, the name, its CSS value
+    fonts(c: HTMLElement) {
+        const s = this.plugin.settings;
+        c.createDiv({ cls: "vls-intro", text: "Follow Obsidian until changed." });
+        const fo = this.card(c, "Fonts", `${Object.keys(s.fonts).length} named`);
+        const fl = fo.createDiv({ cls: "vls-tokens" });
+        for (const name of Object.keys(s.fonts)) {
+            const t = fl.createDiv({ cls: "vls-token" });
+            const aa = t.createDiv({ cls: "vls-aa", text: "Aa" });
+            aa.style.fontFamily = s.fonts[name];
+            t.createDiv({ cls: "vls-tname", text: name });
+            this.input(t, s.fonts[name], (v) => { s.fonts[name] = v.trim(); aa.style.fontFamily = v; this.queueLook(); }, { cls: "is-mono" });
+            t.createDiv();
+        }
+    }
     display() {
         const root = this.containerEl, s = this.plugin.settings;
         this.pickerOff?.(); this.syncs = [];
@@ -711,9 +727,10 @@ class VellumSettings extends PluginSettingTab {
         const c = root.createDiv({ cls: "vls-scroll" });
         const bar = root.querySelector(".vls-tabs");
         c.addEventListener("scroll", () => bar?.toggleClass("is-stuck", c.scrollTop > 2), { passive: true });
+        let part = "";
         if (tab === "general") {
             // General's parts as tabs of their own, one shown
-            const part = this.subTabs(c, "vellum:setgeneral", [["screens", "Screens", "folder-open"], ["editing", "Editing", "mouse-pointer-2"], ["updates", "Updates", "sparkles"]]);
+            part = this.subTabs(c, "vellum:setgeneral", [["screens", "Screens", "folder-open"], ["editing", "Editing", "mouse-pointer-2"], ["fonts", "Fonts", "type"], ["updates", "Updates", "sparkles"]]);
             if (part === "screens") {
                 const sc = this.card(c, "");
                 this.input(this.row(sc, "Screens folder", "Opened by the ribbon button.", "folder-open", "One JSON file per screen, made on the first save. If it has no screens, Vellum offers the folders that do."), s.folder, (v) => { s.folder = v.trim().replace(/\/+$/, "") || DEFAULTS.folder; this.save(); }, { placeholder: "Vellum/App" });
@@ -727,6 +744,8 @@ class VellumSettings extends PluginSettingTab {
                 this.input(this.row(eg, "Note width", "Empty: as wide as its text.", "sticky-note", "In pixels, when a note sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
                 new ToggleComponent(this.row(eg, "Notes avoid each other", "Overlapping notes move apart.", "layers", "Notes whose text would overlap are shown one under the other, with a line to their pin. A text box dragged by hand stays where it is. Only how they show: the files keep where the notes were put.")).setValue(ed.noteStack).onChange((v) => { ed.noteStack = v; this.save(); refreshLook(); });
                 new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number, drag to change.", "hand", "Hold a number box, then drag up or down. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
+            } else if (part === "fonts") {
+                this.fonts(c);
             } else {
                 const up = this.card(c, "");
                 new ToggleComponent(this.row(up, "Show what's new", "Once, after each update.", "sparkles")).setValue(s.news).onChange((v) => { s.news = v; this.save(); });
@@ -801,22 +820,8 @@ class VellumSettings extends PluginSettingTab {
             this.editorTheme(c);
         } else if (tab === "screens") {
             this.screenColours(c);
-        } else {
-            c.createDiv({ cls: "vls-intro", text: "Follow Obsidian until changed." });
-            // fonts: a sample in the font, the name, its CSS value
-            const fo = this.card(c, "Fonts", `${Object.keys(s.fonts).length} named`);
-            const fl = fo.createDiv({ cls: "vls-tokens" });
-            for (const name of Object.keys(s.fonts)) {
-                const t = fl.createDiv({ cls: "vls-token" });
-                const aa = t.createDiv({ cls: "vls-aa", text: "Aa" });
-                aa.style.fontFamily = s.fonts[name];
-                t.createDiv({ cls: "vls-tname", text: name });
-                this.input(t, s.fonts[name], (v) => { s.fonts[name] = v.trim(); aa.style.fontFamily = v; this.queueLook(); }, { cls: "is-mono" });
-                t.createDiv();
-            }
-
         }
-        if (tab === "general" || tab === "snapping" || tab === "measure" || tab === "editor" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look; Editor theme: its own Reset and Follow Obsidian)
+        if ((tab === "general" && part !== "fonts") || tab === "snapping" || tab === "measure" || tab === "editor" || (tab === "screens" && this.appDir)) return;   // (an app's own colours: not the settings' look; Editor theme: its own Reset and Follow Obsidian)
         // back to the theme
         const foot = c.createDiv({ cls: "vls-foot" });
         foot.createSpan({ text: "Back to Obsidian's colours and fonts." });
