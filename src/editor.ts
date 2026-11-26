@@ -3318,13 +3318,15 @@ class Editor {
         if (it?.type === "text") this.writer("Text", it.v ?? "", (v) => this.edit(() => { it.v = v; }));
     }
 
-    // one level up (Esc, the mouse's back button): several chosen or a mark → the page; an item in a group / row → that; an
-    // item → its block; a block → the page; the page → nothing
+    // one level up (Esc, the mouse's back button): several chosen or a mark → the page; an item in a group → the group;
+    // any other item, or a block → the page; the page → nothing
     up() {
         const s = this.sel; if (!s) return;
         if (s.mark || this.many.length || this.manyItems.length) { this.choose({ page: s.page }); return; }
+        // a click chooses an item straight away, so one level up from it is where that click started: nothing chosen on
+        // the screen (an item in a group: the group first, as a click in a group goes)
         const b = this.block(), par = s.item && b ? parentOf(b.items, s.item) : null;
-        this.choose(par ? { page: s.page, block: s.block, item: par.id } : s.item ? { page: s.page, block: s.block } : s.block ? { page: s.page } : null);
+        this.choose(par?.type === "group" ? { page: s.page, block: s.block, item: par.id } : s.block ? { page: s.page } : null);
     }
     // ---- keys (only when not typing in a field)
     key(e: KeyboardEvent) {
