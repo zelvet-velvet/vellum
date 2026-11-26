@@ -47,21 +47,21 @@
 
 <p align="center"><sub>Ledgerline 的畫面。Ledgerline 是以 Obsidian 實作的記帳 app，畫面由 Vellum 與 Claude Code 協作設計，數字皆為虛構。</sub></p>
 
-## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> 為何不用 artifact 或 canvas？
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> 為何不用 artifact 或 canvas？
 
-Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處理的是之後的部分：修改、保存，並與 agent 一起依畫面實作。
+**可以直接動手修改、保存並據以實作的 mockup。** Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup；Vellum 處理的是之後的部分：親手修改、與程式碼放在一起，並與 agent 一起實作。
 
 | | artifact 或 canvas | Vellum |
 | :--- | :--- | :--- |
-| **修改一處** | 重新要求，或編輯 HTML | 直接拖曳、調整樣式、輸入數值 |
-| **存放位置** | 對話中 | 儲存庫或專案中，每個畫面一個小檔案，可用 git 管理 |
-| **agent 讀回的內容** | 自己的程式碼，不含你的手動修改 | 你留下的檔案：每個區塊、位置與尺寸 |
-| **整個 app** | 一次一頁 | 所有畫面，以 Map 串連，於真實裝置外框上 |
-| **多個方案** | 對話中的新版本 | 與正式畫面並列的 mock，保留其一 |
-| **agent 的下一次修改** | 直接取代頁面 | 等你確認：按住 <kbd>B</kbd>，再選 Keep 或 Undo |
-| **適用的 agent** | 該對話中的那一個 | 可讀寫檔案的任一個：Claude Code、Codex、Cursor |
+| <img src="assets/icons/h/copy.svg" width="12" height="13" alt=""> **修改一處** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 重新要求，或編輯 HTML | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **直接拖曳、調整樣式、輸入數值** |
+| <img src="assets/icons/h/braces.svg" width="11" height="13" alt=""> **存放位置** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 對話中 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **儲存庫或專案中：每個畫面一個小檔案，可用 git 管理** |
+| <img src="assets/icons/h/robot.svg" width="9" height="13" alt=""> **agent 讀回的內容** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 自己的程式碼，不含你的手動修改 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **你留下的檔案：每個區塊、位置與尺寸** |
+| <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **整個 app** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 一次一頁 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **所有畫面，以 Map 串連，於真實裝置外框上** |
+| <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **多個方案** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 對話中的新版本 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **與正式畫面並列的 mock，保留其一** |
+| <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **agent 的下一次修改** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 直接取代頁面 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **等你確認：按住 <kbd>B</kbd>，再選 Keep 或 Undo** |
+| <img src="assets/icons/h/star.svg" width="12" height="13" alt=""> **適用的 agent** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> 該對話中的那一個 | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **可讀寫檔案的任一個：Claude Code、Codex、Cursor** |
 
-## <img src="assets/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> 運作方式
+## <img src="assets/icons/h/star.svg" width="18" height="19" alt=""> 運作方式
 
 1. **排版**：於手機外框上排版畫面，或請 agent 產生草稿
 2. **存檔**：Vellum 將每個畫面存為一個小檔案，一個區塊一行，易讀且 diff 簡潔
@@ -71,12 +71,12 @@ Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處
 
 ### 排版
 
-- <img src="assets/icons/devices.svg" width="16" height="16" align="absmiddle" alt=""> **真實機型**：iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。支援直向與橫向
-- <img src="assets/icons/blocks.svg" width="16" height="16" align="absmiddle" alt=""> **區塊與錨點**：項目固定於區塊的某一點，保留位移，尺寸可設為 hug、固定或 fill，與原生版面相同
-- <img src="assets/icons/magnet.svg" width="16" height="16" align="absmiddle" alt=""> **對齊吸附**：邊緣、中線、邊距、等距與等尺寸，並顯示參考線
-- <img src="assets/icons/ruler.svg" width="16" height="16" align="absmiddle" alt=""> **測量**：按住 <kbd>M</kbd> 拖曳框選，顯示框內所有尺寸、間距與內距
-- <img src="assets/icons/overlays.svg" width="16" height="16" align="absmiddle" alt=""> **輔助線**：格線、欄位、三分法、黃金比例與螺旋、消失點
-- <img src="assets/icons/picture.svg" width="16" height="16" align="absmiddle" alt=""> **圖片與圖示**：圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱
+- <img src="assets/icons/h/devices.svg" width="7" height="13" alt=""> **真實機型**：iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。支援直向與橫向
+- <img src="assets/icons/h/blocks.svg" width="12" height="13" alt=""> **區塊與錨點**：項目固定於區塊的某一點，保留位移，尺寸可設為 hug、固定或 fill，與原生版面相同
+- <img src="assets/icons/h/magnet.svg" width="12" height="13" alt=""> **對齊吸附**：邊緣、中線、邊距、等距與等尺寸，並顯示參考線
+- <img src="assets/icons/h/ruler.svg" width="12" height="13" alt=""> **測量**：按住 <kbd>M</kbd> 拖曳框選，顯示框內所有尺寸、間距與內距
+- <img src="assets/icons/h/overlays.svg" width="12" height="13" alt=""> **輔助線**：格線、欄位、三分法、黃金比例與螺旋、消失點
+- <img src="assets/icons/h/picture.svg" width="12" height="13" alt=""> **圖片與圖示**：圖片使用網址或儲存庫路徑，圖示使用 Lucide 名稱
 
 <p align="center"><img src="assets/measure.gif" width="600" alt="測量：按住 M，從畫面左下外側拖曳到右上外側，顯示每個區塊與項目的尺寸、相互間距與內距"><br><sub><b>測量</b>：按住 <kbd>M</kbd> 拖曳，顯示框內所有尺寸、間距與內距</sub></p>
 
@@ -89,27 +89,27 @@ Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處
 
 ### 與 agent 協作
 
-- <img src="assets/icons/copy.svg" width="16" height="16" align="absmiddle" alt=""> **Copy reference**：一鍵將所選畫面、block 或 item 複製為 `[檔案 › block (id)]`，貼給 agent 並說明要改的地方
-- <img src="assets/icons/marks.svg" width="16" height="16" align="absmiddle" alt=""> **標註**：在畫面上加圖釘註記、命名區域與參考線，給你與 agent 溝通。agent 也能以標註回覆
-- <img src="assets/icons/review.svg" width="16" height="16" align="absmiddle" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
-- <img src="assets/icons/select.svg" width="16" height="16" align="absmiddle" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
+- <img src="assets/icons/h/copy.svg" width="12" height="13" alt=""> **Copy reference**：一鍵將所選畫面、block 或 item 複製為 `[檔案 › block (id)]`，貼給 agent 並說明要改的地方
+- <img src="assets/icons/h/marks.svg" width="12" height="13" alt=""> **標註**：在畫面上加圖釘註記、命名區域與參考線，給你與 agent 溝通。agent 也能以標註回覆
+- <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
+- <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
 
 ### 檢視整個 app
 
 <p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面，往下兩層，以樹狀顯示"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
 
-- <img src="assets/icons/map.svg" width="16" height="16" align="absmiddle" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
-- <img src="assets/icons/frames.svg" width="16" height="16" align="absmiddle" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分
-- <img src="assets/icons/window.svg" width="16" height="16" align="absmiddle" alt=""> **獨立視窗**：編輯器於獨立視窗開啟，每個 app 一個視窗，頂列即視窗標題列；手機上設定收於底部面板
-- <img src="assets/icons/palette.svg" width="16" height="16" align="absmiddle" alt=""> **主題**：每個 app 可有自己的顏色與主題（淺色、深色或自訂名稱），編輯器本身也可另設主題
+- <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
+- <img src="assets/icons/h/frames.svg" width="12" height="13" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分
+- <img src="assets/icons/h/window.svg" width="12" height="13" alt=""> **獨立視窗**：編輯器於獨立視窗開啟，每個 app 一個視窗，頂列即視窗標題列；手機上設定收於底部面板
+- <img src="assets/icons/h/palette.svg" width="13" height="13" alt=""> **主題**：每個 app 可有自己的顏色與主題（淺色、深色或自訂名稱），編輯器本身也可另設主題
 
-## <img src="assets/icons/download.svg" width="24" height="24" align="absmiddle" alt=""> 安裝
+## <img src="assets/icons/h/download.svg" width="18" height="19" alt=""> 安裝
 
 - **[社群外掛](https://obsidian.md/plugins?id=vellum)**：於 **設定 → 第三方外掛 → 瀏覽** 搜尋 **Vellum**，安裝後啟用
 - **[BRAT](https://github.com/TfTHacker/obsidian42-brat)**：新增 beta 外掛 `zelvet-velvet/vellum`
 - **手動安裝**：由[最新版本](https://github.com/zelvet-velvet/vellum/releases/latest)下載 `main.js`、`manifest.json` 與 `styles.css`，放入 `<儲存庫>/.obsidian/plugins/vellum/` 後啟用 **Vellum**
 
-## <img src="assets/icons/play.svg" width="24" height="24" align="absmiddle" alt=""> 快速開始
+## <img src="assets/icons/h/play.svg" width="14" height="19" alt=""> 快速開始
 
 1. 點選側邊欄的 **Vellum** 圖示，編輯器開啟 `Screens/` 資料夾
 2. 點選 **New Screen** 新增畫面，新增區塊並放入元件
@@ -117,7 +117,7 @@ Claude artifact 與 ChatGPT、Gemini 的 canvas 也能畫出 mockup。Vellum 處
 
 範例畫面：將 [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md) 複製至儲存庫。
 
-## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> 搭配 agent
+## <img src="assets/icons/h/robot.svg" width="13" height="19" alt=""> 搭配 agent
 
 Vellum 為與 coding agent 協作而設計：你與 agent 修改同一批檔案。可讀寫檔案的 agent 皆可使用（Claude Code、Codex、Cursor），不需外掛 API 或伺服器。
 
@@ -189,7 +189,7 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 
 <sub>[Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) 與 Ledgerline 的畫面皆以此方式與 Claude Code 協作設計。</sub>
 
-## <img src="assets/icons/braces.svg" width="24" height="24" align="absmiddle" alt=""> 檔案格式
+## <img src="assets/icons/h/braces.svg" width="16" height="19" alt=""> 檔案格式
 
 每個 app 一個資料夾，每個畫面一個小檔案，各 app 與 agent 說明並列：
 
@@ -240,7 +240,7 @@ Vellum/
 
 </details>
 
-## <img src="assets/icons/keyboard.svg" width="24" height="24" align="absmiddle" alt=""> 快捷鍵
+## <img src="assets/icons/h/keyboard.svg" width="18" height="19" alt=""> 快捷鍵
 
 Mac 上 Ctrl 為 Cmd。多數按鍵可於 **設定 → Vellum → Keys** 更改。
 
@@ -280,7 +280,7 @@ Mac 上 Ctrl 為 Cmd。多數按鍵可於 **設定 → Vellum → Keys** 更改�
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選內容的參照，供 agent 使用 |
 | 按住 <kbd>B</kbd> | agent 修改過的畫面：檢視修改前 |
 
-## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> 常見問題
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> 常見問題
 
 <details>
 <summary><b>Vellum 是否使用網路？</b></summary>
@@ -329,7 +329,7 @@ npm run install-vault -- /path/to/vault
 ```
 </details>
 
-## <img src="assets/icons/coffee.svg" width="24" height="24" align="absmiddle" alt=""> 贊助
+## <img src="assets/icons/h/coffee.svg" width="18" height="19" alt=""> 贊助
 
 Vellum 為免費軟體，利用空閒時間開發。如果對你有幫助，歡迎請我喝杯咖啡支持後續開發。
 

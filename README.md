@@ -47,21 +47,21 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 
 <p align="center"><sub>Screens of Ledgerline, a personal finance app built in Obsidian, designed in Vellum with Claude Code. Every number is made up.</sub></p>
 
-## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> Why not an artifact or a canvas?
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> Why not an artifact or a canvas?
 
-Claude artifacts and ChatGPT or Gemini canvas can draw a mockup too. Vellum is made for the part after that: changing it, keeping it, and building from it with your agent.
+**A mockup you can grab, keep and build from.** Claude artifacts and ChatGPT or Gemini canvas draw one too; Vellum is made for what comes after: changing it by hand, keeping it next to your code, and building it with your agent.
 
 | | An artifact or a canvas | Vellum |
 | :--- | :--- | :--- |
-| **Change one thing** | Ask again, or edit its HTML | Drag it, restyle it, type a number |
-| **Where it lives** | In the conversation | In your vault or repo, one small file per screen, in git |
-| **What the agent reads back** | Its own code, not your hand edits | The file as you left it: every block, position and size |
-| **A whole app** | One page at a time | Every screen, joined in the Map, on a real device frame |
-| **Options** | New versions down the chat | Mocks beside the real screen; keep one |
-| **The agent's next change** | Replaces the page | Waits for your review: hold <kbd>B</kbd>, then Keep or Undo |
-| **Any agent** | The one in that chat | Any that reads files: Claude Code, Codex, Cursor |
+| <img src="assets/icons/h/copy.svg" width="12" height="13" alt=""> **Change one thing** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> Ask again, or edit its HTML | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **Drag it, restyle it, type a number** |
+| <img src="assets/icons/h/braces.svg" width="11" height="13" alt=""> **Where it lives** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> In the conversation | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **In your vault or repo: one small file per screen, in git** |
+| <img src="assets/icons/h/robot.svg" width="9" height="13" alt=""> **What the agent reads back** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> Its own code, not your hand edits | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **The file as you left it: every block, position and size** |
+| <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **A whole app** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> One page at a time | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **Every screen, joined in the Map, on a real device frame** |
+| <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **Options** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> New versions down the chat | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **Mocks beside the real screen; keep one** |
+| <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **The agent's next change** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> Replaces the page | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **Waits for your review: hold <kbd>B</kbd>, then Keep or Undo** |
+| <img src="assets/icons/h/star.svg" width="12" height="13" alt=""> **Which agent** | <img src="assets/icons/h/cross.svg" width="9" height="13" alt=""> The one in that chat | <img src="assets/icons/h/check.svg" width="12" height="13" alt=""> **Any that reads files: Claude Code, Codex, Cursor** |
 
-## <img src="assets/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> How it works
+## <img src="assets/icons/h/star.svg" width="18" height="19" alt=""> How it works
 
 1. **You lay out** a screen on the phone, or ask the agent to draft it.
 2. **Vellum keeps it** as one small file per screen, one block per line: easy to read, small diffs.
@@ -71,12 +71,12 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 ### Lay out
 
-- <img src="assets/icons/devices.svg" width="16" height="16" align="absmiddle" alt=""> **Real devices**: iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar. Portrait and landscape.
-- <img src="assets/icons/blocks.svg" width="16" height="16" align="absmiddle" alt=""> **Blocks and anchors**: items hold on to a point of their block, with an offset and hug / fixed / fill sizes, as native layouts do.
-- <img src="assets/icons/magnet.svg" width="16" height="16" align="absmiddle" alt=""> **Snapping**: edges, middles, margins, equal gaps and sizes, with guide lines.
-- <img src="assets/icons/ruler.svg" width="16" height="16" align="absmiddle" alt=""> **Measure**: hold <kbd>M</kbd> and drag over an area for every size, gap and padding in it.
-- <img src="assets/icons/overlays.svg" width="16" height="16" align="absmiddle" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
-- <img src="assets/icons/picture.svg" width="16" height="16" align="absmiddle" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
+- <img src="assets/icons/h/devices.svg" width="7" height="13" alt=""> **Real devices**: iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar. Portrait and landscape.
+- <img src="assets/icons/h/blocks.svg" width="12" height="13" alt=""> **Blocks and anchors**: items hold on to a point of their block, with an offset and hug / fixed / fill sizes, as native layouts do.
+- <img src="assets/icons/h/magnet.svg" width="12" height="13" alt=""> **Snapping**: edges, middles, margins, equal gaps and sizes, with guide lines.
+- <img src="assets/icons/h/ruler.svg" width="12" height="13" alt=""> **Measure**: hold <kbd>M</kbd> and drag over an area for every size, gap and padding in it.
+- <img src="assets/icons/h/overlays.svg" width="12" height="13" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
+- <img src="assets/icons/h/picture.svg" width="12" height="13" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
 
 <p align="center"><img src="assets/measure.gif" width="600" alt="Measure: M held and a drag from beside the screen's bottom left to past its top right shows every block's and item's size, the gaps between them and their padding"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
 
@@ -89,27 +89,27 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 ### Work with your agent
 
-- <img src="assets/icons/copy.svg" width="16" height="16" align="absmiddle" alt=""> **Copy reference**: one key copies the chosen screen, block or item as `[file › block (id)]`, ready to paste with what to change.
-- <img src="assets/icons/marks.svg" width="16" height="16" align="absmiddle" alt=""> **Marks**: pinned notes, named areas and guide lines on the screen, for you and the agent. The agent can answer with marks of its own.
-- <img src="assets/icons/review.svg" width="16" height="16" align="absmiddle" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
-- <img src="assets/icons/select.svg" width="16" height="16" align="absmiddle" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
+- <img src="assets/icons/h/copy.svg" width="12" height="13" alt=""> **Copy reference**: one key copies the chosen screen, block or item as `[file › block (id)]`, ready to paste with what to change.
+- <img src="assets/icons/h/marks.svg" width="12" height="13" alt=""> **Marks**: pinned notes, named areas and guide lines on the screen, for you and the agent. The agent can answer with marks of its own.
+- <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
+- <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
 
 ### See the whole app
 
 <p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens, two rows down, as a tree"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
 
-- <img src="assets/icons/map.svg" width="16" height="16" align="absmiddle" alt=""> **Map and Show**: the screens as a tree, or one at a time as a preview with <kbd>←</kbd> <kbd>→</kbd> to the next.
-- <img src="assets/icons/frames.svg" width="16" height="16" align="absmiddle" alt=""> **Frames**: screens share a layout and store only what they change.
-- <img src="assets/icons/window.svg" width="16" height="16" align="absmiddle" alt=""> **Its own window**: the editor in a window of its own, one per app, its top bar as the window's bar; a bottom sheet on a phone.
-- <img src="assets/icons/palette.svg" width="16" height="16" align="absmiddle" alt=""> **Themes**: an app's own colours and themes (light, dark, any name) for its screens, and a theme for the editor itself.
+- <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **Map and Show**: the screens as a tree, or one at a time as a preview with <kbd>←</kbd> <kbd>→</kbd> to the next.
+- <img src="assets/icons/h/frames.svg" width="12" height="13" alt=""> **Frames**: screens share a layout and store only what they change.
+- <img src="assets/icons/h/window.svg" width="12" height="13" alt=""> **Its own window**: the editor in a window of its own, one per app, its top bar as the window's bar; a bottom sheet on a phone.
+- <img src="assets/icons/h/palette.svg" width="13" height="13" alt=""> **Themes**: an app's own colours and themes (light, dark, any name) for its screens, and a theme for the editor itself.
 
-## <img src="assets/icons/download.svg" width="24" height="24" align="absmiddle" alt=""> Install
+## <img src="assets/icons/h/download.svg" width="18" height="19" alt=""> Install
 
 - **[Community plugins](https://obsidian.md/plugins?id=vellum)**: in **Settings → Community plugins → Browse**, search for **Vellum**, install and enable it.
 - **[BRAT](https://github.com/TfTHacker/obsidian42-brat)**: add the beta plugin `zelvet-velvet/vellum`.
 - **Manual**: copy `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/zelvet-velvet/vellum/releases/latest) into `<vault>/.obsidian/plugins/vellum/`, then enable **Vellum**.
 
-## <img src="assets/icons/play.svg" width="24" height="24" align="absmiddle" alt=""> Quick start
+## <img src="assets/icons/h/play.svg" width="14" height="19" alt=""> Quick start
 
 1. Click **Vellum** in the ribbon. The editor opens on `Screens/`.
 2. **New Screen**, add a block, place items in it.
@@ -117,7 +117,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md) into your vault.
 
-## <img src="assets/icons/robot.svg" width="24" height="24" align="absmiddle" alt=""> With your agent
+## <img src="assets/icons/h/robot.svg" width="13" height="19" alt=""> With your agent
 
 Vellum is built for working with a coding agent: you and the agent edit the same files. Any agent that reads and writes files works (Claude Code, Codex, Cursor); no plugin API, no server.
 
@@ -189,7 +189,7 @@ It ships with Vellum as `VELLUM.md` in the folder that holds your apps (`Vellum/
 
 <sub>The screens of [Morellonomicon](https://github.com/zelvet-velvet/Morellonomicon) and Ledgerline were designed this way, with Claude Code.</sub>
 
-## <img src="assets/icons/braces.svg" width="24" height="24" align="absmiddle" alt=""> File format
+## <img src="assets/icons/h/braces.svg" width="16" height="19" alt=""> File format
 
 One folder per app, one small file per screen, the apps side by side with the agent guide:
 
@@ -240,7 +240,7 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 </details>
 
-## <img src="assets/icons/keyboard.svg" width="24" height="24" align="absmiddle" alt=""> Shortcuts
+## <img src="assets/icons/h/keyboard.svg" width="18" height="19" alt=""> Shortcuts
 
 Ctrl is Cmd on a Mac. Most keys can be changed in **Settings → Vellum → Keys**.
 
@@ -280,7 +280,7 @@ Ctrl is Cmd on a Mac. Most keys can be changed in **Settings → Vellum → Keys
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to what is chosen, for the agent |
 | <kbd>B</kbd> held | A screen the agent changed: see it as it was |
 
-## <img src="assets/icons/question.svg" width="24" height="24" align="absmiddle" alt=""> FAQ
+## <img src="assets/icons/h/question.svg" width="13" height="19" alt=""> FAQ
 
 <details>
 <summary><b>Does Vellum use the network?</b></summary>
@@ -329,7 +329,7 @@ npm run install-vault -- /path/to/vault
 ```
 </details>
 
-## <img src="assets/icons/coffee.svg" width="24" height="24" align="absmiddle" alt=""> Support
+## <img src="assets/icons/h/coffee.svg" width="18" height="19" alt=""> Support
 
 Vellum is free and made in my spare time. If it helps you, a coffee keeps it going.
 
