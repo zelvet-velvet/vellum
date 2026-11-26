@@ -1029,7 +1029,13 @@ class Editor {
         this.rail.addEventListener("click", (e) => { if (e.target === this.rail) { this.setView({ rail: false }); this.draw(); } });   // phone: a tap on the dim closes the list
         const mid = body.createDiv({ cls: "vl-mid" });
         this.wall = mid.createDiv({ cls: "vl-stage" });
-        this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, { x: e.clientX, y: e.clientY }); }, { passive: false });
+        // Ctrl+wheel: the steps of one frame as one zoom (a wheel or a touchpad sends several a frame), drawn once a frame
+        let wf = 1, wat = { x: 0, y: 0 }, wraf = 0;
+        this.wall.addEventListener("wheel", (e) => {
+            if (!e.ctrlKey && !e.metaKey) return; e.preventDefault();
+            wf *= e.deltaY < 0 ? 1.1 : 1 / 1.1; wat = { x: e.clientX, y: e.clientY };
+            if (!wraf) wraf = this.wall.win.requestAnimationFrame(() => { wraf = 0; const f = wf; wf = 1; this.zoomBy(f, wat); });
+        }, { passive: false });
         // a click anywhere lets a measure go; the Measure key held (or Alt: beside the screen, or anywhere in Show and the
         // Map) and a drag measures, in every mode (before anything else hears the press: no choosing, panning or opening).
         // Begun beside the screen in Edit or Show, it measures the screen shown
