@@ -187,7 +187,7 @@ Read github.com/zelvet-velvet/vellum/blob/main/docs/for-agents.md.
 <summary><b>Mock 流程</b>：比較多個方案，保留其一</summary>
 
 1. 請 agent 為某個畫面提出兩到三個方案，以標示 `"mock": true` 的子畫面寫入
-2. 各處皆標示 **Mock**：Map 中為虛線外框與專屬顏色，列表中有標籤
+2. 各處皆標示 **Mock**：Map 中為虛線外框與專屬顏色，列表中有標籤，頂列的 **N mocks to choose** 可依序開啟每個方案
 3. 於 **Show** 逐一切換（<kbd>←</kbd> <kbd>→</kbd>），或在 Map 中並排比較
 4. 說明要保留哪一個。agent 將其覆蓋到正式畫面（舊版本存於 `_before/`，等你選擇 **Keep**），並刪除其他方案
 </details>

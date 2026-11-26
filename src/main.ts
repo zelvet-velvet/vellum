@@ -18,7 +18,7 @@ const ICON = `<g fill="none" stroke="currentColor" stroke-width="7.3" stroke-lin
 // edit: number boxes (the arrows' step, hold-and-drag)
 // ui: the editor's own colours that differ from Obsidian's (the rest follow it), the Obsidian chip of Editor theme;
 // uiThemes: the editor's named themes (Ledgerline light and dark to start), uiTheme the one in use ("": Obsidian); colors: the phones' named colours
-interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; uiThemes: Record<string, Record<string, string>>; uiTheme: string; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string }   // news: what's new after an update; seen: the version it was last shown for
+interface Settings { folder: string; colors: Record<string, string>; ui: Record<string, string>; uiThemes: Record<string, Record<string, string>>; uiTheme: string; fonts: Record<string, string>; snap: SnapCfg; measure: MeasureCfg; edit: EditCfg; keys: Record<string, string>; news: boolean; seen?: string; themeKeys?: string[] }   // news: what's new after an update; seen: the version it was last shown for; themeKeys: the colours of Vellum's own themes the saved copies were offered
 const DEFAULTS: Settings = { folder: "Vellum/App", colors: { ...BASE_THEME.colors }, ui: {}, uiThemes: structuredClone(EDITOR_THEMES), uiTheme: "", fonts: { ...BASE_THEME.fonts }, snap: { ...SNAP_DEFAULT }, measure: { ...MEASURE_DEFAULT }, edit: { ...EDIT_DEFAULT }, keys: {}, news: true };
 
 // the folder a path is in; none at the vault's root
@@ -43,6 +43,16 @@ export default class VellumPlugin extends Plugin {
     async onload() {
         const saved = (await this.loadData()) as Partial<Settings> | null;
         this.settings = { folder: saved?.folder || DEFAULTS.folder, colors: { ...DEFAULTS.colors, ...saved?.colors }, ui: { ...saved?.ui }, uiThemes: saved?.uiThemes ? { ...saved.uiThemes } : structuredClone(EDITOR_THEMES), uiTheme: saved?.uiTheme ?? "", fonts: { ...DEFAULTS.fonts, ...saved?.fonts }, snap: { ...SNAP_DEFAULT, ...saved?.snap }, measure: measureOf(saved?.measure), edit: { ...EDIT_DEFAULT, ...saved?.edit }, keys: { ...saved?.keys }, news: saved?.news ?? true, seen: saved?.seen };
+        // colours added to Vellum's own editor themes in an update (Mock, Changed, Edited) go into the saved copies once; one
+        // taken out after that stays out
+        const offered = new Set(saved?.themeKeys ?? (saved?.uiThemes ? Object.keys(EDITOR_THEMES.Light).filter((k) => !["mock", "changed", "edited"].includes(k)) : Object.keys(EDITOR_THEMES.Light)));
+        let added = false;
+        for (const [name, def] of Object.entries(EDITOR_THEMES)) {
+            const t = this.settings.uiThemes[name]; if (!t) continue;
+            for (const [k, v] of Object.entries(def)) if (!offered.has(k) && !(k in t)) { t[k] = v; added = true; }
+        }
+        this.settings.themeKeys = [...new Set(Object.values(EDITOR_THEMES).flatMap((d) => Object.keys(d)))];
+        if (added || !saved?.themeKeys) void this.save();
         useApp(this.app);
         addIcon("vellum", ICON);
         registerVellum(this, () => { const t = uiInUse(this.settings); return { theme: this.theme(), ui: t.ui, mode: t.mode, onFolder: (dir) => { this.settings.folder = dir; void this.save(); } }; });
@@ -741,7 +751,7 @@ class VellumSettings extends PluginSettingTab {
                 const eg = this.card(c, "");
                 this.input(this.row(eg, "Drag step", "Per notch of a drag. Shift: ×10.", "move"), String(ed.arrow), (v) => { const n = Number(v); if (n > 0 && n <= 1000) { ed.arrow = n; this.save(); } }, { cls: "is-num", type: "number" });
                 this.input(this.row(eg, "Mark text size", "Notes and area names, in px.", "baseline", "In pixels on the monitor, when a mark sets none."), String(ed.markSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 40) { ed.markSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
-                this.input(this.row(eg, "Label size", "Block names and sizes, in px.", "tag", "In pixels on the monitor, at any zoom: the name tag over a block and the size label under it."), String(ed.labelSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 24) { ed.labelSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
+                this.input(this.row(eg, "Label size", "Block names, sizes, Map tags, in px.", "tag", "In pixels on the monitor, at any zoom: the name tag over a block, the size label under it, and the Mock, Changed and Edited tags in the Map."), String(ed.labelSize), (v) => { const n = Math.round(Number(v)); if (n >= 8 && n <= 24) { ed.labelSize = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number" });
                 this.input(this.row(eg, "Note width", "Empty: as wide as its text.", "sticky-note", "In pixels, when a note sets none. Empty or 0: as wide as its text, up to 200."), ed.noteW ? String(ed.noteW) : "", (v) => { const n = Math.round(Number(v || 0)); if (n === 0 || (n >= 60 && n <= 600)) { ed.noteW = n; this.save(); refreshLook(); } }, { cls: "is-num", type: "number", placeholder: "Auto" });
                 new ToggleComponent(this.row(eg, "Notes avoid each other", "Overlapping notes move apart.", "layers", "Notes whose text would overlap are shown one under the other, with a line to their pin. A text box dragged by hand stays where it is. Only how they show: the files keep where the notes were put.")).setValue(ed.noteStack).onChange((v) => { ed.noteStack = v; this.save(); refreshLook(); });
                 new ToggleComponent(this.row(eg, "Hold and drag", "Hold a number, drag to change.", "hand", "Hold a number box, then drag up or down. A click types the value.")).setValue(ed.hold).onChange((v) => { ed.hold = v; this.save(); });
