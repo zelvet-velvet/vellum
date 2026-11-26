@@ -206,27 +206,43 @@ Show the screens in a note with a code block `vellum` holding `src: Vellum/Remot
 
 ## <img src="assets/icons/keyboard.svg" width="24" height="24" alt=""> Shortcuts
 
-| | |
+Ctrl is Cmd on a Mac. Most keys can be changed in **Settings → Vellum → Keys**.
+
+| Choose | |
 | :--- | :--- |
 | Click · <kbd>Ctrl</kbd> <kbd>Shift</kbd> click | An item, straight away (a block's empty space or its name tag: the block) · the block, even over its items |
-| <kbd>Shift</kbd> click · <kbd>Ctrl</kbd> <kbd>A</kbd> | Add an item or a block to the chosen, or take it out · every block |
-| <kbd>Esc</kbd> | Let go of what is chosen, one level at a time (never closes the editor) |
+| <kbd>Shift</kbd> click | Add an item or a block to what is chosen, or take it out |
+| Drag on empty space · with <kbd>Ctrl</kbd> | The blocks inside the area (or the items it crosses) · always the items |
+| <kbd>Ctrl</kbd> <kbd>A</kbd> | Every block on the screen |
+| <kbd>Esc</kbd> | Let go, one level at a time (never closes the editor) |
+
+| Edit | |
+| :--- | :--- |
 | <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Nudge 1 pt, with <kbd>Shift</kbd> one grid step |
-| <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | Undo · redo |
+| <kbd>Alt</kbd> · <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
 | <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | Duplicate · delete |
-| <kbd>Ctrl</kbd> <kbd>S</kbd> | Save |
-| <kbd>Alt</kbd> / <kbd>Shift</kbd> while dragging | No snapping · keep the shape |
-| <kbd>M</kbd> or <kbd>Alt</kbd> held, then drag | Measure the area: sizes, gaps and paddings (a click or <kbd>M</kbd> clears it) |
-| Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
-| Drag on empty space · with <kbd>Ctrl</kbd> | Choose the blocks inside the area (or the items it crosses) · always the items |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | Group the chosen items · ungroup (a group, row or column: its items stay where they are) |
-| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | The mark tool (a click: a note, a drag: an area) · show / hide the marks |
-| <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlays |
-| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to the chosen screen, block or item, for the agent |
-| <kbd>B</kbd> held | On a screen the agent changed: see it as it was |
-| <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
-| Arrows · <kbd>Enter</kbd> in the Map | Choose the screen beside, above (the one it opens from) or below (the first it opens) · open it |
+| <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | Undo · redo (<kbd>Ctrl</kbd> <kbd>Y</kbd> too) |
+| <kbd>Ctrl</kbd> <kbd>S</kbd> | Save |
 | Hold a number box, then drag up / down | Change it (a click types; <kbd>↑</kbd> <kbd>↓</kbd> step it, with <kbd>Shift</kbd> ×10) |
+
+| View | |
+| :--- | :--- |
+| <kbd>1</kbd> · <kbd>2</kbd> · <kbd>3</kbd> | Edit · Show · Map |
+| <kbd>[</kbd> · <kbd>]</kbd> | The screens list · the settings panel |
+| <kbd>F</kbd> | Fit to the window (in the Map: Fit or Full) |
+| Middle button, drag · <kbd>Ctrl</kbd> + wheel | Move the view · zoom at the pointer (up to 1600 %) |
+| <kbd>Ctrl</kbd> <kbd>.</kbd> | Hide the bars (in full screen: leave it) |
+| <kbd>←</kbd> <kbd>→</kbd> in Show | The previous · the next screen |
+| Arrows · <kbd>Enter</kbd> in the Map | The screen beside, above (the one it opens from) or below (the first it opens) · open it |
+
+| Tools | |
+| :--- | :--- |
+| <kbd>M</kbd> or <kbd>Alt</kbd> held, then drag | Measure: sizes, gaps and paddings (<kbd>M</kbd> again or a click clears it) |
+| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | A mark (a click: a note, a drag: an area) · show / hide the marks |
+| <kbd>Ctrl</kbd> <kbd>'</kbd> | Show / hide the overlay |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | Copy a reference to what is chosen, for the agent |
+| <kbd>B</kbd> held | A screen the agent changed: see it as it was |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> FAQ
 

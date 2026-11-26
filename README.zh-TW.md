@@ -206,27 +206,43 @@ Vellum/
 
 ## <img src="assets/icons/keyboard.svg" width="24" height="24" alt=""> 快捷鍵
 
-| | |
+Mac 上 Ctrl 為 Cmd。多數按鍵可於 **設定 → Vellum → Keys** 更改。
+
+| 選取 | |
 | :--- | :--- |
 | 點選 · <kbd>Ctrl</kbd> <kbd>Shift</kbd> 點選 | 直接選取項目（點區塊空白處或名稱標籤：選取區塊）· 選取區塊，即使點在項目上 |
-| <kbd>Shift</kbd> 點選 · <kbd>Ctrl</kbd> <kbd>A</kbd> | 將項目或區塊加入或移出選取 · 全部區塊 |
-| <kbd>Esc</kbd> | 取消選取，一次退一層（不會關閉編輯器） |
-| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | 移動 1 pt，按住 <kbd>Shift</kbd> 移動一格 |
-| <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | 復原 · 重做 |
-| <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | 複製 · 刪除 |
-| <kbd>Ctrl</kbd> <kbd>S</kbd> | 存檔 |
-| 拖曳時按住 <kbd>Alt</kbd> / <kbd>Shift</kbd> | 不吸附 · 維持比例 |
-| 按住 <kbd>M</kbd> 或 <kbd>Alt</kbd> 再拖曳 | 測量框內的尺寸、間距與內距（點一下或按 <kbd>M</kbd> 清除） |
-| 按住滑鼠中鍵拖曳 · <kbd>Ctrl</kbd> + 滾輪 | 移動視野 · 以游標為中心縮放（最大 1600 %） |
+| <kbd>Shift</kbd> 點選 | 將項目或區塊加入或移出選取 |
 | 在空白處拖曳 · 按住 <kbd>Ctrl</kbd> | 選取框內的區塊（或框到的項目）· 一律選項目 |
+| <kbd>Ctrl</kbd> <kbd>A</kbd> | 畫面上全部區塊 |
+| <kbd>Esc</kbd> | 取消選取，一次退一層（不會關閉編輯器） |
+
+| 編輯 | |
+| :--- | :--- |
+| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | 移動 1 pt，按住 <kbd>Shift</kbd> 移動一格 |
+| 拖曳時按住 <kbd>Alt</kbd> · <kbd>Shift</kbd> | 不吸附 · 維持比例 |
+| <kbd>Ctrl</kbd> <kbd>D</kbd> · <kbd>Delete</kbd> | 複製 · 刪除 |
 | <kbd>Ctrl</kbd> <kbd>G</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>G</kbd> | 將選取的項目組成群組 · 解散群組、列或欄（項目留在原位） |
-| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | 標註工具（點一下：註記，拖曳：區域）· 顯示 / 隱藏標註 |
-| <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
-| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選畫面、block 或 item 的參照，供 agent 使用 |
-| 按住 <kbd>B</kbd> | agent 修改過的畫面：檢視修改前 |
+| <kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> | 復原 · 重做（<kbd>Ctrl</kbd> <kbd>Y</kbd> 亦可） |
+| <kbd>Ctrl</kbd> <kbd>S</kbd> | 存檔 |
+| 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
+
+| 檢視 | |
+| :--- | :--- |
+| <kbd>1</kbd> · <kbd>2</kbd> · <kbd>3</kbd> | Edit · Show · Map |
+| <kbd>[</kbd> · <kbd>]</kbd> | 畫面列表 · 設定面板 |
+| <kbd>F</kbd> | 符合視窗（Map 中：Fit 或 Full） |
+| 按住滑鼠中鍵拖曳 · <kbd>Ctrl</kbd> + 滾輪 | 移動視野 · 以游標為中心縮放（最大 1600 %） |
+| <kbd>Ctrl</kbd> <kbd>.</kbd> | 隱藏工具列（全螢幕時：離開全螢幕） |
 | Show 模式下 <kbd>←</kbd> <kbd>→</kbd> | 上一個 · 下一個畫面 |
 | Map 模式下方向鍵 · <kbd>Enter</kbd> | 選取同一列的相鄰畫面、上層畫面或第一個下層畫面 · 開啟該畫面 |
-| 按住數字框並上下拖曳 | 調整數值（點選可輸入；<kbd>↑</kbd> <kbd>↓</kbd> 調整一步，按住 <kbd>Shift</kbd> 調整十步） |
+
+| 工具 | |
+| :--- | :--- |
+| 按住 <kbd>M</kbd> 或 <kbd>Alt</kbd> 再拖曳 | 測量框內的尺寸、間距與內距（再按 <kbd>M</kbd> 或點一下清除） |
+| <kbd>N</kbd> · <kbd>Shift</kbd> <kbd>N</kbd> | 標註（點一下：註記，拖曳：區域）· 顯示 / 隱藏標註 |
+| <kbd>Ctrl</kbd> <kbd>'</kbd> | 顯示 / 隱藏輔助線 |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> | 複製所選內容的參照，供 agent 使用 |
+| 按住 <kbd>B</kbd> | agent 修改過的畫面：檢視修改前 |
 
 ## <img src="assets/icons/question.svg" width="24" height="24" alt=""> 常見問題
 
