@@ -1083,7 +1083,10 @@ class Editor {
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
         if (toMap) this.setView({ mapFit: true });   // the Map opens in Full: the chosen screen's whole tree; Fit then shows its row
+        const toEdit = m === "edit" && !wasEdit;
+        if (toEdit) this.setView({ fit: true });   // Edit opens fitted: the whole screen in the window, in its middle
         this.draw();
+        if (toEdit) (this.root?.win ?? window).requestAnimationFrame(() => this.centrePhone());
     }
     // Fit in the Map: the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
