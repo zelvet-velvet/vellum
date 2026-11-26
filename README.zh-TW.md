@@ -96,7 +96,7 @@
 
 ### 檢視整個 app
 
-<p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面，往下兩層，以樹狀顯示"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
+<p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面以樹狀顯示；兩個 Holdings 選項標為 Mock，Mix 標為 Changed，Watchlist 與 Alerts 標為 Edited"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式；標籤顯示 mock、agent 的變更與你的編輯；點選即開啟</sub></p>
 
 - <img src="assets/icons/h/map.svg" width="11" height="13" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
 - <img src="assets/icons/h/frames.svg" width="12" height="13" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分
@@ -121,15 +121,19 @@
 
 Vellum 為與 coding agent 協作而設計：你與 agent 修改同一批檔案。可讀寫檔案的 agent 皆可使用（Claude Code、Codex、Cursor），不需外掛 API 或伺服器。
 
-<table>
-  <tr>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/robot.svg" width="32" height="32" alt=""><br><b>1 · 草稿</b><br><sub>agent 寫出畫面，每個畫面一個檔案，串成流程</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · 指定</b><br><sub>選取 block，按 <b>Copy reference</b>，說明要改的地方</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · 標註</b><br><sub>或在畫面上釘註記；agent 也以標註回覆</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · 確認</b><br><sub>修改過的畫面標示 <b>Changed</b>：按住 <kbd>B</kbd>，再選 <b>Keep</b> 或 <b>Undo</b></sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · 實作</b><br><sub>依保留的畫面與你自己的修改實作：<b>N edits to build</b></sub></td>
-  </tr>
-</table>
+修改是雙向的，每個方向都等另一方處理：
+
+```mermaid
+flowchart LR
+    D["agent 產生畫面草稿"] --> V["你，在 Vellum 中"]
+    V -- "Copy reference 或標註：<br>要改的地方" --> C["agent 修改畫面"]
+    C -- "Changed：按住 B，<br>再選 Keep 或 Undo" --> V
+    V -- "你修改並儲存：<br>Edited" --> B["agent 實作 app"]
+    B -- "刪除 _edited 副本" --> V
+```
+
+- **agent 修改，你確認。** 選取 block，按 **Copy reference**，說明要改的地方（或在畫面上釘註記）。agent 修改過的畫面標示 **Changed**：按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**。
+- **你修改，agent 實作。** 親手移動、調整畫面並儲存，畫面標示 **Edited**。按 **N edits to build** 複製修改內容，貼給 agent 並說「實作」。
 
 <p align="center"><img src="assets/agent.png" alt="1：對 Dock block 按 Copy reference，顯示提示。2：參照貼到 Claude Code 並說明要改的地方，一行回覆，下一個要求已輸入。3：手機上的 Dock，搜尋按鈕已改為實心墨色"><br><sub><b>1</b> 對 block 按 Copy reference，<b>2</b> 貼給 agent 並說明要改的地方，<b>3</b> 檔案修改後手機上的 block 隨即更新。</sub></p>
 
