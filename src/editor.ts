@@ -1052,8 +1052,8 @@ class Editor {
         else if (bare) this.btn(mid, "minimize-2", `Show the bars (${keyText(keyOf("bars"))})`, () => this.setBars(true)).addClass("vl-unbare");
         if (bare && !Platform.isMobile) {
             // the top bar's side toggles, in the stage's top corners while it is hidden
-            this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
-            if (!this.v.show && !this.v.map) this.btn(mid, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-bareside", "is-r");
+            this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => this.flipRail()).addClass("vl-bareside");
+            this.panelBtn(mid).addClass("vl-bareside", "is-r");
         }
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
@@ -1171,7 +1171,7 @@ class Editor {
             setIcon(rt.createSpan(), "layers");
             rt.createSpan({ cls: "vl-pg", text: cur?.name ?? "No screens" });
             setIcon(rt.createSpan({ cls: "vl-chev" }), "chevron-down");
-            rt.addEventListener("click", () => { this.setView({ rail: !this.v.rail }); this.draw(); });
+            rt.addEventListener("click", () => this.flipRail());
         } else {
             // where you are: the app (a folder; a click switches), then the screen (none in the Map)
             if (this.store) this.drawAppBtn(l);
@@ -1207,14 +1207,12 @@ class Editor {
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         // the two sides' toggles as a pair at the right end, just before the window's own buttons: one place for both
-        // in every window and on every system (Show and the Map have no settings panel)
+        // in every window and on every system; both always there (Show and the Map have no settings panel: its toggle dimmed)
         if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
-            this.btn(r, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
+            this.btn(r, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => this.flipRail()).addClass("vl-side-toggle");
         }
-        if (!Platform.isMobile && !this.v.show && !this.v.map) {
-            this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
-        }
+        if (!Platform.isMobile) this.panelBtn(r).addClass("vl-side-toggle");
         this.winButtons(b, r);
         this.drawZoom();
     }
@@ -1427,6 +1425,14 @@ class Editor {
     }); this.draw(); }
     // a short tooltip, a line or two, centred; over the pill it opens above
     tip(el: HTMLElement, text: string) { setTooltip(el, text, { placement: "top", classes: ["vl-tip"] }); return el; }
+    // a side opened again comes back at its default width (a width dragged by hand lasts until the side is folded)
+    flipRail() { const open = !this.v.rail; if (open) { try { setLocal("vellum:railW", null); } catch { /* */ } } this.setView({ rail: open }); this.draw(); }
+    flipPanel() { const open = this.v.panel === false; if (open) { try { setLocal("vellum:panelW", null); } catch { /* */ } } this.setView({ panel: open }); this.draw(); }
+    // the settings panel's toggle: dimmed and not clickable in Show and the Map, which have no settings panel
+    panelBtn(parent: HTMLElement) {
+        const none = this.v.show || this.v.map, shut = none || this.v.panel === false;
+        return this.btn(parent, shut ? "vellum-side-right" : "sidebar-right", none ? "The settings: in Edit only" : `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => this.flipPanel(), none);
+    }
     btn(parent: HTMLElement, icon: string, label: string, act: () => void, off = false) {
         const x = parent.createEl("button", { cls: "vl-btn" + (off ? " is-off" : ""), attr: { "aria-label": label } });
         setIcon(x, icon);
@@ -3472,8 +3478,8 @@ class Editor {
         if (is("redo") || (mod && !e.shiftKey && !e.altKey && k === "y")) { this.redo(); return true; }
         if (is("duplicate")) { this.duplicate(); return true; }
         for (const m of ["edit", "show", "map"] as const) if (is(m)) { if ((m === "map") !== !!this.v.map || (m === "show") !== (!!this.v.show && !this.v.map)) this.setMode(m); return true; }
-        if (is("screens")) { this.setView({ rail: !this.v.rail }); this.draw(); return true; }
-        if (is("panel") && editing && !Platform.isMobile) { this.setView({ panel: this.v.panel === false }); this.draw(); return true; }
+        if (is("screens")) { this.flipRail(); return true; }
+        if (is("panel") && editing && !Platform.isMobile) { this.flipPanel(); return true; }
         if (is("notes") && editing) { this.toggleMarks(); return true; }
         if (is("note") && editing) { this.markTool(); return true; }
         // Measure: its key or Alt, held before the press, then a drag (the same: a crosshair, a measure wherever it starts);
