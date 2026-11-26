@@ -14,7 +14,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
 </p>
 
-<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the screens list with the device's corner, status bar and safe areas under it, the phone, and the chosen block's settings"></p>
+<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
 
 <p align="center">
   <a href="#-install">Install</a> ·
@@ -58,7 +58,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 <table>
   <tr>
-    <td width="50%" valign="top"><img src="assets/measure.gif" alt="Measure: M held and a drag over the Holdings list shows each item's size, the gaps between them and their padding to the block"></td>
+    <td width="50%" valign="top"><img src="assets/measure.gif" alt="Measure: M held and a drag over the buttons at the foot of Holdings shows each button's size, the gaps between them and the block's size"></td>
     <td valign="top">
 
 - <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **Real devices**: iPhone 12 – 17, Pixel 8, Galaxy S24 / S25, or any size (a window, a tablet, a panel), with cut-outs, safe areas, your own corner and status bar. Portrait and landscape.
@@ -75,7 +75,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 <table>
   <tr>
     <td width="50%" align="center"><img src="assets/overlay.png" alt="Three columns over the Holdings screen; the list's names start on column 1, its prices end on column 2, its values end on the right margin"><br><sub><b>Overlays</b>: the list's names, prices and values on three columns</sub></td>
-    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen as a preview, the way here above it and arrows to the next screen beside it"><br><sub><b>Show</b>: the screen as a preview, the way here above, the next screen beside</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show: the Holdings screen alone as a preview, arrows to the screens before and after it beside it"><br><sub><b>Show</b>: the screen alone, <kbd>←</kbd> <kbd>→</kbd> to the next; its name in the top bar shows the way here</sub></td>
   </tr>
 </table>
 
@@ -88,7 +88,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 
 ### See the whole app
 
-<p align="center"><img src="assets/map.png" alt="The map: every screen as a tree, joined by how you get there"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
+<p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens, two rows down, as a tree"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
 
 - <img src="assets/icons/map.svg" width="16" height="16" alt=""> **Map and Show**: the screens as a tree, or one at a time as a preview with <kbd>←</kbd> <kbd>→</kbd> to the next.
 - <img src="assets/icons/frames.svg" width="16" height="16" alt=""> **Frames**: screens share a layout and store only what they change.

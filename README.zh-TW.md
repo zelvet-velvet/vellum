@@ -14,7 +14,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT 授權"></a>
 </p>
 
-<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：畫面列表與其下方的裝置圓角、狀態列、安全區域設定，手機，以及所選區塊的設定"></p>
+<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
 
 <p align="center">
   <a href="#-安裝">安裝</a> ·
@@ -58,7 +58,7 @@
 
 <table>
   <tr>
-    <td width="50%" valign="top"><img src="assets/measure.gif" alt="測量：按住 M 並拖曳框選 Holdings 列表，顯示各項目的尺寸、相互間距與到區塊邊緣的內距"></td>
+    <td width="50%" valign="top"><img src="assets/measure.gif" alt="測量：按住 M 並拖曳框選 Holdings 底部的按鈕，顯示各按鈕的尺寸、相互間距與區塊尺寸"></td>
     <td valign="top">
 
 - <img src="assets/icons/devices.svg" width="16" height="16" alt=""> **真實機型**：iPhone 12 至 17、Pixel 8、Galaxy S24 / S25 與自訂尺寸（視窗、平板、面板），包含瀏海、安全區域，並可自訂圓角與狀態列。支援直向與橫向
@@ -75,7 +75,7 @@
 <table>
   <tr>
     <td width="50%" align="center"><img src="assets/overlay.png" alt="Holdings 畫面上疊著三欄格線；列表的名稱對齊第一欄，價格對齊第二欄右緣，金額對齊右側邊距"><br><sub><b>輔助線</b>：列表的名稱、價格與金額對齊三欄格線</sub></td>
-    <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：Holdings 畫面的預覽，上方是進入的路徑，兩側是切換畫面的箭頭"><br><sub><b>Show</b>：預覽畫面，上方是進入的路徑，兩側切換畫面</sub></td>
+    <td width="50%" align="center"><img src="assets/show.png" alt="Show 模式：單獨預覽 Holdings 畫面，兩側是切換前後畫面的箭頭"><br><sub><b>Show</b>：單獨預覽畫面，以 <kbd>←</kbd> <kbd>→</kbd> 切換；頂列的畫面名稱顯示進入的路徑</sub></td>
   </tr>
 </table>
 
@@ -88,7 +88,7 @@
 
 ### 檢視整個 app
 
-<p align="center"><img src="assets/map.png" alt="地圖：所有畫面以樹狀顯示，並標示各畫面的進入方式"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
+<p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面，往下兩層，以樹狀顯示"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>
 
 - <img src="assets/icons/map.svg" width="16" height="16" alt=""> **Map 與 Show**：以樹狀檢視所有畫面，或逐一預覽，以 <kbd>←</kbd> <kbd>→</kbd> 切換
 - <img src="assets/icons/frames.svg" width="16" height="16" alt=""> **共用版型**：多個畫面共用同一版型，各畫面僅儲存修改的部分
