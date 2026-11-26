@@ -1069,11 +1069,10 @@ class Editor {
         const toMap = m === "map" && !this.v.map;
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
-        if (toMap) this.setView({ mapFit: true });
+        if (toMap) this.setView({ mapFit: true });   // the Map opens in Full: the chosen screen's whole tree; Fit then shows its row
         this.draw();
-        if (toMap) this.mapToCurrent();
     }
-    // Fit in the Map (and the Map opened from Edit or Show): the chosen screen's row as tall as the window allows, its
+    // Fit in the Map: the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
     // the Fit button and its key: in the Map, the chosen screen's row (Fit) or its whole tree (Full), whichever the button
     // shows; in Edit and Show, the screen fitted to the window
@@ -2230,9 +2229,10 @@ class Editor {
             svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
             const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, TW).h }; };
             for (const { par, p, path, label } of links) {
-                // from under the parent's name, down, across, down to the sub page (its link label sits just above it)
+                // from under the parent's name (room for two lines), down, across, down to the sub page (its link label sits
+                // just above it)
                 const a = at(par), b = at(p);
-                const y0 = a.top + a.h + 26, midY = y0 + 8;
+                const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
                 path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
                 if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
             }
