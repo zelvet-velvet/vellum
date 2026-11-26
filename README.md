@@ -63,7 +63,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/overlays.svg" width="16" height="16" align="absmiddle" alt=""> **Overlays**: grids, columns, thirds, the golden ratio and spiral, vanishing points.
 - <img src="assets/icons/picture.svg" width="16" height="16" align="absmiddle" alt=""> **Pictures and icons**: images by address or vault path; Lucide icons by name.
 
-<p align="center"><img src="assets/measure.gif" width="560" alt="Measure: M held and a drag over the top half of Holdings shows every block's and item's size, the gaps between them and their padding"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
+<p align="center"><img src="assets/measure.gif" width="600" alt="Measure: M held and a drag over the top half of Holdings shows every block's and item's size, the gaps between them and their padding"><br><sub><b>Measure</b>: hold <kbd>M</kbd> and drag; every size, gap and padding in the area</sub></p>
 
 <table>
   <tr>
@@ -79,7 +79,7 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/review.svg" width="16" height="16" align="absmiddle" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
 - <img src="assets/icons/select.svg" width="16" height="16" align="absmiddle" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
 
-<p align="center"><img src="assets/review.gif" width="640" alt="Review: Holdings changed by the agent (a limit row with an edge bar and a coloured price); B held shows it as it was, then Keep"><br><sub><b>Review</b>: the agent's change waits; hold <kbd>B</kbd> to see the screen as it was, then <b>Keep</b> or <b>Undo</b></sub></p>
+<p align="center"><img src="assets/review.gif" width="640" alt="Review: Holdings changed by the agent for issue 18; B held shows it as it was (the whole 7566 row flat red), let go shows the change (a thin edge bar and a red price), then Keep"><br><sub><b>Review</b>: the agent turned a heavy red row into an edge bar; hold <kbd>B</kbd> to see the screen as it was, then <b>Keep</b> or <b>Undo</b></sub></p>
 
 ### See the whole app
 
