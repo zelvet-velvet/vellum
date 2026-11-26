@@ -1069,11 +1069,10 @@ class Editor {
         const toMap = m === "map" && !this.v.map;
         this.setView({ show: m === "show", map: m === "map" });
         if (m !== "edit") this.sel = null;
-        if (toMap) this.setView({ mapFit: true });
+        if (toMap) this.setView({ mapFit: true });   // the Map opens in Full: the chosen screen's whole tree; Fit then shows its row
         this.draw();
-        if (toMap) this.mapToCurrent();
     }
-    // Fit in the Map (and the Map opened from Edit or Show): the chosen screen's row as tall as the window allows, its
+    // Fit in the Map: the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
     // the Fit button and its key: in the Map, the chosen screen's row (Fit) or its whole tree (Full), whichever the button
     // shows; in Edit and Show, the screen fitted to the window
