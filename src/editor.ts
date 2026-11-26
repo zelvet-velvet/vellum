@@ -1134,12 +1134,15 @@ class Editor {
         this.drawZoom();
         this.mapCentre();
     }
-    // the chosen screen in the middle of the window, clear of the pill (as far as the map's edges let the scroll go)
+    // the chosen screen in the middle of the window, clear of the pill; the map gets half a window of room on every side,
+    // so a screen in the top row or at an edge comes to the middle too (Full takes it away)
     mapCentre() {
-        const w = this.wall, t = w?.querySelector<HTMLElement>(".vl-thumb.is-on"); if (!t) return;
-        const PILL = 64, LINK = 20, r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
+        const w = this.wall, t = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone"); if (!t) return;
+        const m = w.querySelector<HTMLElement>(".vl-map");
+        if (m) m.style.padding = `${Math.round(w.clientHeight / 2)}px ${Math.round(w.clientWidth / 2)}px`;
+        const PILL = 64, r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
         w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
-        w.scrollTop += r.top + (r.height - LINK) / 2 - (s.top + (s.height - PILL) / 2);
+        w.scrollTop += r.top + r.height / 2 - (s.top + (s.height - PILL) / 2);
     }
     // full screen: the editor alone on the monitor; Esc (with nothing chosen) or the button leaves, and the sides come back
     // as they were
@@ -1495,6 +1498,7 @@ class Editor {
             const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
             const { lay, size } = c;
             const full = this.v.mapFit !== false;
+            if (full) c.el.style.padding = "";   // Full: the tree in the window, no room round it (Fit adds it: mapCentre)
             if (full) {
                 // Full: the chosen screen's whole tree (every screen with no screen chosen) in the window, inside the
                 // map's padding and clear of the pill, up to 200 px a screen
@@ -2255,9 +2259,9 @@ class Editor {
             if (!lazy) this.fillThumb(th);
             thumbs.push(th);
         }
-        // REF: the screen width the map is laid out at; names, gaps and lines are scaled with it, the text up to a readable
-        // size (LABELMAX px for a name), then kept there
-        const REF = 48, LABELMAX = 14;
+        // REF: the screen width the map is laid out at; gaps and lines are scaled with it, the text keeps its own size at
+        // any zoom (scaled back by the zoom: a handful of labels, no layout)
+        const REF = 48;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             return { slotW, rowH, W: x * slotW, H: (depthMax + 1) * rowH - GAP + 4 };
@@ -2287,13 +2291,18 @@ class Editor {
             scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
         });
         const labels = Array.from(box.querySelectorAll<HTMLElement>(".vl-tname, .vl-maplink, .vl-ttags, .vl-thumb > .vl-ttag"));
+        // names wrap in their slot as it is on the monitor (they keep their size while the slot grows and shrinks)
+        const names = thumbs.map(({ t }, i) => ({ n: t.querySelector<HTMLElement>(".vl-tname"), w: dims(pages[i], REF).w }));
         let shown = "";
         const lay = (TW0: number) => {
-            const k = TW0 / REF, t = Math.min(1, LABELMAX / (11 * k));
+            const k = TW0 / REF, t = 1 / k;
             box.style.transform = `scale(${k})`;
             sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
-            const ts = t < 1 ? String(t) : "";
+            const ts = Math.abs(t - 1) < 1e-3 ? "" : String(t);
             if (ts !== shown) { shown = ts; for (const l of labels) l.style.scale = ts; }
+            const room = slotW * k - 6;   // in px on the monitor, which is what the text is
+            for (const { n, w } of names) if (n) { n.style.width = `${room}px`; n.style.marginLeft = `${(w - room) / 2}px`; }
+            for (const { label } of links) if (label) label.style.maxWidth = `${slotW * k}px`;
         };
         lay(TW);
         return { slots: x, rows: depthMax + 1, lay, size, thumbs };
