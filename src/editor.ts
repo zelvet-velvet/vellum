@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, Scope, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
@@ -909,6 +909,7 @@ class Editor {
         });
     }
     mount(container: HTMLElement) {
+        this.escOff?.(); this.escOff = null;
         this.root?.remove();
         const pop = container !== container.doc.body;
         if (pop) container.empty();   // a phone: the editor lies over Obsidian on the body, which must keep the app (emptied, a close left a blank screen)
@@ -921,13 +922,30 @@ class Editor {
         let inside = true;
         const onDown = (e: PointerEvent) => { if (!R.isConnected) return R.win.removeEventListener("pointerdown", onDown, true); inside = R.contains(e.target as Node); };
         R.win.addEventListener("pointerdown", onDown, true);
-        const onKey = (e: KeyboardEvent) => {
-            if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true);
+        const seen = new WeakSet<KeyboardEvent>();   // each key once: the window's listener and the scope below may both get it
+        const run = (e: KeyboardEvent) => {
+            if (seen.has(e)) return; seen.add(e);
             const a = R.doc.activeElement, lost = !a || a === R.doc.body;
             if (lost && inside) R.focus({ preventScroll: true });
             if (this.full() || (lost && inside) || (a && (R === a || R.contains(a)))) this.key(e);
         };
+        const onKey = (e: KeyboardEvent) => {
+            if (!R.isConnected) return R.win.removeEventListener("keydown", onKey, true);
+            run(e);
+        };
         R.win.addEventListener("keydown", onKey, true);
+        // Esc in a pop-out window: Obsidian's keymap takes it before any listener (and brings the main window to the front).
+        // A scope of the editor's, on top while its window has the focus, takes Esc first and gives it to the editor
+        if (R.win !== window && !Platform.isMobile) {
+            const app = this.plugin.app, scope = new Scope(app.scope);
+            scope.register([], "Escape", (e) => { if (R.isConnected) run(e); return false; });
+            let on = false;
+            const push = () => { if (!on && R.isConnected) { app.keymap.pushScope(scope); on = true; } };
+            const pop = () => { if (on) { app.keymap.popScope(scope); on = false; } };
+            this.escOff = () => { pop(); R.win.removeEventListener("focus", push); R.win.removeEventListener("blur", pop); };
+            R.win.addEventListener("focus", push); R.win.addEventListener("blur", pop);
+            if (R.doc.hasFocus()) push();
+        }
         // the Measure key is held until any key goes up or the window loses focus
         // while it is held, a small "M + drag" tag follows the pointer
         const unhold = () => { if (!R.isConnected) { R.win.removeEventListener("keyup", unhold, true); R.win.removeEventListener("blur", unhold); return; } if (this.measuring) { this.measuring = false; R.removeClass("is-measuring"); R.querySelectorAll(".vl-meas-hint").forEach((h) => h.remove()); } if (this.holdBefore) { this.holdBefore = false; this.drawPages(); } };
@@ -956,7 +974,8 @@ class Editor {
         this.draw();
         R.focus({ preventScroll: true });
     }
-    unmount() { this.end(); this.root?.remove(); this.root = null; this.panel = null; this.drawCard(); }
+    escOff: (() => void) | null = null;
+    unmount() { this.escOff?.(); this.escOff = null; this.end(); this.root?.remove(); this.root = null; this.panel = null; this.drawCard(); }
     // its own tab or window closes with it (an empty one would be left on a phone too); over the app, it only goes
     closeWs() { const w = windows.get(this.draftKey()); if (w && this.root && w.contentEl.contains(this.root)) w.leaf.detach(); else this.unmount(); }
     draw() {
