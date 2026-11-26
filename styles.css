@@ -140,8 +140,9 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl .vl-save.is-on { color: var(--text-normal); border-color: var(--text-faint); }
 /* the map of screens */
 .vl-map { overflow-x: auto; padding: 16px 12px; display: flex; }
-.vl-map > .vl-mapbox { margin: 0 auto; flex: none; }
-.vl-mapbox { position: relative; }
+.vl-map > .vl-mapsizer { margin: 0 auto; flex: none; }
+.vl-mapsizer { position: relative; }   /* as big as the map at this zoom: the stage scrolls over all of it */
+.vl-mapbox { position: absolute; left: 0; top: 0; transform-origin: 0 0; }   /* laid out once, scaled for the zoom */
 .vl-thumb .vl-tphone { content-visibility: auto; }   /* a screen off the window isn't painted (with many screens, the cost of a zoom) */
 .vl-tname { transform-origin: 50% 0; }   /* the Map zoomed as a picture: names, link labels and tags scaled back round where they hold on */
 .vl-maplink { transform-origin: 50% 100%; }
