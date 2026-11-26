@@ -1411,10 +1411,6 @@ class Editor {
     // at: the pointer (Ctrl+wheel): the spot under it stays under it. Its place in the map or the phone, as a fraction,
     // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
     zoomBy(f: number, at?: { x: number; y: number }) {
-        // the Map: while the steps come (a wheel sends many), the drawn Map is scaled as one picture (no layout: with 40
-        // screens a real layout took ~80 ms a step); laid out for real once they stop
-        const box = this.v.map && this.mapLay ? this.wall?.querySelector<HTMLElement>(".vl-mapbox") : null;
-        if (box) { this.mapZoomSoon(box, f, at); return; }
         const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
         // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
         const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
@@ -1423,7 +1419,7 @@ class Editor {
         else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
         // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
         // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
-        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.mapW()); this.drawZoom(); this.remeasure(false); }
+        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.mapW(), true); this.drawZoom(); this.mapSettle(); }
         else this.drawPages();
         const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
@@ -1431,37 +1427,14 @@ class Editor {
         this.wall.scrollLeft += r1.left + u * r1.width - at.x;
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
-    mapLay: ((zoom: number) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom
-    // a burst of Map zoom steps: the thumbnail width it was laid out at, and the spot kept under the pointer
-    private mapZoom: { box: HTMLElement; laid: number; at?: { x: number; y: number }; under: HTMLElement | null; t: number } | null = null;
-    private mapZoomSoon(box: HTMLElement, f: number, at?: { x: number; y: number }) {
-        const win = box.win;
-        let z = this.mapZoom;
-        if (!z || z.box !== box) {
-            // the first step: where the pointer is in the Map, read once (the layout is clean)
-            const under = at ? (box.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
-            const r = box.getBoundingClientRect(), o = at ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-            box.style.transformOrigin = `${o.x - r.left}px ${o.y - r.top}px`;
-            z = this.mapZoom = { box, laid: this.mapW(), at, under, t: 0 };
-        }
-        this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
-        box.style.transform = `scale(${this.mapW() / z.laid})`;
-        this.drawZoom();
-        win.clearTimeout(z.t);
-        z.t = win.setTimeout(() => this.mapZoomDone(), 160);
-    }
-    // the steps stopped: laid out for real at the new zoom, the spot under the pointer kept where it was
-    private mapZoomDone() {
-        const z = this.mapZoom; this.mapZoom = null;
-        if (!z || !z.box.isConnected || !this.mapLay) return;   // redrawn since (another mode, a new Map): drawn at the new zoom already
-        const r0 = (z.under?.isConnected ? z.under : z.box).getBoundingClientRect();
-        z.box.style.transform = ""; z.box.style.transformOrigin = "";
-        this.mapLay(this.mapW()); this.remeasure(false);
-        const r1 = (z.under?.isConnected ? z.under : z.box).getBoundingClientRect();
-        if (!z.at || !r0.width || !r0.height) return;
-        const u = (z.at.x - r0.left) / r0.width, v = (z.at.y - r0.top) / r0.height;
-        this.wall.scrollLeft += r1.left + u * r1.width - z.at.x;
-        this.wall.scrollTop += r1.top + v * r1.height - z.at.y;
+    mapLay: ((zoom: number, live?: boolean) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom (live: a zoom step)
+    // after the last zoom step: the outline width the thumbnails' screens pass down (--vl-iz) is set (a step leaves it:
+    // every element of every thumbnail takes it, ~150 ms with 40 screens), and what is measured follows
+    private mapSettleT = 0;
+    private mapSettle() {
+        const win = this.wall.win;
+        win.clearTimeout(this.mapSettleT);
+        this.mapSettleT = win.setTimeout(() => { if (this.v.map && this.mapLay) { this.mapLay(this.mapW()); this.remeasure(false); } }, 200);
     }
     // the middle button held: the stage scrolls with the pointer
     pan(e: PointerEvent) {
@@ -2209,7 +2182,7 @@ class Editor {
     // TW: a screen's width in the map; pick: what a click does (the card: open the editor there); returns the slots across
     // the tree is built once; lay(TW) sizes and places it for a thumbnail width (the wheel zoom calls it again)
     // lazy: the thumbnails are left empty, for fillMap to draw a few at a time (the stage's Map); otherwise all at once
-    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), lazy = false): { slots: number; rows: number; lay: (TW: number) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } {
+    drawMap(m: HTMLElement, TW = 76, pick: (p: Page) => void = (p) => this.openWs(p.id), lazy = false): { slots: number; rows: number; lay: (TW: number, live?: boolean) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } {
         m.empty();
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, size: () => ({ x: 0, w: 0, h: 0 }), thumbs: [] }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
@@ -2285,7 +2258,7 @@ class Editor {
             if (!t) return { x: 0, w: n.W * k, h: n.H * k };
             return { x: t.x0 * n.slotW * k, w: t.n * n.slotW * k, h: (t.rows * n.rowH - GAP + 4) * k };
         };
-        const lay = (TW0: number) => {
+        const lay = (TW0: number, live = false) => {
             const TW = Math.max(TW0, FLOOR), { slotW, rowH, W, H } = natural(TW), k = TW0 / TW;
             box.style.zoom = k < 1 ? String(k) : "";
             box.style.width = `${W}px`; box.style.height = `${H}px`;
@@ -2303,7 +2276,7 @@ class Editor {
                 const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
                 t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
                 ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
-                scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
+                scr.style.transform = `scale(${d.k})`; if (!live) scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size (set once the zoom stops)
             });
         };
         lay(TW);
@@ -2323,7 +2296,7 @@ class Editor {
     }
     // the stage's Map, kept while the screens' tree, the device, the orientation and the colours stay the same: built
     // ahead in Edit and Show, so pressing Map only shows it. A thumbnail whose screen changed is drawn again (fillMap)
-    mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } | null = null;
+    mapCache: { el: HTMLElement; skey: string; theme: Theme; slots: number; rows: number; lay: (TW: number, live?: boolean) => void; size: (TW: number, id?: string) => { x: number; w: number; h: number }; thumbs: Thumb[] } | null = null;
     mapRun = 0; mapAhead = 0;
     mapPick = (p: Page) => { this.setView({ page: p.id }); this.setMode("edit"); };
     // an arrow in the Map: ← / → the screen beside it in its row (across branches), ↑ the one it opens from, ↓ the first
