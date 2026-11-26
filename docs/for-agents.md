@@ -5,7 +5,18 @@ vault; they edit them on a phone frame in Obsidian, you read and write the same 
 the [Field reference](../README.md#-file-format).
 
 ## The workflow
-Design and code meet in the same files. One round goes like this:
+Design and code meet in the same files, and changes go both ways. Each way leaves a copy of the screen as it was, so
+Vellum can show what changed and nothing is lost:
+
+| | Your change to a screen | The user's edit to a screen |
+| :--- | :--- | :--- |
+| **Who** | You write the screen's file | The user changes it in Vellum and saves |
+| **The copy** | You copy the screen to `_before/` first (section 3) | Vellum copies it to `_edited/` by itself |
+| **Vellum shows** | **Changed**, "N changes to review" | **Edited**, "N edits to build" |
+| **Then** | The user keeps it (the copy goes) or undoes it (the copy comes back) | You build it in the code and delete the copy (section 8) |
+
+So "change the screen" is your change, reviewed by the user; "build my edits" is theirs, built by you. One round goes
+like this:
 
 1. **Frame first.** Find or make the app's folder (section 1), set its device and colours in `_doc.json` (section 2).
 2. **Draft the screens.** One JSON file per screen, one item per part (section 5), each block named. Link them with
@@ -17,9 +28,9 @@ Design and code meet in the same files. One round goes like this:
    mark points at. Options are mock sub screens (section 3); a change to a real screen waits for review (`_before/`,
    section 3). Answer marks with marks of your own (section 6).
 5. **The user keeps or undoes** each change in the Map, keeps one option, and you delete the other options.
-6. **Build from the screens** (section 8) once the user says a screen is ready. When they ask you to build their
-   edits, the screens they changed since the last build each have a copy in `_edited/` (section 8, Edits to build). Ask before building a screen that
-   still has open marks, mock options, or a change waiting for review (its copy in `_before/`).
+6. **Build from the screens** (section 8) once the user says a screen is ready, or when they ask you to build their
+   edits: every screen they changed since the last build has a copy in `_edited/` (section 8, Edits to build). Ask
+   before building a screen that still has open marks, mock options, or a change waiting for review (`_before/`).
 7. **Keep them in step.** When the built app changes, change its screens too, so the next round starts from what is
    real.
 
@@ -250,6 +261,8 @@ ask you to change that one thing. They can only do that to a part that is **its 
 - **`parent` and `link` are navigation**: a child screen opens from its parent, the `link` says how (a tap on a row,
   a tab).
 - `mock` screens, drafts (blocks outside the screen), marks, `_before/` and `_edited/` copies are never built.
+- When the code can't do something a screen shows, or needs a choice the screen leaves open, leave a `blue` or
+  `orange` mark on the screen saying so, rather than guessing.
 
 ### Edits to build: what the user changed since the last build
 When the user saves a change to a screen in Vellum, Vellum copies the screen as it was into `_edited/<its file name>`
@@ -266,8 +279,6 @@ the user's edits (or "read my Vellum edits"):
 - Once a screen is built, delete its copy (only that file). Vellum clears the mark. Leave a copy you didn't build, and
   say why.
 - Never edit a copy, and never treat one as a screen. Your own changes to screens still go through `_before/`.
-- When the code can't do something a screen shows, or needs a choice the screen leaves open, leave a `blue` or
-  `orange` mark on the screen saying so, rather than guessing.
 
 ## 9. Before you finish
 Check each screen you wrote:

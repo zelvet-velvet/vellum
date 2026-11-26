@@ -121,15 +121,19 @@ Want sample screens? Copy [`examples/Vellum Demo.md`](examples/Vellum%20Demo.md)
 
 Vellum is built for working with a coding agent: you and the agent edit the same files. Any agent that reads and writes files works (Claude Code, Codex, Cursor); no plugin API, no server.
 
-<table>
-  <tr>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/robot.svg" width="32" height="32" alt=""><br><b>1 · Draft</b><br><sub>The agent writes the screens, one file each, linked into a flow</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/copy.svg" width="32" height="32" alt=""><br><b>2 · Point</b><br><sub>You choose a block, <b>Copy reference</b>, say what to change</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/marks.svg" width="32" height="32" alt=""><br><b>3 · Mark</b><br><sub>Or pin a note on the screen; the agent answers with its own</sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/review.svg" width="32" height="32" alt=""><br><b>4 · Review</b><br><sub>Its change shows <b>Changed</b>: hold <kbd>B</kbd>, then <b>Keep</b> or <b>Undo</b></sub></td>
-    <td width="20%" align="center" valign="top"><img src="assets/icons/braces.svg" width="32" height="32" alt=""><br><b>5 · Build</b><br><sub>It builds from the screens you kept, and your own edits: <b>N edits to build</b></sub></td>
-  </tr>
-</table>
+Changes go both ways, and each way waits for the other side:
+
+```mermaid
+flowchart LR
+    D["Agent drafts the screens"] --> V["You, in Vellum"]
+    V -- "Copy reference or a mark:<br>what to change" --> C["Agent changes a screen"]
+    C -- "Changed: hold B,<br>then Keep or Undo" --> V
+    V -- "you edit and save:<br>Edited" --> B["Agent builds the app"]
+    B -- "deletes the _edited copy" --> V
+```
+
+- **The agent changes, you review.** Choose a block, **Copy reference**, say what to change (or pin a note on the screen). The screen it changes shows **Changed**: hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
+- **You edit, the agent builds.** Move and restyle screens by hand and save: they show **Edited**. Click **N edits to build** to copy what changed, paste it to the agent and say "build it".
 
 <p align="center"><img src="assets/agent.png" alt="1: Copy reference on the Dock block, its hint showing. 2: the reference pasted into Claude Code with what to change, a one-line reply, the next request typed. 3: the Dock on the phone, its search button now solid ink"><br><sub><b>1</b> Copy reference on a block, <b>2</b> paste it to the agent with what to change, <b>3</b> the block on the phone changes with its file.</sub></p>
 
