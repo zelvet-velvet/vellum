@@ -30,7 +30,7 @@
 .vl-pname { font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 6px; }
 .vl-page.is-sel .vl-pname { color: var(--text-normal); font-weight: 600; }
 :root, .vl { --vl-mock-ink: var(--vlu-mock, var(--color-orange, #ec7500)); --vl-changed-ink: var(--vlu-changed, var(--color-yellow, #e0ac00)); --vl-edited-ink: var(--vlu-edited, var(--color-green, #08b94e)); }   /* a state's colour as text */
-.vl.is-light { --vl-mock-ink: color-mix(in srgb, var(--vlu-mock, var(--color-orange, #ec7500)) 70%, #000); --vl-changed-ink: color-mix(in srgb, var(--vlu-changed, var(--color-yellow, #e0ac00)) 58%, #000); --vl-edited-ink: color-mix(in srgb, var(--vlu-edited, var(--color-green, #08b94e)) 68%, #000); }   /* on light panels: darker, to read */
+.vl.is-light { --vl-mock-ink: oklch(from var(--vlu-mock, var(--color-orange, #ec7500)) calc(l * 0.7) c h); --vl-changed-ink: oklch(from var(--vlu-changed, var(--color-yellow, #e0ac00)) calc(l * 0.68) c calc(h - 12)); --vl-edited-ink: oklch(from var(--vlu-edited, var(--color-green, #08b94e)) calc(l * 0.7) c h); }   /* on light panels: darker by lightness only, the colour kept clean (a mix with black turns it muddy); yellow leans to amber */
 .vl-page.is-mock .vl-pname { color: var(--vl-mock-ink); font-style: italic; }
 .vl-phone { position: relative; box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 12px 30px rgba(0, 0, 0, 0.35); background: var(--vl-paper); }
 .vl-page.is-mock .vl-phone { outline: 2px dashed var(--vlu-mock, var(--color-orange, #ec7500)); outline-offset: 7px; }   /* a mock (a proposal): dashed (not real yet), in the Mock screens colour */
