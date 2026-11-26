@@ -1029,7 +1029,13 @@ class Editor {
         this.rail.addEventListener("click", (e) => { if (e.target === this.rail) { this.setView({ rail: false }); this.draw(); } });   // phone: a tap on the dim closes the list
         const mid = body.createDiv({ cls: "vl-mid" });
         this.wall = mid.createDiv({ cls: "vl-stage" });
-        this.wall.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); this.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, { x: e.clientX, y: e.clientY }); }, { passive: false });
+        // Ctrl+wheel: the steps of one frame as one zoom (a wheel or a touchpad sends several a frame), drawn once a frame
+        let wf = 1, wat = { x: 0, y: 0 }, wraf = 0;
+        this.wall.addEventListener("wheel", (e) => {
+            if (!e.ctrlKey && !e.metaKey) return; e.preventDefault();
+            wf *= e.deltaY < 0 ? 1.1 : 1 / 1.1; wat = { x: e.clientX, y: e.clientY };
+            if (!wraf) wraf = this.wall.win.requestAnimationFrame(() => { wraf = 0; const f = wf; wf = 1; this.zoomBy(f, wat); });
+        }, { passive: false });
         // a click anywhere lets a measure go; the Measure key held (or Alt: beside the screen, or anywhere in Show and the
         // Map) and a drag measures, in every mode (before anything else hears the press: no choosing, panning or opening).
         // Begun beside the screen in Edit or Show, it measures the screen shown
@@ -1128,12 +1134,15 @@ class Editor {
         this.drawZoom();
         this.mapCentre();
     }
-    // the chosen screen in the middle of the window, clear of the pill (as far as the map's edges let the scroll go)
+    // the chosen screen in the middle of the window, clear of the pill; the map gets half a window of room on every side,
+    // so a screen in the top row or at an edge comes to the middle too (Full takes it away)
     mapCentre() {
-        const w = this.wall, t = w?.querySelector<HTMLElement>(".vl-thumb.is-on"); if (!t) return;
-        const PILL = 64, LINK = 20, r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
+        const w = this.wall, t = w?.querySelector<HTMLElement>(".vl-thumb.is-on .vl-tphone"); if (!t) return;
+        const m = w.querySelector<HTMLElement>(".vl-map");
+        if (m) m.style.padding = `${Math.round(w.clientHeight / 2)}px ${Math.round(w.clientWidth / 2)}px`;
+        const PILL = 64, r = t.getBoundingClientRect(), s = w.getBoundingClientRect();
         w.scrollLeft += r.left + r.width / 2 - (s.left + s.width / 2);
-        w.scrollTop += r.top + (r.height - LINK) / 2 - (s.top + (s.height - PILL) / 2);
+        w.scrollTop += r.top + r.height / 2 - (s.top + (s.height - PILL) / 2);
     }
     // full screen: the editor alone on the monitor; Esc (with nothing chosen) or the button leaves, and the sides come back
     // as they were
@@ -1411,23 +1420,32 @@ class Editor {
     // at: the pointer (Ctrl+wheel): the spot under it stays under it. Its place in the map or the phone, as a fraction,
     // before the zoom; after the redraw the stage scrolls that place back under the pointer (content that fits stays centred)
     zoomBy(f: number, at?: { x: number; y: number }) {
-        const sel = this.v.map ? ".vl-mapbox" : ".vl-phone";
-        // in the Map the screen under the pointer is the spot kept (gaps and names don't scale, so the whole tree would drift)
-        const under = this.v.map && at && this.wall ? (this.wall.doc.elementFromPoint(at.x, at.y) as HTMLElement | null)?.closest<HTMLElement>(".vl-thumb") ?? null : null;
-        const r0 = at ? (under ?? this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
-        if (this.v.map) this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
-        else this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
-        // the Map: the thumbnails drawn last are moved and sized for the new zoom (redrawing every screen's blocks took
-        // ~150 ms a step with 40 screens); names, gaps and lines keep their size, as in a full redraw
-        if (this.v.map && this.mapLay && this.wall?.querySelector(".vl-mapbox")) { this.mapLay(this.mapW()); this.drawZoom(); this.remeasure(false); }
-        else this.drawPages();
-        const r1 = r0 ? (under?.isConnected ? under : this.wall?.querySelector<HTMLElement>(sel))?.getBoundingClientRect() : undefined;
+        // the Map only scales (it is laid out once): the spot under the pointer, as a fraction of the map, stays under it
+        const sz = this.v.map && this.mapLay ? this.wall?.querySelector<HTMLElement>(".vl-mapsizer") : null;
+        if (sz && this.mapLay) {
+            const r0 = sz.getBoundingClientRect(), w = this.wall.getBoundingClientRect(), o = at ?? { x: w.left + w.width / 2, y: w.top + w.height / 2 };
+            const u = (o.x - r0.left) / (r0.width || 1), v = (o.y - r0.top) / (r0.height || 1);
+            this.setView({ mapFit: false, mapTW: this.mapClamp(this.mapW() * f) });
+            this.mapLay(this.mapW()); this.drawZoom();
+            const r1 = sz.getBoundingClientRect();
+            this.wall.scrollLeft += r1.left + u * r1.width - o.x;
+            this.wall.scrollTop += r1.top + v * r1.height - o.y;
+            this.remeasureSoon();
+            return;
+        }
+        const r0 = at ? this.wall?.querySelector<HTMLElement>(".vl-phone")?.getBoundingClientRect() : undefined;
+        this.setView({ fit: false, zoom: Math.min(ZOOMMAX, Math.max(0.1, Math.round(this.v.zoom * f * 100) / 100)) });
+        this.drawPages();
+        const r1 = r0 ? this.wall?.querySelector<HTMLElement>(".vl-phone")?.getBoundingClientRect() : undefined;
         if (!at || !r0 || !r1 || !r0.width || !r0.height) return;
         const u = (at.x - r0.left) / r0.width, v = (at.y - r0.top) / r0.height;
         this.wall.scrollLeft += r1.left + u * r1.width - at.x;
         this.wall.scrollTop += r1.top + v * r1.height - at.y;
     }
     mapLay: ((zoom: number) => void) | null = null;   // lays the Map's drawn thumbnails out at another zoom
+    // what is measured follows the zoom once the steps stop
+    private remeasureT = 0;
+    private remeasureSoon() { const win = this.wall.win; win.clearTimeout(this.remeasureT); this.remeasureT = win.setTimeout(() => this.remeasure(false), 150); }
     // the middle button held: the stage scrolls with the pointer
     pan(e: PointerEvent) {
         const w = this.wall, x0 = e.clientX, y0 = e.clientY, l0 = w.scrollLeft, t0 = w.scrollTop;
@@ -1480,6 +1498,7 @@ class Editor {
             const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
             const { lay, size } = c;
             const full = this.v.mapFit !== false;
+            if (full) c.el.style.padding = "";   // Full: the tree in the window, no room round it (Fit adds it: mapCentre)
             if (full) {
                 // Full: the chosen screen's whole tree (every screen with no screen chosen) in the window, inside the
                 // map's padding and clear of the pill, up to 200 px a screen
@@ -2178,7 +2197,7 @@ class Editor {
         m.empty();
         if (!this.doc.pages.length) { m.createDiv({ cls: "vl-empty", text: "No screens yet: open the editor to add one." }); return { slots: 0, rows: 0, lay: () => {}, size: () => ({ x: 0, w: 0, h: 0 }), thumbs: [] }; }
         const pages = this.doc.pages, cur = this.root?.isConnected ? this.current() : undefined;
-        const GAP = 40, LABEL = 46;
+        const GAP = 80, LABEL = 46;   // at REF (below): a gap as wide as half a screen
         const devs = new Map(pages.map((p) => { const d = framed(deviceOf(p.device ?? this.doc.device), this.doc.radius); return [p.id, { d, sc: screenOf(d, this.land) }]; }));
         const dims = (p: Page, TW: number) => { const { d, sc } = devs.get(p.id)!, k = TW / Math.max(sc.W, d.w); return { k, w: sc.W * k, h: sc.H * k, d, sc }; };
         // a tidy tree: each leaf a slot, a parent centred over its children
@@ -2205,7 +2224,9 @@ class Editor {
         };
         for (const r of childrenOf(pages)) tree(r);
         for (const p of pages) if (!pos.has(p.id)) tree(p);   // anything left (a loop) as a main page
-        const box = m.createDiv({ cls: "vl-mapbox" });
+        // the map is laid out once, at REF px a screen, and any zoom is that scaled (a transform: no layout, at any number of
+        // screens); the sizer round it takes the scaled size, so the stage scrolls over all of it
+        const sizer = m.createDiv({ cls: "vl-mapsizer" }), box = sizer.createDiv({ cls: "vl-mapbox" });
         const NS = "http://www.w3.org/2000/svg";
         const svg = m.doc.createElementNS(NS, "svg"); svg.setAttribute("class", "vl-maplines");
         box.appendChild(svg);
@@ -2238,38 +2259,42 @@ class Editor {
             if (!lazy) this.fillThumb(th);
             thumbs.push(th);
         }
-        // below FLOOR px a screen the whole map shrinks as a picture (gaps, names and lines too), so any tree fits a window
-        const FLOOR = 48;
+        // REF: the screen width the map is laid out at; any zoom is that scaled, names, tags and link labels with their
+        // screens (a name is 11 px at REF). Too small to read, they hide (the frames still say what changed)
+        const REF = 144, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
             return { slotW, rowH, W: x * slotW, H: (depthMax + 1) * rowH - GAP + 4 };
         };
         // the map's size at a screen width; with an id, that screen's tree only (x: where it starts in the map)
         const size = (TW0: number, id?: string) => {
-            const k = Math.min(1, TW0 / FLOOR), n = natural(Math.max(TW0, FLOOR)), t = id ? trees.find((r) => r.ids.has(id)) : undefined;
+            const k = TW0 / REF, n = natural(REF), t = id ? trees.find((r) => r.ids.has(id)) : undefined;
             if (!t) return { x: 0, w: n.W * k, h: n.H * k };
             return { x: t.x0 * n.slotW * k, w: t.n * n.slotW * k, h: (t.rows * n.rowH - GAP + 4) * k };
         };
+        const { slotW, rowH, W, H } = natural(REF);
+        box.style.width = `${W}px`; box.style.height = `${H}px`;
+        svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
+        const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, REF).h }; };
+        for (const { par, p, path, label } of links) {
+            // from under the parent's name (room for two lines), down, across, down to the sub page (its link label sits
+            // just above it)
+            const a = at(par), b = at(p);
+            const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
+            path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
+            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
+        }
+        thumbs.forEach(({ t, ph, scr }, i) => {
+            const p = pages[i], q = pos.get(p.id)!, d = dims(p, REF);
+            t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
+            ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
+            scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
+        });
         const lay = (TW0: number) => {
-            const TW = Math.max(TW0, FLOOR), { slotW, rowH, W, H } = natural(TW), k = TW0 / TW;
-            box.style.zoom = k < 1 ? String(k) : "";
-            box.style.width = `${W}px`; box.style.height = `${H}px`;
-            svg.setAttribute("width", String(W)); svg.setAttribute("height", String(H));
-            const at = (p: Page) => { const q = pos.get(p.id)!; return { cx: q.x * slotW + slotW / 2, top: q.y * rowH, h: dims(p, TW).h }; };
-            for (const { par, p, path, label } of links) {
-                // from under the parent's name (room for two lines), down, across, down to the sub page (its link label sits
-                // just above it)
-                const a = at(par), b = at(p);
-                const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
-                path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
-                if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
-            }
-            thumbs.forEach(({ t, ph, scr }, i) => {
-                const p = pages[i], q = pos.get(p.id)!, d = dims(p, TW);
-                t.style.left = `${q.x * slotW + (slotW - d.w) / 2}px`; t.style.top = `${q.y * rowH}px`; t.style.width = `${d.w}px`;
-                ph.style.height = `${d.h}px`; ph.style.borderRadius = `${d.d.radius * d.k}px`;
-                scr.style.transform = `scale(${d.k})`; scr.style.setProperty("--vl-iz", String(1 / d.k));   // outlines keep their size
-            });
+            const k = TW0 / REF;
+            box.style.transform = `scale(${k})`;
+            sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
+            box.toggleClass("is-tiny", 11 * k < TINY);
         };
         lay(TW);
         return { slots: x, rows: depthMax + 1, lay, size, thumbs };
