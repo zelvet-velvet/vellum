@@ -153,7 +153,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-ttag { padding: 0 0.45em; border-radius: 4px; font: 600 calc(var(--vl-ls, 11) * 1px)/1.5 var(--font-interface); white-space: nowrap; color: #fff; background: var(--vlu-mock, var(--color-orange, #ec7500)); pointer-events: none; }   /* Label size */
 .vl-ttag.is-changed { background: var(--vlu-changed, var(--color-yellow, #e0ac00)); color: #111; }
 .vl-ttag.is-edited { background: var(--vlu-edited, var(--color-green, #08b94e)); color: #111; }
-.vl-ttags { position: absolute; top: 0; right: 0; z-index: 1; display: flex; gap: 3px; transform: translateY(calc(-100% - 3px)); pointer-events: none; }   /* Changed, Edited, Mock: one line just above the screen's top right, past the rounded corner (right: set by the Map) */
+.vl-ttags { position: absolute; top: 0; right: 0; z-index: 1; display: flex; gap: 3px; transform: translateY(calc(-100% - 3px)); transform-origin: 100% -3px; pointer-events: none; }   /* Changed, Edited, Mock: one line just above the screen's top right, past the rounded corner (right: set by the Map) */
 .vl-ttags > .vl-ttag { position: static; transform: none; }
 .vl-thumb.is-changed:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)); }
 .vl-thumb.is-edited:not(.is-on):not(:hover) .vl-tphone { box-shadow: 0 0 0 2px var(--vlu-edited, var(--color-green, #08b94e)); }   /* edited by the user, waiting for the agent */
