@@ -79,6 +79,8 @@
 - <img src="assets/icons/review.svg" width="16" height="16" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
 - <img src="assets/icons/select.svg" width="16" height="16" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
 
+<p align="center"><img src="assets/review.gif" width="640" alt="確認修改：agent 修改了 Holdings（漲跌停列加上邊條與價格顏色）；按住 B 檢視修改前，再按 Keep"><br><sub><b>確認修改</b>：agent 的修改需經確認；按住 <kbd>B</kbd> 檢視修改前，再選 <b>Keep</b> 或 <b>Undo</b></sub></p>
+
 ### 檢視整個 app
 
 <p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面，往下兩層，以樹狀顯示"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式，點選即開啟</sub></p>

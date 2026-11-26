@@ -79,6 +79,8 @@ Colours, fonts and icons come from your Obsidian theme, so a plugin's mockup alr
 - <img src="assets/icons/review.svg" width="16" height="16" alt=""> **Review its changes**: a screen the agent changed shows **Changed**; hold <kbd>B</kbd> to see it as it was, then **Keep** or **Undo**.
 - <img src="assets/icons/select.svg" width="16" height="16" alt=""> **Mocks**: ask for two or three options as sub screens, keep the one you like.
 
+<p align="center"><img src="assets/review.gif" width="640" alt="Review: Holdings changed by the agent (a limit row with an edge bar and a coloured price); B held shows it as it was, then Keep"><br><sub><b>Review</b>: the agent's change waits; hold <kbd>B</kbd> to see the screen as it was, then <b>Keep</b> or <b>Undo</b></sub></p>
+
 ### See the whole app
 
 <p align="center"><img src="assets/map.png" alt="The map: the Invest screen and the screens it opens, two rows down, as a tree"><br><sub><b>Map</b>: every screen as a tree, joined by how you get there; a click opens one</sub></p>
