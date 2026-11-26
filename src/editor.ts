@@ -238,6 +238,17 @@ const raise = (win: Window) => {
     try { if (ew?.isMinimized?.()) ew.restore?.(); ew?.show?.(); ew?.moveTop?.(); ew?.focus?.(); } catch { /* not Electron */ }
     win.focus();
 };
+// a window onto the screen another is on (when it is on a different one): centred over that other window, inside its screen
+const toScreenOf = (win: Window, on: Window) => {
+    const a = win.screen as Screen & { availLeft?: number; availTop?: number }, b = on.screen as Screen & { availLeft?: number; availTop?: number };
+    if (a.availLeft === b.availLeft && a.availTop === b.availTop) return;
+    const ew = (win as Window & { electronWindow?: { getBounds?(): { width: number; height: number }; setPosition?(x: number, y: number): void } }).electronWindow;
+    const sz = ew?.getBounds?.() ?? { width: win.outerWidth, height: win.outerHeight };
+    const sl = b.availLeft ?? 0, st = b.availTop ?? 0;
+    const x = Math.round(Math.min(Math.max(on.screenX + (on.outerWidth - sz.width) / 2, sl), sl + b.availWidth - sz.width));
+    const y = Math.round(Math.min(Math.max(on.screenY + (on.outerHeight - sz.height) / 2, st), st + b.availHeight - sz.height));
+    try { if (ew?.setPosition) ew.setPosition(x, y); else win.moveTo(x, y); } catch { /* not Electron */ }
+};
 class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
     wall!: HTMLElement; panel: HTMLElement | null = null; theme!: Theme; kinds: Kind[];
@@ -1117,11 +1128,13 @@ class Editor {
         }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
             // Obsidian's settings on Vellum's tab, above the editor: its own window (newer Obsidian) or the main one, brought to
-            // the front once it is open (and again a moment later: a new window may take the focus back as it appears)
+            // the front once it is open (and again a moment later: a new window may take the focus back as it appears).
+            // Its own window on another screen than the editor's is moved to the middle of the editor's window.
             const set = (this.plugin.app as unknown as { setting?: { open(): void; openTabById(id: string): void; win?: Window } }).setting;
             if (!set) return;
             set.open(); set.openTabById(this.plugin.manifest.id);
-            const up = () => raise(set.win ?? window);
+            const mine = r.win;
+            const up = () => { if (set.win && set.win !== window && set.win !== mine) toScreenOf(set.win, mine); raise(set.win ?? window); };
             up(); for (const ms of [120, 400]) window.setTimeout(up, ms);
         });
         const cb = this.btn(r, "palette", this.themeName() ? `This app's colours and themes (${this.pickedTheme() === "auto" ? "Auto · " : ""}${this.themeName()})` : "This app's colours and themes", () => this.openLooks(!this.lookOpen));
