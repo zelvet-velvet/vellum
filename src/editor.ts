@@ -1053,7 +1053,7 @@ class Editor {
         if (bare && !Platform.isMobile) {
             // the top bar's side toggles, in the stage's top corners while it is hidden
             this.btn(mid, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-bareside");
-            if (!this.v.show && !this.v.map) this.btn(mid, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-bareside", "is-r");
+            this.panelBtn(mid).addClass("vl-bareside", "is-r");
         }
         this.side = Platform.isMobile ? R : body;
         this.drawPanel(); this.drawPages();
@@ -1207,14 +1207,12 @@ class Editor {
         setIcon(sv.createSpan(), this.dirty ? "save" : "check"); sv.appendText(this.dirty ? "Save" : "Saved");
         sv.addEventListener("click", () => { if (this.dirty) this.save(); });
         // the two sides' toggles as a pair at the right end, just before the window's own buttons: one place for both
-        // in every window and on every system (Show and the Map have no settings panel)
+        // in every window and on every system; both always there (Show and the Map have no settings panel: its toggle dimmed)
         if (!Platform.isMobile) {
             r.createSpan({ cls: "vl-zsep" });
             this.btn(r, this.v.rail ? "sidebar-left" : "vellum-side-left", `${this.v.rail ? "Collapse" : "Expand"} the screens (${keyText(keyOf("screens"))})`, () => { this.setView({ rail: !this.v.rail }); this.draw(); }).addClass("vl-side-toggle");
         }
-        if (!Platform.isMobile && !this.v.show && !this.v.map) {
-            this.btn(r, this.v.panel === false ? "vellum-side-right" : "sidebar-right", `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }).addClass("vl-side-toggle");
-        }
+        if (!Platform.isMobile) this.panelBtn(r).addClass("vl-side-toggle");
         this.winButtons(b, r);
         this.drawZoom();
     }
@@ -1427,6 +1425,11 @@ class Editor {
     }); this.draw(); }
     // a short tooltip, a line or two, centred; over the pill it opens above
     tip(el: HTMLElement, text: string) { setTooltip(el, text, { placement: "top", classes: ["vl-tip"] }); return el; }
+    // the settings panel's toggle: dimmed and not clickable in Show and the Map, which have no settings panel
+    panelBtn(parent: HTMLElement) {
+        const none = this.v.show || this.v.map, shut = none || this.v.panel === false;
+        return this.btn(parent, shut ? "vellum-side-right" : "sidebar-right", none ? "The settings: in Edit only" : `${this.v.panel === false ? "Expand" : "Collapse"} the settings (${keyText(keyOf("panel"))})`, () => { this.setView({ panel: this.v.panel === false }); this.draw(); }, none);
+    }
     btn(parent: HTMLElement, icon: string, label: string, act: () => void, off = false) {
         const x = parent.createEl("button", { cls: "vl-btn" + (off ? " is-off" : ""), attr: { "aria-label": label } });
         setIcon(x, icon);
