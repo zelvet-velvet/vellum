@@ -76,7 +76,6 @@
 .vl-it.is-abs { position: absolute; }
 .vl-screen:not(.is-show) .vl-it:hover { box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 50%, transparent); }
 .vl-screen:not(.is-show) .vl-it.is-sel { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) var(--vl-sel, var(--interactive-accent)), 0 0 0 calc(2.5px * var(--vl-iz, 1)) rgba(0, 0, 0, 0.45); }
-.vl-accentprobe { display: none; color: var(--interactive-accent); }
 .vl-it.is-typing { outline: none; box-shadow: 0 0 0 1.5px var(--interactive-accent); cursor: text; user-select: text; -webkit-user-select: text; }
 
 /* the panel: right side on a computer, a bottom sheet on a phone */
