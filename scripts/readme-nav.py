@@ -1,9 +1,10 @@
 """The README's link strip under the banner: one picture per link (GitHub can't underline or colour a picture), joined
 into one strip as wide as the banner (980 px). It is more of the banner's floor: each link a concrete slab in the
 floor's tones and grain (2 px pixels), the slabs parted by the floor's own joint. The icons are the headings' own
-(assets/icons/h). Under it a lower row of the same floor: the language switch and what the badges said (the release, the
-Obsidian it needs, the licence), each with a pixel square in its old badge colour. Writes assets/nav/<lang>-<name>.svg
-for English and Traditional Chinese.
+(assets/icons/h). Under it a quieter row of the same floor, in two groups: the language switch on the left (the one shown
+in orange, underlined) and on the right what the badges said (the release, the Obsidian it needs, the licence), each with
+a pixel square in its old badge colour, one joint between the groups. Writes assets/nav/<lang>-<name>.svg (and
+<lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese.
 
     python3 scripts/readme-nav.py
 """
@@ -16,7 +17,7 @@ ICONS = os.path.join(ROOT, "assets", "icons", "h")
 OUT = os.path.join(ROOT, "assets", "nav")
 
 SLABS = ["#1B1C24", "#1D1E26", "#1A1B22"]          # the banner's floor (scripts/readme-banner.py, floor())
-DARK, LIGHT, JOINT, JOINTL, TEXT = "#191A21", "#20212A", "#15161C", "#22232C", "#E6E3DC"
+DARK, LIGHT, JOINT, JOINTL, SEAM, TEXT = "#191A21", "#20212A", "#15161C", "#22232C", "#3A3C4A", "#E6E3DC"
 WIDTH, ACCENT = 980, None   # ACCENT: a colour for a line along the bottom, or None
 FONT = "-apple-system, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif"
 H, SIZE, GAP = 36, 14, 7
@@ -26,12 +27,12 @@ LINKS = {
     "zh": ["為何選 Vellum", "安裝", "快速開始", "搭配 agent", "檔案格式", "快捷鍵", "常見問題"],
 }
 ICON_OF = ["star", "download", "play", "robot", "braces", "keyboard", "question"]
-# the lower row: (file name, label, square colour; None: a language, the one shown is orange text)
+# the lower row: (file name, label, square colour; None: a language)
 META = {
     "en": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "Latest release", "#E9892B"), ("obsidian", "Obsidian 1.6.6+", "#7C3AED"), ("license", "MIT license", "#A3CF7E")],
     "zh": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "最新版本", "#E9892B"), ("obsidian", "Obsidian 1.6.6 以上", "#7C3AED"), ("license", "MIT 授權", "#A3CF7E")],
 }
-META_H, META_SIZE, DIM, ORANGE = 28, 12, "#96969B", "#E9892B"
+META_H, META_SIZE, SQ, MPAD, DIM, SOFT, LANG = 34, 14, 8, 16, "#96969B", "#B5B0A6", "#FF5C38"
 
 # advance widths (of 1000) of a semibold sans, enough to size a segment; CJK is one em
 NARROW, WIDE = set("fijlrt "), {"m": 833, "w": 722, "W": 944}
@@ -84,18 +85,35 @@ def segment(name: str, label: str, W: int, i: int, last: bool, seed: int) -> str
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" shape-rendering="crispEdges">{body}{ic}{text}</svg>\n'
 
 
-def meta_segment(label: str, square, shown: bool, W: int, i: int, last: bool, seed: int) -> str:
-    body = slab(W, META_H, i, last, seed)
-    x0 = round((W - (2 if not last else 0) - meta_width(label, square)) / 2)
-    if square: body += f'<rect x="{x0}" y="{META_H // 2 - 3}" width="6" height="6" fill="{square}"/>'
-    tx = x0 + (12 if square else 0)
-    colour = ORANGE if shown else TEXT if square else DIM
-    text = f'<text x="{tx}" y="{META_H / 2 + META_SIZE * 0.35:.1f}" font-family="{FONT}" font-size="{META_SIZE}" font-weight="600" fill="{colour}">{label}</text>'
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{META_H}" viewBox="0 0 {W} {META_H}" shape-rendering="crispEdges">{body}{text}</svg>\n'
+def meta_svg(W: int, body: str) -> str:
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{META_H}" viewBox="0 0 {W} {META_H}" shape-rendering="crispEdges">{body}</svg>\n'
 
 
-def meta_width(label: str, square) -> float:
-    return (12 if square else 0) + text_width(label, META_SIZE)
+def meta_text(x: float, label: str, colour: str) -> str:
+    return f'<text x="{x}" y="{META_H / 2 + META_SIZE * 0.35:.1f}" font-family="{FONT}" font-size="{META_SIZE}" font-weight="600" fill="{colour}">{label}</text>'
+
+
+def meta_row(lang: str) -> list:
+    """(file name, svg, width) for each piece of the lower row, left to right, 980 px in all"""
+    items, out = META[lang], []
+    langs, facts = [i for i in items if i[2] is None], [i for i in items if i[2]]
+    for k, (name, label, _) in enumerate(langs):
+        W = round(MPAD + text_width(label, META_SIZE) + MPAD / 2) // 2 * 2 + (8 if k == 0 else 0)
+        body = slab(W, META_H, 1, True, 41 + k)
+        x = MPAD if k == 0 else MPAD / 2
+        if name == f"lang-{lang}":
+            body += meta_text(x, label, LANG) + f'<rect x="{x}" y="{META_H - 8}" width="{round(text_width(label, META_SIZE))}" height="2" fill="{LANG}"/>'
+        else: body += meta_text(x, label, DIM)
+        if k == 0: body += f'<rect x="{W - 6}" y="11" width="2" height="{META_H - 22}" fill="{SEAM}"/>'
+        out.append((name, meta_svg(W, body), W))
+    fw = [round(MPAD + SQ + 6 + text_width(label, META_SIZE) + MPAD) // 2 * 2 for _, label, _ in facts]
+    gap = WIDTH - sum(o[2] for o in out) - sum(fw)
+    out.append(("meta-gap", meta_svg(gap, slab(gap, META_H, 1, False, 47)), gap))
+    for k, ((name, label, sq), W) in enumerate(zip(facts, fw)):
+        body = slab(W, META_H, 2, True, 51 + k)
+        body += f'<rect x="{MPAD}" y="{(META_H - SQ) // 2}" width="{SQ}" height="{SQ}" fill="{sq}"/>' + meta_text(MPAD + SQ + 6, label, SOFT)
+        out.append((name, meta_svg(W, body), W))
+    return out
 
 
 def widths(need: list) -> list:
@@ -113,11 +131,9 @@ def main():
             path = os.path.join(OUT, f"{lang}-{name}.svg")
             open(path, "w", encoding="utf-8").write(segment(name, label, w, i, i == len(labels) - 1, 11 + i))
             print(path, w)
-        meta = META[lang]
-        for i, ((name, label, sq), w) in enumerate(zip(meta, widths([meta_width(l, q) for _, l, q in meta]))):
+        for name, svg, w in meta_row(lang):
             path = os.path.join(OUT, f"{lang}-{name}.svg")
-            shown = name == f"lang-{lang}"
-            open(path, "w", encoding="utf-8").write(meta_segment(label, sq, shown, w, i + 1, i == len(meta) - 1, 41 + i))
+            open(path, "w", encoding="utf-8").write(svg)
             print(path, w)
 
 
