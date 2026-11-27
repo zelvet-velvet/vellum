@@ -1629,6 +1629,7 @@ class Editor {
             this.drawPage(this.shown(cur));
         }
         this.drawZoom(); keep();
+        if (this.roomShift) { this.wall.scrollLeft += this.roomShift.x; this.wall.scrollTop += this.roomShift.y; this.roomShift = null; }
     }
     // the app switcher at the top of the screens list: every folder in the vault with a _doc.json (one folder per app),
     // shown when there are two or more. Each keeps its own device, last screen and unsaved edits
@@ -2555,10 +2556,17 @@ class Editor {
             const q = el.getBoundingClientRect(); if (!q.width && !q.height) return;
             x = Math.max(x, pr.left - q.left, q.right - pr.right); y = Math.max(y, pr.top - q.top, q.bottom - pr.bottom);
         });
-        if (!x && !y) return;
-        const px = Math.max(24, Math.ceil(x) + 24), py = Math.ceil(y) + 24;
-        fig.style.padding = `${Math.max(24, py)}px ${px}px ${Math.max(80, py)}px`;
+        const base = parseFloat(getComputedStyle(fig).paddingLeft) || 24, baseTop = parseFloat(getComputedStyle(fig).paddingTop) || 24;
+        const px = x || y ? Math.max(24, Math.ceil(x) + 24) : base, pt = x || y ? Math.max(24, Math.ceil(y) + 24) : baseTop;
+        if (x || y) { const py = Math.ceil(y) + 24; fig.style.padding = `${pt}px ${px}px ${Math.max(80, py)}px`; }
+        // the room before it on the left and top grew or shrank since the last drawing of this screen: the stage scrolls by
+        // as much (after it is scrolled back), so the screen stays where it was on the monitor (a note dragged wider, an item
+        // dragged out of its block)
+        const key = this.camKey(), was = this.roomWas;
+        this.roomShift = was && was.key === key ? { x: px - was.x, y: pt - was.y } : null;
+        this.roomWas = { key, x: px, y: pt };
     }
+    roomWas: { key: string; x: number; y: number } | null = null; roomShift: { x: number; y: number } | null = null;
     // the overlays over the screen; the vanishing points drag (the horizon goes with them)
     drawOv(scr: HTMLElement, p: Page, z: number) {
         scr.querySelectorAll(":scope > .vl-ovl, :scope > .vl-ovframe").forEach((e) => e.remove());
