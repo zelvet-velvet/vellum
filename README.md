@@ -1,22 +1,7 @@
-<h1 align="center">Vellum</h1>
-
-<p align="center">
-  <b>Draft app screens inside Obsidian, together with your coding agent.</b>
-</p>
-
-<p align="center">
-  <b>English</b> · <a href="README.zh-TW.md">繁體中文</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="https://img.shields.io/github/v/release/zelvet-velvet/vellum?label=release&color=E9892B" alt="Latest release"></a>
-  <a href="https://obsidian.md"><img src="https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.6-7C3AED?logo=obsidian&logoColor=white" alt="Obsidian 1.6.6 or newer"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT license"></a>
-</p>
-
 <p align="center">
   <img src="assets/banner.svg" width="100%" alt="Vellum: drafts of an app's screens ride a belt and are built part by part, the agent carrying the last part in, and leave as finished screens. Drafts in, screens out."><br>
-  <a href="#-why-not-an-artifact-or-a-canvas"><img src="assets/nav/en-star.svg" width="15.91%" alt="Why Vellum"></a><a href="#-install"><img src="assets/nav/en-download.svg" width="12.44%" alt="Install"></a><a href="#-quick-start"><img src="assets/nav/en-play.svg" width="14.69%" alt="Quick start"></a><a href="#-with-your-agent"><img src="assets/nav/en-robot.svg" width="17.95%" alt="With your agent"></a><a href="#-file-format"><img src="assets/nav/en-braces.svg" width="14.89%" alt="File format"></a><a href="#-shortcuts"><img src="assets/nav/en-keyboard.svg" width="14.08%" alt="Shortcuts"></a><a href="#-faq"><img src="assets/nav/en-question.svg" width="10.00%" alt="FAQ"></a>
+  <a href="#-why-not-an-artifact-or-a-canvas"><img src="assets/nav/en-star.svg" width="16.32%" alt="Why Vellum"></a><a href="#-install"><img src="assets/nav/en-download.svg" width="12.04%" alt="Install"></a><a href="#-quick-start"><img src="assets/nav/en-play.svg" width="14.69%" alt="Quick start"></a><a href="#-with-your-agent"><img src="assets/nav/en-robot.svg" width="18.57%" alt="With your agent"></a><a href="#-file-format"><img src="assets/nav/en-braces.svg" width="14.89%" alt="File format"></a><a href="#-shortcuts"><img src="assets/nav/en-keyboard.svg" width="14.08%" alt="Shortcuts"></a><a href="#-faq"><img src="assets/nav/en-question.svg" width="9.38%" alt="FAQ"></a><br>
+  <img src="assets/nav/en-lang-en.svg" width="9.59%" alt="English"><a href="README.zh-TW.md"><img src="assets/nav/en-lang-zh.svg" width="9.59%" alt="繁體中文"></a><img src="assets/nav/en-meta-gap.svg" width="28.36%" alt=""><a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="assets/nav/en-release.svg" width="18.36%" alt="Latest release"></a><a href="https://obsidian.md"><img src="assets/nav/en-obsidian.svg" width="18.77%" alt="Obsidian 1.6.6 or newer"></a><a href="LICENSE"><img src="assets/nav/en-license.svg" width="15.30%" alt="MIT license"></a>
 </p>
 
 Lay out an app's screens on a real device frame, in your vault: no design app, no website, no account. Each screen is a small JSON file, so your agent reads exactly where everything is and edits the same files you do.

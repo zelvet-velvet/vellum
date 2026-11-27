@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, Scope, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, Scope, setIcon, setTooltip, TFile, TFolder, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
@@ -210,9 +210,13 @@ class VellumWindow extends ItemView {
         const k = (state as { key?: string })?.key ?? "";
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
-            const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
+            // a window put back by Obsidian (a reload, the vault opened again) on an app folder that is gone: a note, no
+            // editor (building one for a deleted folder froze the window)
+            const dir = k.includes(".md:") ? "" : k.replace(/^vellum:/, "");
+            const gone = !editors.has(k) && dir !== "" && !(await folderThere(this.app, dir));
+            const ed = gone ? undefined : editors.get(k) ?? (dir ? await folderEditor(dir) : undefined);
             if (ed) { this.frame(); ed.mount(this.contentEl); this.raiseAfterReload(); }
-            else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
+            else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: gone ? `The folder ${dir} is gone: it was moved or deleted. Close this window and open the app again.` : "Open the note with this Vellum block, then Open editor." }); }
         }
         return super.setState(state, result);
     }
@@ -279,6 +283,39 @@ const toScreenOf = (win: Window, on: Window) => {
     const y = Math.round(Math.min(Math.max(on.screenY + (on.outerHeight - sz.height) / 2, st), st + b.availHeight - sz.height));
     try { if (ew?.setPosition) ew.setPosition(x, y); else win.moveTo(x, y); } catch { /* not Electron */ }
 };
+// two versions of an app that grew apart from one (base): your unsaved edits (mine) and the files as they are now
+// (theirs, the agent or a sync wrote them). Screen by screen: one only you changed keeps your version, one only the files
+// changed takes theirs, one both changed differently is a clash (the files' version is used; the clash is named). The
+// app's own settings (device, colours, themes...) the same way, setting by setting; the screens' order likewise
+const canon = (v: unknown): string => v === undefined ? "" : JSON.stringify(v, (_k, x: unknown) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x);
+const merge3 = (base: Doc, mine: Doc, theirs: Doc): { doc: Doc; clash: string[]; clashKeys: string[] } => {
+    const clash: string[] = [], clashKeys: string[] = [];
+    const pick = <T,>(b: T, m: T, t: T, onClash: () => void): T => {
+        const cb = canon(b), cm = canon(m), ct = canon(t);
+        if (cm === cb || cm === ct) return t;
+        if (ct === cb) return m;
+        onClash(); return t;
+    };
+    const doc = { ...theirs } as Doc & Record<string, unknown>;
+    const B = base as Doc & Record<string, unknown>, M = mine as Doc & Record<string, unknown>, T = theirs as Doc & Record<string, unknown>;
+    for (const k of new Set([...Object.keys(B), ...Object.keys(M), ...Object.keys(T)])) {
+        if (k === "pages") continue;
+        const v = pick(B[k], M[k], T[k], () => clashKeys.push(k));
+        if (v === undefined) delete doc[k]; else doc[k] = v;
+    }
+    const by = (d: Doc) => new Map(d.pages.map((p) => [p.id, p]));
+    const bp = by(base), mp = by(mine), tp = by(theirs);
+    const ids = new Set([...bp.keys(), ...mp.keys(), ...tp.keys()]), out = new Map<string, Page>();
+    for (const id of ids) { const v = pick(bp.get(id), mp.get(id), tp.get(id), () => clash.push(id)); if (v) out.set(id, v); }
+    // the order: whichever side moved screens (the files' when both did), then any screen only you added, after the one
+    // before it in your order
+    const ord = (d: Doc) => d.pages.map((p) => p.id), bo = canon(ord(base)), mo = ord(mine);
+    const list = (canon(mo) !== bo && canon(ord(theirs)) === bo ? mo : ord(theirs)).filter((id) => out.has(id));
+    mo.forEach((id, i) => { if (out.has(id) && !list.includes(id)) { const prev = mo.slice(0, i).reverse().find((x) => list.includes(x)); list.splice(prev ? list.indexOf(prev) + 1 : 0, 0, id); } });
+    for (const id of out.keys()) if (!list.includes(id)) list.push(id);
+    doc.pages = list.map((id) => out.get(id)!);
+    return { doc, clash, clashKeys };
+};
 class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
     wall!: HTMLElement; panel: HTMLElement | null = null; theme!: Theme; kinds: Kind[];
@@ -295,12 +332,14 @@ class Editor {
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
         if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
         // unsaved work kept on the device: used when it started from the note as it is now; if the note changed since (the
-        // agent, a sync), the note is shown and the old work is offered back (never silently over the note)
+        // agent, a sync), the two are merged screen by screen and only a screen both changed is offered back (never
+        // silently over the note)
         const draft = this.draftGet();
         if (draft) {
             try {
                 const d = JSON.parse(draft) as { base?: string; doc?: Doc; pages?: unknown };
                 if (d.doc && d.base === this.saved) this.doc = d.doc;
+                else if (d.doc && d.base) this.takeOutside(parseDoc(d.base).doc, d.doc, this.doc);
                 else if (d.doc) this.stale = d.doc;
                 else if (d.pages) this.stale = d as unknown as Doc;   // an older draft without its base: offered back too
             } catch { /* a broken draft is dropped */ }
@@ -311,7 +350,7 @@ class Editor {
         window.addEventListener("resize", onResize);
         const key = this.draftKey();
         editors.set(key, this); live.add(this);
-        if (!el || !ctx) return;   // opened on a folder: lives as long as the plugin
+        if (!el || !ctx) { plugin.register(() => window.removeEventListener("resize", onResize)); return; }   // opened on a folder: lives as long as the plugin
         const life = new MarkdownRenderChild(el);
         life.onunload = () => {
             window.removeEventListener("resize", onResize);
@@ -434,6 +473,15 @@ class Editor {
     draftGet() { try { return getLocal(this.draftKey()); } catch { return null; } }
     draftPut() { try { if (this.dirty || this.colDirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
     stale: Doc | null = null;
+    staleIds: string[] | null = null; staleKeys: string[] = [];   // the screens (and app settings) both sides changed; null: all of it
+    // the files changed under unsaved edits: merged screen by screen; what both changed shows the files' version, and
+    // your version of it waits in the banner
+    takeOutside(base: Doc, mine: Doc, theirs: Doc) {
+        const { doc, clash, clashKeys } = merge3(base, mine, theirs);
+        this.doc = doc;
+        if (clash.length || clashKeys.length) { this.stale = mine; this.staleIds = clash; this.staleKeys = clashKeys; }
+        else { this.stale = null; this.staleIds = null; this.staleKeys = []; }
+    }
     // a discrete change: one undo step. Undo steps through the design only: marks (notes for the people and the agent)
     // and the app's colours and themes are carried through undo as they are now, so a change to them alone is no step.
     // step "back": a delete of one of them (a mark, a colour, a theme) is a step, and its undo brings back only what was
@@ -527,8 +575,10 @@ class Editor {
         if (!this.store) return;
         const was = this.beforeKey(), { doc } = await this.store.load(), text = serialiseDoc(doc);
         if (text === this.saved) { if (this.beforeKey() !== was) { this.mapCache = null; this.drawCard(); if (this.root?.isConnected) this.draw(); } return; }
-        if (this.dirty || this.colDirty) this.stale = this.doc;
-        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = []; this.fixSel(); this.draftPut();
+        const mine = this.dirty || this.colDirty ? this.doc : null, base = mine ? parseDoc(this.saved).doc : null;
+        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = [];
+        if (mine && base) this.takeOutside(base, mine, doc);
+        this.fixSel(); this.draftPut();
         this.drawCard(); if (this.root?.isConnected) this.draw();
     }
 
@@ -1099,7 +1149,7 @@ class Editor {
         const toEdit = m === "edit" && !wasEdit;
         if (toEdit) this.setView({ fit: true });   // Edit opens fitted: the whole screen in the window, in its middle
         this.draw();
-        if (toEdit) (this.root?.win ?? window).requestAnimationFrame(() => this.centrePhone());
+        if (toEdit) this.centreSoon();
     }
     // Fit in the Map: the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
@@ -1177,18 +1227,50 @@ class Editor {
     camKey() { const v = this.v; return v.map ? "map" : `${this.current()?.id}|${v.land ? 1 : 0}|${v.show ? 1 : 0}`; }
     zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement; railTop = 0;
     // unsaved work from before the note changed: offered back, never applied by itself
+    // unsaved edits kept on this device that the files changed under (the agent, a sync): the files are shown and the
+    // edits wait. The banner names the screens the edits touch and says what each choice does
     drawStale() {
         if (!this.stale || !this.root) return;
+        const mine = this.stale, now = this.doc, text = (p?: Page) => (p ? JSON.stringify(p) : ""), part = this.staleIds;
+        const ids = part ?? [...new Set([...mine.pages, ...now.pages].map((p) => p.id))].filter((id) => text(mine.pages.find((p) => p.id === id)) !== text(now.pages.find((p) => p.id === id)));
+        const names = ids.map((id) => (mine.pages.find((p) => p.id === id) ?? now.pages.find((p) => p.id === id))?.name ?? id);
+        if (part && this.staleKeys.length) names.push("the app's settings");
+        const what = names.length ? (names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ")) : "the app's settings";
         const s = this.root.createDiv({ cls: "vl-stale" });
-        s.createSpan({ text: "The note changed since your unsaved edits on this device. The note is shown." });
-        const keep = s.createEl("button", { text: "Restore my edits" });
-        keep.addEventListener("click", () => { const d = this.stale!; this.stale = null; this.edit(() => { this.doc = d; }); this.draw(); });
-        const drop = s.createEl("button", { text: "Drop them" });
-        drop.addEventListener("click", () => { this.stale = null; try { setLocal(this.draftKey(), null); } catch { /* */ } this.draw(); });
+        setIcon(s.createSpan({ cls: "vl-stalei" }), "alert-triangle");
+        const t = s.createSpan({ cls: "vl-stalet" });
+        if (part) {
+            t.createEl("b", { text: `${what}: changed by you and in the files.` });
+            t.appendText(this.dirty ? " The files' version is shown; your other edits are kept, unsaved." : " The files' version is shown.");
+        } else {
+            t.createEl("b", { text: "Your unsaved edits are set aside." });
+            t.appendText(` The files changed since you made them (the agent, a sync), so the files are shown. Your edits touch: ${what}.`);
+        }
+        const done = () => { this.stale = null; this.staleIds = null; this.staleKeys = []; };
+        const drop = s.createEl("button", { text: "Keep the files", attr: { "aria-label": part ? `Keep the files' version of ${what}; your edits to it are thrown away` : "Throw your unsaved edits away and keep the files as they are now" } });
+        drop.addEventListener("click", () => { done(); this.draftPut(); this.draw(); });
+        const keep = s.createEl("button", { text: "Use my edits", attr: { "aria-label": `Put your version of ${what} back over the files' (Undo brings theirs back)` } });
+        keep.addEventListener("click", () => {
+            const keys = this.staleKeys;
+            done();
+            this.edit(() => {
+                if (!part) { this.doc = mine; return; }
+                const d = this.doc as Doc & Record<string, unknown>, m = mine as Doc & Record<string, unknown>;
+                for (const k of keys) { if (m[k] === undefined) delete d[k]; else d[k] = m[k]; }
+                for (const id of part) {
+                    const mp = mine.pages.find((p) => p.id === id), i = d.pages.findIndex((p) => p.id === id);
+                    if (mp && i >= 0) d.pages[i] = mp; else if (mp) d.pages.push(mp); else if (i >= 0) d.pages.splice(i, 1);
+                }
+            });
+            this.draw();
+        });
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
-    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; this.devOpen = false; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }
+    // another screen: drawn, then scrolled to the stage's middle (a new stage starts at its top left, past the room
+    // round the screen)
+    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; this.devOpen = false; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); this.centreSoon(); }
+    centreSoon() { if (!this.v.map) (this.root?.win ?? window).requestAnimationFrame(() => this.centrePhone()); }
     bar!: HTMLElement;
     // the top bar: close and where you are on the left, undo / redo / save on the right; nothing else
     drawBar() {
@@ -1475,7 +1557,7 @@ class Editor {
         const pages = this.doc.pages;
         if (parent) { n.parent = parent.id; pages.splice(pages.indexOf(parent) + 1, 0, n); } else pages.push(n);
         this.sel = { page: n.id }; this.setView({ page: n.id });
-    }); this.draw(); }
+    }); this.draw(); this.centreSoon(); }
     // a short tooltip, a line or two, centred; over the pill it opens above
     tip(el: HTMLElement, text: string) { setTooltip(el, text, { placement: "top", classes: ["vl-tip"] }); return el; }
     // a side opened again comes back at its default width (a width dragged by hand lasts until the side is folded)
@@ -2274,8 +2356,10 @@ class Editor {
             if (!lazy) this.fillThumb(th);
             thumbs.push(th);
         }
-        // REF: the screen width the map is laid out at; any zoom is that scaled, names, tags and link labels with their
-        // screens (a name is 11 px at REF). Too small to read, they hide (the frames still say what changed)
+        // REF: the screen width the map is laid out at; any zoom is that scaled, names and link labels with their screens
+        // (a name is 12 px at 100 %). The Mock, Changed and Edited tags shrink with them too but never grow past their
+        // size: zoomed in, they keep it on the monitor (scaled by --vl-mk, not drawn in a smaller font: text under a pixel
+        // is laid out wrong), so a top row's tags stay in the window. Too small to read, all of them hide
         const REF = 144, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
@@ -2297,7 +2381,7 @@ class Editor {
             const a = at(par), b = at(p);
             const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
             path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
-            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
+            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 6}px`; }   // its foot just over the sub page
         }
         thumbs.forEach(({ t, ph, scr }, i) => {
             const p = pages[i], q = pos.get(p.id)!, d = dims(p, REF);
@@ -2313,7 +2397,10 @@ class Editor {
         const lay = (TW0: number) => {
             const k = TW0 / REF;
             box.style.transform = `scale(${k})`;
+            box.style.setProperty("--vl-mk", String(1 / Math.max(1, k)));
             sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
+            // room over the top row for its tags: they sit past the state's rings (up to 4 px, zooming), at Label size
+            sizer.style.marginTop = `${Math.max(0, editCfg.labelSize * 1.5 + 4 * k + 6 - 32)}px`;
             box.toggleClass("is-tiny", 11 * k < TINY);
         };
         lay(TW);
@@ -5115,6 +5202,8 @@ export const LOOK_WORDS = {
 let icons: string[] | null = null;
 const iconNames = () => (icons ??= [...new Set(getIconIds().map((n) => n.replace(/^lucide-/, "")))].sort());
 
+// the folder is in the vault (the adapter asked too: the vault's list may not be read yet while Obsidian puts windows back)
+const folderThere = async (app: App, dir: string) => app.vault.getAbstractFileByPath(dir) instanceof TFolder || (await app.vault.adapter.exists(dir).catch(() => false));
 // a folder doc's editor: the one already open, else read from the folder
 let ref: { plugin: Plugin; host: () => VellumHost } | null = null;
 async function folderEditor(dir: string): Promise<Editor | undefined> {

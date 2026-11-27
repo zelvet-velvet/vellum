@@ -149,7 +149,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-thumb .vl-tphone { content-visibility: auto; }   /* a screen off the window isn't painted (with many screens, the cost of a zoom) */
 .vl-maplines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .vl-maplines path { fill: none; stroke: var(--text-faint); stroke-width: 1.5; stroke-linejoin: round; }
-.vl-maplink { position: absolute; transform: translateX(-50%); font-size: 10px; line-height: 1.3; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; background: var(--background-primary); border-radius: 3px; pointer-events: none; }
+.vl-maplink { position: absolute; transform: translate(-50%, -100%); font-size: 10px; line-height: 1.3; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; background: var(--background-primary); border-radius: 3px; pointer-events: none; }
 .vl-thumb { position: absolute; cursor: pointer; }
 .vl-tphone { position: relative; overflow: hidden; contain: strict; content-visibility: auto; background: var(--vl-paper); box-shadow: 0 0 0 1px var(--background-modifier-border); transition: box-shadow 0.15s; }
 .vl-thumb .vl-tphone { --vl-st: 0 0 0 0 transparent; --vl-so: 0px; box-shadow: var(--vl-st); }   /* --vl-st: its state's rings (changed, edited), --vl-so how far out they reach; hover and the chosen one draw theirs just outside, past a 1 px gap, so a state's ring (and a mock's dashes) still shows */
@@ -159,7 +159,7 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-ttag { padding: 0 0.45em; border-radius: 4px 4px 0 0; font: 600 calc(var(--vl-ls, 11) * 1px)/1.5 var(--font-interface); white-space: nowrap; color: #111; background: var(--vlu-mock, var(--color-orange, #ec7500)); pointer-events: none; }   /* Label size */
 .vl-ttag.is-changed { background: var(--vlu-changed, var(--color-yellow, #e0ac00)); color: #111; }
 .vl-ttag.is-edited { background: var(--vlu-edited, var(--color-green, #08b94e)); color: #111; }
-.vl-ttags { position: absolute; top: 0; right: 0; z-index: 1; display: flex; gap: 2px; transform: translateY(calc(-100% - 2px)); pointer-events: none; }   /* Changed, Edited, Mock: tabs on the screen's frame, top right, past the rounded corner (right: set by the Map) */
+.vl-ttags { position: absolute; top: 0; right: 0; z-index: 1; display: flex; gap: 2px; transform: translateY(calc(-100% - 2px)) scale(var(--vl-mk, 1)); transform-origin: 100% 100%; pointer-events: none; }   /* Changed, Edited, Mock: tabs on the screen's frame, top right, past the rounded corner (right: set by the Map) */
 .vl-ttags > .vl-ttag { position: static; transform: none; }
 .vl-thumb.is-changed .vl-tphone { --vl-st: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)); --vl-so: 2px; }
 .vl-thumb.is-edited .vl-tphone { --vl-st: 0 0 0 2px var(--vlu-edited, var(--color-green, #08b94e)); --vl-so: 2px; }   /* edited by the user, waiting for the agent */
@@ -174,6 +174,8 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-tadd svg { width: 12px; height: 12px; }
 .vl-stale { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: color-mix(in srgb, var(--color-orange) 14%, transparent); font-size: var(--font-ui-small); }
 .vl-stale button { height: 26px; font-size: var(--font-ui-smaller); }
+.vl-stalei { display: inline-flex; color: var(--color-orange); --icon-size: 16px; }
+.vl-stalet { flex: 1 1 320px; line-height: 1.4; }
 /* phone: text fields are taps that open the writing window */
 .vl-tap { min-height: 32px; padding: 6px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
 .vl-tap.is-empty { color: var(--text-faint); }
