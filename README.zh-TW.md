@@ -18,16 +18,14 @@
   <img src="assets/banner.svg" width="980" alt="Vellum：app 畫面的草稿在輸送帶上逐塊建好，agent 放上最後一塊，成品畫面送出。草稿進，畫面出。">
 </p>
 
-<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
-
 <p align="center">
-  <a href="#-為何不用-artifact-或-canvas">為何選 Vellum</a> ·
-  <a href="#-安裝">安裝</a> ·
-  <a href="#-快速開始">快速開始</a> ·
-  <a href="#-搭配-agent">搭配 agent</a> ·
-  <a href="#-檔案格式">檔案格式</a> ·
-  <a href="#-快捷鍵">快捷鍵</a> ·
-  <a href="#-常見問題">常見問題</a>
+  <a href="#-為何不用-artifact-或-canvas"><img src="assets/icons/h/star.svg" width="14" height="15" alt="">&nbsp;<b>為何選 Vellum</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-安裝"><img src="assets/icons/h/download.svg" width="14" height="15" alt="">&nbsp;<b>安裝</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-快速開始"><img src="assets/icons/h/play.svg" width="11" height="15" alt="">&nbsp;<b>快速開始</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-搭配-agent"><img src="assets/icons/h/robot.svg" width="10" height="15" alt="">&nbsp;<b>搭配 agent</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-檔案格式"><img src="assets/icons/h/braces.svg" width="13" height="15" alt="">&nbsp;<b>檔案格式</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-快捷鍵"><img src="assets/icons/h/keyboard.svg" width="14" height="15" alt="">&nbsp;<b>快捷鍵</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-常見問題"><img src="assets/icons/h/question.svg" width="10" height="15" alt="">&nbsp;<b>常見問題</b></a>
 </p>
 
 於儲存庫內以真實裝置外框排版 app 畫面，不需另開設計工具、網站或註冊帳號。每個畫面存為一個小型 JSON 檔，agent 可得知每個元件的位置，並與你修改同一批檔案。
@@ -35,6 +33,8 @@
 - **不限 app 類型**：手機 app、桌面視窗、網頁與 Obsidian 外掛皆可。同一儲存庫可放多個 app，各自一個資料夾
 - **指定元件提出修改**：一鍵複製 block 給 agent，說明要改的地方，於手機外框上確認結果
 - **完整流程**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯，而非只有排版
+
+<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
 
 <table>
   <tr>

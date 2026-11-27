@@ -18,16 +18,14 @@
   <img src="assets/banner.svg" width="980" alt="Vellum: drafts of an app's screens ride a belt and are built part by part, the agent carrying the last part in, and leave as finished screens. Drafts in, screens out.">
 </p>
 
-<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
-
 <p align="center">
-  <a href="#-why-not-an-artifact-or-a-canvas">Why Vellum</a> ·
-  <a href="#-install">Install</a> ·
-  <a href="#-quick-start">Quick start</a> ·
-  <a href="#-with-your-agent">With your agent</a> ·
-  <a href="#-file-format">File format</a> ·
-  <a href="#-shortcuts">Shortcuts</a> ·
-  <a href="#-faq">FAQ</a>
+  <a href="#-why-not-an-artifact-or-a-canvas"><img src="assets/icons/h/star.svg" width="14" height="15" alt="">&nbsp;<b>Why Vellum</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-install"><img src="assets/icons/h/download.svg" width="14" height="15" alt="">&nbsp;<b>Install</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-quick-start"><img src="assets/icons/h/play.svg" width="11" height="15" alt="">&nbsp;<b>Quick start</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-with-your-agent"><img src="assets/icons/h/robot.svg" width="10" height="15" alt="">&nbsp;<b>With your agent</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-file-format"><img src="assets/icons/h/braces.svg" width="13" height="15" alt="">&nbsp;<b>File format</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-shortcuts"><img src="assets/icons/h/keyboard.svg" width="14" height="15" alt="">&nbsp;<b>Shortcuts</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#-faq"><img src="assets/icons/h/question.svg" width="10" height="15" alt="">&nbsp;<b>FAQ</b></a>
 </p>
 
 Lay out an app's screens on a real device frame, in your vault: no design app, no website, no account. Each screen is a small JSON file, so your agent reads exactly where everything is and edits the same files you do.
@@ -35,6 +33,8 @@ Lay out an app's screens on a real device frame, in your vault: no design app, n
 - **Any app**: a phone app, a desktop window, a web page or an Obsidian plugin. Several apps share a vault, each in its own folder.
 - **Point and ask**: copy a block for the agent in one click, say what to change, watch the phone update.
 - **The whole flow**: the Map shows how the screens connect, so you and the agent work out the app's logic, not just its pixels.
+
+<p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
 
 <table>
   <tr>
