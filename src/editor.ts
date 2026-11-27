@@ -2751,7 +2751,7 @@ class Editor {
             const tag = el.createDiv({ cls: "vl-tag" });
             // the kind as an icon (the frame is the selection colour for every kind); a frame's block, the lock
             setIcon(tag.createSpan({ cls: "vl-tagi" }), inh ? "lock" : kind.icon ?? "square");
-            tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));
+            tag.createSpan({ cls: "vl-tagt", text: b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : "") });
         }
         for (const it of b.items) drawItem(this.theme, el, it);
         if (!show && this.sel?.page === p.id) for (const x of this.manyItems) if (x.b === b) el.querySelector(`[data-id="${x.it.id}"]`)?.addClass("is-sel");
