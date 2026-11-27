@@ -1295,20 +1295,20 @@ class Editor {
         const nch = this.changes().length;
         if (nch) {
             const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
-            setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
+            setIcon(rv.createSpan(), "git-compare"); rv.createSpan({ cls: "vl-rvt", text: `${nch} ${nch === 1 ? "change" : "changes"} to review` });
             rv.addEventListener("click", () => this.nextChange());
         }
         // mock screens: options waiting for a choice; a click opens the next one (keep one: tell the agent)
         const mocks = this.doc.pages.filter((p) => p.mock);
         if (mocks.length) {
             const mb = r.createEl("button", { cls: "vl-review is-mock", attr: { "aria-label": "Mock screens: options to compare. Open the next one; tell the agent which to keep" } });
-            setIcon(mb.createSpan(), "git-fork"); mb.appendText(`${mocks.length} ${mocks.length === 1 ? "mock" : "mocks"} to choose`);
+            setIcon(mb.createSpan(), "git-fork"); mb.createSpan({ cls: "vl-rvt", text: `${mocks.length} ${mocks.length === 1 ? "mock" : "mocks"} to choose` });
             mb.addEventListener("click", () => this.nextOf(mocks));
         }
         const ned = this.edits().length;
         if (ned) {
             const eb = r.createEl("button", { cls: "vl-review is-edited", attr: { "aria-label": "Your edits since the screens were last built: copy what changed, screen by screen" } });
-            setIcon(eb.createSpan(), "hammer"); eb.appendText(`${ned} ${ned === 1 ? "edit" : "edits"} to build`);
+            setIcon(eb.createSpan(), "hammer"); eb.createSpan({ cls: "vl-rvt", text: `${ned} ${ned === 1 ? "edit" : "edits"} to build` });
             eb.addEventListener("click", () => this.copyEdits(eb));
         }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {

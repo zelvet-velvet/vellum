@@ -218,6 +218,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-review.is-mock { border-color: var(--vlu-mock, var(--color-orange, #ec7500)); }
 .vl .vl-review.is-mock svg { color: var(--vl-mock-ink); }
 .vl .vl-review svg { width: 15px; height: 15px; color: var(--vl-changed-ink); }
+.vl .vl-review > span:first-child { display: flex; }   /* the icon's box is the icon: no line box under it */
+.vl .vl-review > .vl-rvt { line-height: 1; text-box: trim-both cap alphabetic; }   /* the text's box from the digits' top to the baseline, so centring lines the letters up with the icon (no room for descenders below) */
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
 /* the stage: the phone in its middle; margin auto keeps it centred and still scrollable when zoomed past the stage */
