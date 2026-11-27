@@ -61,14 +61,15 @@
 .vl-safe.is-top { left: 0; right: 0; top: 0; } .vl-safe.is-bottom { left: 0; right: 0; bottom: 0; }
 .vl-safe.is-left { left: 0; top: 0; bottom: 0; } .vl-safe.is-right { right: 0; top: 0; bottom: 0; }
 
-/* blocks: their kind's colour as a thin frame while editing; nothing in Show (the real page) */
-.vl-block { position: absolute; box-sizing: border-box; overflow: hidden; z-index: 1; }
-.vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
+/* blocks: a thin faint frame while editing, the chosen one in the selection colour (as chosen items), its kind only as the
+   tag's icon; nothing in Show (the real page) */
+.vl-block { position: absolute; box-sizing: border-box; overflow: hidden; z-index: 1; --k: var(--vl-sel, var(--interactive-accent)); --vl-frame: color-mix(in srgb, var(--text-faint) 70%, transparent); }
+.vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed var(--vl-frame); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
 .vl-screen:not(.is-show) .vl-block.is-sel { outline: calc(2px * var(--vl-iz, 1)) solid var(--k); overflow: visible; z-index: 2; }
 /* an item of it chosen: the block a thin dashed line, so the item's own ring is what reads as chosen; its tag still drags it */
 .vl-screen:not(.is-show) .vl-block.is-sel.is-host, .vl-spill > .vl-block.is-sel.is-host { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block.is-holds { overflow: visible; z-index: 2; }   /* some of several chosen items: they show past its edge */
-.vl-tag { position: absolute; left: var(--vl-rtl, 0px); top: 0; font: 600 calc(var(--vl-ls, 11) * 1px)/1.4 var(--font-interface); color: var(--k); padding: 0 2px; white-space: nowrap; pointer-events: none; opacity: 0; transform-origin: 0 0; transform: scale(var(--vl-iz, 1)) translateY(-100%); }   /* drawn at monitor size, then scaled as a whole (as the size label): the text stays centred at any zoom */
+.vl-tag { position: absolute; left: var(--vl-rtl, 0px); top: 0; display: flex; align-items: center; gap: 4px; height: calc(var(--vl-ls, 11) * 1.4px); font: 600 calc(var(--vl-ls, 11) * 1px)/1.4 var(--font-interface); color: var(--k); padding: 0 2px; white-space: nowrap; pointer-events: none; opacity: 0; transform-origin: 0 0; transform: scale(var(--vl-iz, 1)) translateY(-100%); }   /* drawn at monitor size, then scaled as a whole (as the size label): the text stays centred at any zoom */
 .vl-block.is-sel > .vl-tag, .vl-screen:not(.is-show) .vl-block:hover > .vl-tag { opacity: 1; }
 .vl-grip { position: absolute; right: calc(-6px * var(--vl-iz, 1)); bottom: calc(-6px * var(--vl-iz, 1)); width: calc(12px * var(--vl-iz, 1)); height: calc(12px * var(--vl-iz, 1)); border-radius: calc(3px * var(--vl-iz, 1)); background: var(--k); cursor: nwse-resize; z-index: 5; }
 /* the gravity point: a ring, hollow, so what sits under it (an icon in the corner) still shows */
@@ -395,6 +396,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .vl-block.is-inh.is-sel { opacity: 0.75; z-index: 1; overflow: hidden; }   /* chosen, it stays under the page's own blocks */
 .vl-screen:not(.is-show) .vl-block.is-inh .vl-it:hover { box-shadow: none; }
 .vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: calc(var(--vl-ls, 11) * 0.82px); --icon-stroke: 2.5px; }
+.vl-tag > .vl-tagi { vertical-align: 0; margin-right: 0; --icon-stroke: 3px; }   /* in a block's tag the flex row centres it */
+.vl-tagt { line-height: 1; text-box: trim-both cap alphabetic; }   /* the text's box from the capitals' top to the baseline: centred with the icon by its letters */
 .vl-overmark { position: absolute; right: calc(3px * var(--vl-iz, 1)); top: calc(3px * var(--vl-iz, 1)); width: calc(14px * var(--vl-iz, 1)); height: calc(14px * var(--vl-iz, 1)); border-radius: calc(4px * var(--vl-iz, 1)); display: flex; align-items: center; justify-content: center; background: var(--k); color: var(--background-primary); pointer-events: none; z-index: 4; --icon-size: calc(10px * var(--vl-iz, 1)); --icon-stroke: 2.5px; }
 .vl-frameinfo { font-size: var(--font-ui-smaller); line-height: 1.4; color: var(--text-muted); }
 /* a chosen picture / shape: resize handles at its bottom corners */
@@ -664,7 +667,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
   background: linear-gradient(var(--c, transparent), var(--c, transparent)), repeating-conic-gradient(#9a9a9a 0 25%, #e2e2e2 0 50%) 0 0 / 6px 6px; }
 .vl .vl-cdot.is-none { background: linear-gradient(135deg, transparent 44%, var(--color-red) 44% 56%, transparent 56%), var(--background-primary); }
 /* a chosen block's name tag is a handle: a press chooses the block (not an item in it), a drag moves it */
-.vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px; border-radius: 4px 4px 0 0; background: var(--k); color: var(--background-primary); transform: scale(var(--vl-iz, 1)) translate(-1px, -100%); }
+.vl-screen:not(.is-show) .vl-block.is-sel > .vl-tag { pointer-events: auto; cursor: move; padding: 1px 6px; height: calc(var(--vl-ls, 11) * 1.4px + 2px); border-radius: 4px 4px 0 0; background: var(--k); color: var(--text-on-accent); transform: scale(var(--vl-iz, 1)) translate(-1px, -100%); }
 /* a number box's label is a drag handle (a mouse: drag up or right for more) */
 .vl .vl-drag { cursor: ns-resize; touch-action: none; -webkit-user-select: none; user-select: none; }
 .vl .vl-num .vl-drag:hover { color: var(--text-normal); }
@@ -988,7 +991,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen.is-marking, .vl-screen.is-marking *, .vl-screen.is-marking ~ .vl-marks * { cursor: crosshair !important; }
 /* blocks past the screen's edge, faded, outside it (the screen clips its own copy, round corners and all) */
 .vl-spill { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
-.vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--k) 70%, transparent); outline-offset: calc(-1px * var(--vl-iz, 1)); }
+.vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed var(--vl-frame); outline-offset: calc(-1px * var(--vl-iz, 1)); }
 .vl-spill > .vl-block.is-draft { opacity: 0.6; }   /* a draft: beside the screen, never part of it */
 .vl-spill > .vl-block.is-sel { opacity: 0.75; outline: calc(2px * var(--vl-iz, 1)) solid var(--k); }
 .vl-spill > .vl-block:not(.is-inh) { overflow: visible; }   /* its items past the screen show faded, as inside it */
