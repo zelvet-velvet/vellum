@@ -19,13 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="#-為何不用-artifact-或-canvas"><img src="assets/icons/h/star.svg" width="14" height="15" alt="">&nbsp;<b>為何選 Vellum</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-安裝"><img src="assets/icons/h/download.svg" width="14" height="15" alt="">&nbsp;<b>安裝</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-快速開始"><img src="assets/icons/h/play.svg" width="11" height="15" alt="">&nbsp;<b>快速開始</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-搭配-agent"><img src="assets/icons/h/robot.svg" width="10" height="15" alt="">&nbsp;<b>搭配 agent</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-檔案格式"><img src="assets/icons/h/braces.svg" width="13" height="15" alt="">&nbsp;<b>檔案格式</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-快捷鍵"><img src="assets/icons/h/keyboard.svg" width="14" height="15" alt="">&nbsp;<b>快捷鍵</b></a> &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#-常見問題"><img src="assets/icons/h/question.svg" width="10" height="15" alt="">&nbsp;<b>常見問題</b></a>
+  <a href="#-為何不用-artifact-或-canvas"><img src="assets/nav/zh-star.svg" width="146" height="34" alt="為何選 Vellum"></a><a href="#-安裝"><img src="assets/nav/zh-download.svg" width="79" height="34" alt="安裝"></a><a href="#-快速開始"><img src="assets/nav/zh-play.svg" width="106" height="34" alt="快速開始"></a><a href="#-搭配-agent"><img src="assets/nav/zh-robot.svg" width="117" height="34" alt="搭配 agent"></a><a href="#-檔案格式"><img src="assets/nav/zh-braces.svg" width="108" height="34" alt="檔案格式"></a><a href="#-快捷鍵"><img src="assets/nav/zh-keyboard.svg" width="94" height="34" alt="快捷鍵"></a><a href="#-常見問題"><img src="assets/nav/zh-question.svg" width="105" height="34" alt="常見問題"></a>
 </p>
 
 於儲存庫內以真實裝置外框排版 app 畫面，不需另開設計工具、網站或註冊帳號。每個畫面存為一個小型 JSON 檔，agent 可得知每個元件的位置，並與你修改同一批檔案。
