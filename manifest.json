@@ -1,7 +1,7 @@
 {
   "id": "vellum",
   "name": "Vellum",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "minAppVersion": "1.6.6",
   "description": "Lay out app screens on real device frames, in your vault. Each screen is a small JSON file your coding agent reads, edits and builds from; its changes wait for your review.",
   "author": "Zaviel",
