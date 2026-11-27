@@ -2278,8 +2278,10 @@ class Editor {
             if (!lazy) this.fillThumb(th);
             thumbs.push(th);
         }
-        // REF: the screen width the map is laid out at; any zoom is that scaled, names, tags and link labels with their
-        // screens (a name is 11 px at REF). Too small to read, they hide (the frames still say what changed)
+        // REF: the screen width the map is laid out at; any zoom is that scaled, names and link labels with their screens
+        // (a name is 12 px at 100 %). The Mock, Changed and Edited tags shrink with them too but never grow past their
+        // size: zoomed in, they keep it on the monitor (scaled by --vl-mk, not drawn in a smaller font: text under a pixel
+        // is laid out wrong), so a top row's tags stay in the window. Too small to read, all of them hide
         const REF = 144, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
@@ -2301,7 +2303,7 @@ class Editor {
             const a = at(par), b = at(p);
             const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
             path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
-            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 19}px`; }
+            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 6}px`; }   // its foot just over the sub page
         }
         thumbs.forEach(({ t, ph, scr }, i) => {
             const p = pages[i], q = pos.get(p.id)!, d = dims(p, REF);
@@ -2317,7 +2319,10 @@ class Editor {
         const lay = (TW0: number) => {
             const k = TW0 / REF;
             box.style.transform = `scale(${k})`;
+            box.style.setProperty("--vl-mk", String(1 / Math.max(1, k)));
             sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
+            // room over the top row for its tags: they sit past the state's rings (up to 4 px, zooming), at Label size
+            sizer.style.marginTop = `${Math.max(0, editCfg.labelSize * 1.5 + 4 * k + 6 - 32)}px`;
             box.toggleClass("is-tiny", 11 * k < TINY);
         };
         lay(TW);
