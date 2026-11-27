@@ -165,6 +165,16 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-thumb.is-changed .vl-tphone { --vl-st: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)); --vl-so: 2px; }
 .vl-thumb.is-edited .vl-tphone { --vl-st: 0 0 0 2px var(--vlu-edited, var(--color-green, #08b94e)); --vl-so: 2px; }   /* edited by the user, waiting for the agent */
 .vl-thumb.is-changed.is-edited .vl-tphone { --vl-st: 0 0 0 2px var(--vlu-changed, var(--color-yellow, #e0ac00)), 0 0 0 4px var(--vlu-edited, var(--color-green, #08b94e)); --vl-so: 4px; }   /* both: the agent's ring inside, the user's outside */
+/* on light panels the states' bright colours fade into the paper: rings, dashes and tags take their darker ink, and the
+   tags' text turns white on it */
+.vl.is-light .vl-ttag { background: var(--vl-mock-ink); color: #fff; }
+.vl.is-light .vl-ttag.is-changed { background: var(--vl-changed-ink); }
+.vl.is-light .vl-ttag.is-edited { background: var(--vl-edited-ink); }
+.vl.is-light .vl-thumb.is-changed .vl-tphone { --vl-st: 0 0 0 2px var(--vl-changed-ink); }
+.vl.is-light .vl-thumb.is-edited .vl-tphone { --vl-st: 0 0 0 2px var(--vl-edited-ink); }
+.vl.is-light .vl-thumb.is-changed.is-edited .vl-tphone { --vl-st: 0 0 0 2px var(--vl-changed-ink), 0 0 0 4px var(--vl-edited-ink); }
+.vl.is-light :is(.vl-thumb.is-mock .vl-tphone, .vl-page.is-mock .vl-phone) { outline-color: var(--vl-mock-ink); }
+.vl.is-light .vl-page.is-changed .vl-phone { box-shadow: 0 0 0 6px #1b1b1d, 0 0 0 7px #3a3a3e, 0 0 0 10px var(--vl-changed-ink), 0 12px 30px rgba(0, 0, 0, 0.35); }
 .vl-tphone .vl-screen { pointer-events: none; }
 .vl-tname { font-size: 11px; line-height: 1.25; margin-top: 9px; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-height: 2.5em; overflow: hidden; }
 .vl-thumb.is-main .vl-tname { color: var(--text-normal); font-weight: 600; }
@@ -219,6 +229,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-review.is-mock { border-color: var(--vlu-mock, var(--color-orange, #ec7500)); }
 .vl .vl-review.is-mock svg { color: var(--vl-mock-ink); }
 .vl .vl-review svg { width: 15px; height: 15px; color: var(--vl-changed-ink); }
+.vl .vl-review > span:first-child { display: flex; }   /* the icon's box is the icon: no line box under it */
+.vl .vl-review > .vl-rvt { line-height: 1; text-box: trim-both cap alphabetic; }   /* the text's box from the digits' top to the baseline, so centring lines the letters up with the icon (no room for descenders below) */
 .vl-body { flex: 1; min-height: 0; display: flex; }
 .vl-mid { flex: 1; min-width: 0; position: relative; }
 /* the stage: the phone in its middle; margin auto keeps it centred and still scrollable when zoomed past the stage */
@@ -1288,3 +1300,10 @@ body.mod-macos .vl-top.is-titlebar { padding-left: 80px; }   /* the Mac's own wi
 .vl .vl-winbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .vl .vl-winbtn.is-close:hover { background: #e81123; color: #fff; }
 .vl-winbtn svg { width: 16px; height: 16px; }
+/* light panels: the review button's and the list's state outlines in the states' darker ink (after their own rules) */
+.vl.is-light .vl-review { border-color: var(--vl-changed-ink); border-width: 2px; padding: 0 9px; }   /* a 1 px line fades on paper; the padding gives back the extra pixel */
+.vl.is-light .vl-review.is-edited { border-color: var(--vl-edited-ink); }
+.vl.is-light .vl-review.is-mock { border-color: var(--vl-mock-ink); }
+.vl.is-light .vl-chtag { border-color: var(--vl-changed-ink); }
+.vl.is-light .vl-chtag.is-edited { border-color: var(--vl-edited-ink); }
+.vl.is-light .vl-mocktag { border-color: var(--vl-mock-ink); }

@@ -43,7 +43,8 @@ const grid = () => Math.max(1, ovlGrid || snap.grid || 1);
 // the overlays of each note (kept on the device)
 const ovls = new Map<string, OvlCfg>();
 // number boxes: how much one press of an arrow changes the value (in the box's own steps), and hold-and-drag on or off
-// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text);
+// markSize / noteW: a mark's text size and a note's width when the mark sets none (noteW 0: as wide as its text), in
+// screen points (marks zoom with the screen);
 // labelSize: a block's name tag and size label, in px on the monitor
 // noteStack: notes whose text boxes would overlap are moved apart on screen (a box dragged by hand never moves)
 export interface EditCfg { arrow: number; hold: boolean; markSize: number; labelSize: number; noteW: number; noteStack: boolean }
@@ -713,7 +714,7 @@ class Editor {
         // over the screen, beside it rather than in it: a note or a tag past the edge still shows
         const phone = scr.parentElement!;
         phone.querySelector(":scope > .vl-marks")?.remove();
-        const layer = phone.createDiv({ cls: "vl-marks" }), iz = 1 / z;
+        const layer = phone.createDiv({ cls: "vl-marks" });
         Object.assign(layer.style, { width: scr.style.width, height: scr.style.height, transform: scr.style.transform });
         for (const m of this.marksOf(p)) {
             const on = this.sel?.mark === m.id;
@@ -756,13 +757,15 @@ class Editor {
             }
             el.addEventListener("pointerdown", (e) => this.markDown(e, p, scr, m, z));
         }
-        layer.style.setProperty("--vl-iz", String(iz));
+        // marks are part of the screen's picture: drawn in screen points (their text size, pin, lines: at 100 % zoom one
+        // point a pixel), they zoom with the screen, as the Map's tags zoom with the Map
+        layer.style.setProperty("--vl-iz", "1");
         this.stackNotes(layer, z);
     }
     // notes whose bubbles would overlap: the lower one is pushed down until it clears the one above, with a thin line back
     // to its pin. On display only: the file keeps the x y that was written (an agent can't tell how tall a text wraps)
     stackNotes(layer: HTMLElement, z: number) {
-        const gap = 4 / z, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string; dy: number }[] = [];
+        const gap = 4, list: { bub: HTMLElement; x: number; y: number; w: number; h: number; px: number; py: number; c: string; dy: number }[] = [];
         const placed: typeof list = [], all: typeof list = [];
         layer.querySelectorAll<HTMLElement>(":scope > .vl-mark.is-note").forEach((el) => {
             const bub = el.querySelector<HTMLElement>(":scope > .vl-mbub"); if (!bub || !bub.offsetHeight) return;
@@ -787,9 +790,9 @@ class Editor {
         let svg: SVGSVGElement | null = null;
         for (const n of all) {
             const qx = Math.max(n.x, Math.min(n.px, n.x + n.w)), qy = Math.max(n.y, Math.min(n.py, n.y + n.h));
-            if (!n.dy && Math.hypot(qx - n.px, qy - n.py) <= 16 / z) continue;
+            if (!n.dy && Math.hypot(qx - n.px, qy - n.py) <= 16) continue;
             if (!svg) { svg = layer.createSvg("svg", { cls: "vl-mleads" }); layer.prepend(svg); }   // under the pins and bubbles
-            svg.createSvg("line", { attr: { x1: n.px, y1: n.py, x2: qx, y2: qy, stroke: n.c, "stroke-width": 1 / z } });
+            svg.createSvg("line", { attr: { x1: n.px, y1: n.py, x2: qx, y2: qy, stroke: n.c, "stroke-width": 1 } });
         }
     }
     // a mark: a press chooses it, a drag moves it (an area's corner resizes it); grid steps, Alt 1 px; lines and areas snap
@@ -877,15 +880,15 @@ class Editor {
         };
         scr.addEventListener("pointermove", move); scr.addEventListener("pointerup", up); scr.addEventListener("pointercancel", up);
     }
-    // a note's bubble: its right edge drags it wider or narrower (in monitor pixels, as the bubble keeps its size at any zoom)
+    // a note's bubble: its right edge drags it wider or narrower (in screen points, as the bubble zooms with the screen)
     noteWidth(e: PointerEvent, p: Page, scr: HTMLElement, m: Mark, z: number, bub: HTMLElement) {
-        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width), sg = bub.hasClass("is-l") ? -1 : bub.hasClass("is-t") || bub.hasClass("is-b") ? 2 : 1;
+        const x0 = e.clientX, w0 = m.w ?? Math.round(bub.getBoundingClientRect().width / z), sg = bub.hasClass("is-l") ? -1 : bub.hasClass("is-t") || bub.hasClass("is-b") ? 2 : 1;
         let moved = false;
         scr.setPointerCapture(e.pointerId);
         const move = (ev: PointerEvent) => {
             if (!moved && Math.abs(ev.clientX - x0) < 3) return;
             if (!moved) { moved = true; this.begin(); }
-            m.w = Math.max(60, Math.min(600, Math.round(w0 + sg * (ev.clientX - x0))));
+            m.w = Math.max(60, Math.min(600, Math.round(w0 + sg * (ev.clientX - x0) / z)));
             this.drawMarks(scr, p, z); this.livePanel();
         };
         const up = () => {
@@ -1295,20 +1298,20 @@ class Editor {
         const nch = this.changes().length;
         if (nch) {
             const rv = r.createEl("button", { cls: "vl-review", attr: { "aria-label": "Open the next changed screen: keep or undo it in its panel" } });
-            setIcon(rv.createSpan(), "git-compare"); rv.appendText(`${nch} ${nch === 1 ? "change" : "changes"} to review`);
+            setIcon(rv.createSpan(), "git-compare"); rv.createSpan({ cls: "vl-rvt", text: `${nch} ${nch === 1 ? "change" : "changes"} to review` });
             rv.addEventListener("click", () => this.nextChange());
         }
         // mock screens: options waiting for a choice; a click opens the next one (keep one: tell the agent)
         const mocks = this.doc.pages.filter((p) => p.mock);
         if (mocks.length) {
             const mb = r.createEl("button", { cls: "vl-review is-mock", attr: { "aria-label": "Mock screens: options to compare. Open the next one; tell the agent which to keep" } });
-            setIcon(mb.createSpan(), "git-fork"); mb.appendText(`${mocks.length} ${mocks.length === 1 ? "mock" : "mocks"} to choose`);
+            setIcon(mb.createSpan(), "git-fork"); mb.createSpan({ cls: "vl-rvt", text: `${mocks.length} ${mocks.length === 1 ? "mock" : "mocks"} to choose` });
             mb.addEventListener("click", () => this.nextOf(mocks));
         }
         const ned = this.edits().length;
         if (ned) {
             const eb = r.createEl("button", { cls: "vl-review is-edited", attr: { "aria-label": "Your edits since the screens were last built: copy what changed, screen by screen" } });
-            setIcon(eb.createSpan(), "hammer"); eb.appendText(`${ned} ${ned === 1 ? "edit" : "edits"} to build`);
+            setIcon(eb.createSpan(), "hammer"); eb.createSpan({ cls: "vl-rvt", text: `${ned} ${ned === 1 ? "edit" : "edits"} to build` });
             eb.addEventListener("click", () => this.copyEdits(eb));
         }
         this.btn(r, "settings", "Vellum settings (colours, fonts, snapping)", () => {
