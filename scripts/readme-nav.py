@@ -2,12 +2,15 @@
 into one strip as wide as the banner (980 px). It is more of the banner's floor: each link a concrete slab in the
 floor's tones and grain (2 px pixels), the slabs parted by the floor's own joint. The icons are the headings' own
 (assets/icons/h). Under it a quieter row of the same floor, in two groups: the language switch on the left (the one shown
-in orange, underlined) and on the right what the badges said (the release, the Obsidian it needs, the licence), each with
+in orange, underlined) and on the right what the badges said (the release's version, the Obsidian it needs, the licence), each with
 a pixel square in its old badge colour, one joint between the groups. Writes assets/nav/<lang>-<name>.svg (and
-<lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese.
+<lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese, then sets each picture's
+width in README.md and README.zh-TW.md (a share of the banner's, so the rows scale with it).
 
     python3 scripts/readme-nav.py
 """
+import json
+import math
 import os
 import random
 import re
@@ -27,10 +30,12 @@ LINKS = {
     "zh": ["為何選 Vellum", "安裝", "快速開始", "搭配 agent", "檔案格式", "快捷鍵", "常見問題"],
 }
 ICON_OF = ["star", "download", "play", "robot", "braces", "keyboard", "question"]
+# the version in the release slab: manifest.json's (/cmd-release runs this script in the release commit)
+VERSION = json.load(open(os.path.join(ROOT, "manifest.json"), encoding="utf-8"))["version"]
 # the lower row: (file name, label, square colour; None: a language)
 META = {
-    "en": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "Latest release", "#E9892B"), ("obsidian", "Obsidian 1.6.6+", "#7C3AED"), ("license", "MIT license", "#A3CF7E")],
-    "zh": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "最新版本", "#E9892B"), ("obsidian", "Obsidian 1.6.6 以上", "#7C3AED"), ("license", "MIT 授權", "#A3CF7E")],
+    "en": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", f"Release {VERSION}", "#E9892B"), ("obsidian", "Obsidian 1.6.6+", "#7C3AED"), ("license", "MIT license", "#A3CF7E")],
+    "zh": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", f"版本 {VERSION}", "#E9892B"), ("obsidian", "Obsidian 1.6.6 以上", "#7C3AED"), ("license", "MIT 授權", "#A3CF7E")],
 }
 META_H, META_SIZE, SQ, MPAD, DIM, SOFT, LANG = 40, 16, 10, 18, "#96969B", "#B5B0A6", "#FF5C38"
 
@@ -136,6 +141,20 @@ def main():
             path = os.path.join(OUT, f"{lang}-{name}.svg")
             open(path, "w", encoding="utf-8").write(svg)
             print(path, w)
+    readme_widths()
+
+
+def readme_widths():
+    """each strip picture's width in the READMEs: its share of the banner, rounded down (the row never wraps)"""
+    for name in ("README.md", "README.zh-TW.md"):
+        path = os.path.join(ROOT, name)
+        text = open(path, encoding="utf-8").read()
+        def share(m):
+            svg = open(os.path.join(ROOT, m.group(1)), encoding="utf-8").read()
+            w = int(re.search(r'width="(\d+)"', svg).group(1))
+            return f'{m.group(1)}" width="{math.floor(w / WIDTH * 10000) / 100:.2f}%"'
+        new = re.sub(r'(assets/nav/[\w-]+\.svg)" width="[\d.]+%"', share, text)
+        if new != text: open(path, "w", encoding="utf-8").write(new); print(path, "widths set")
 
 
 if __name__ == "__main__":
