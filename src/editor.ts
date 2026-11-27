@@ -1,4 +1,4 @@
-import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, Scope, setIcon, setTooltip, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { addIcon, App, FuzzySuggestModal, getIconIds, ItemView, Menu, MarkdownPostProcessorContext, MarkdownRenderChild, normalizePath, Notice, Platform, Plugin, Scope, setIcon, setTooltip, TFile, TFolder, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import { barOf, customDevice, deviceOf, DEVICES, framed, KINDS, screenOf, type Device, type DeviceKind } from "./devices";
 import { axes, Bar, bgOf, Block, Guide, Mark, childrenOf, cloneItem, parentOf, Doc, docColours, drawnBlocks, findItem, hasAuto, themeOn, frameOf, GRAVITIES, subtreeOf, Item, ItemType, Layer, layersOf, newItem, Page, parseDoc, serialiseDoc, uid } from "./model";
 import { applyLook, BASE_KINDS, BASE_THEME, colorOf, drawItem, Kind, pictureUrl, setPictureResolver, Theme, UI_COLORS, UI_DERIVED } from "./render";
@@ -209,9 +209,13 @@ class VellumWindow extends ItemView {
         const k = (state as { key?: string })?.key ?? "";
         if (k && k !== this.key) {
             this.key = k; windows.set(k, this);
-            const ed = editors.get(k) ?? (k.includes(".md:") ? undefined : await folderEditor(k.replace(/^vellum:/, "")));
+            // a window put back by Obsidian (a reload, the vault opened again) on an app folder that is gone: a note, no
+            // editor (building one for a deleted folder froze the window)
+            const dir = k.includes(".md:") ? "" : k.replace(/^vellum:/, "");
+            const gone = !editors.has(k) && dir !== "" && !(await folderThere(this.app, dir));
+            const ed = gone ? undefined : editors.get(k) ?? (dir ? await folderEditor(dir) : undefined);
             if (ed) { this.frame(); ed.mount(this.contentEl); this.raiseAfterReload(); }
-            else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: "Open the note with this Vellum block, then Open editor." }); }
+            else { this.contentEl.empty(); this.contentEl.createDiv({ cls: "vl-err", text: gone ? `The folder ${dir} is gone: it was moved or deleted. Close this window and open the app again.` : "Open the note with this Vellum block, then Open editor." }); }
         }
         return super.setState(state, result);
     }
@@ -310,7 +314,7 @@ class Editor {
         window.addEventListener("resize", onResize);
         const key = this.draftKey();
         editors.set(key, this); live.add(this);
-        if (!el || !ctx) return;   // opened on a folder: lives as long as the plugin
+        if (!el || !ctx) { plugin.register(() => window.removeEventListener("resize", onResize)); return; }   // opened on a folder: lives as long as the plugin
         const life = new MarkdownRenderChild(el);
         life.onunload = () => {
             window.removeEventListener("resize", onResize);
@@ -5112,6 +5116,8 @@ export const LOOK_WORDS = {
 let icons: string[] | null = null;
 const iconNames = () => (icons ??= [...new Set(getIconIds().map((n) => n.replace(/^lucide-/, "")))].sort());
 
+// the folder is in the vault (the adapter asked too: the vault's list may not be read yet while Obsidian puts windows back)
+const folderThere = async (app: App, dir: string) => app.vault.getAbstractFileByPath(dir) instanceof TFolder || (await app.vault.adapter.exists(dir).catch(() => false));
 // a folder doc's editor: the one already open, else read from the folder
 let ref: { plugin: Plugin; host: () => VellumHost } | null = null;
 async function folderEditor(dir: string): Promise<Editor | undefined> {
