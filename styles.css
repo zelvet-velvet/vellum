@@ -1082,7 +1082,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-newsver { margin: 12px 0 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; color: var(--text-faint); }
 .vl-newslist { display: flex; flex-direction: column; gap: 12px; margin: 4px 0 8px; }
 .vl-newsrow { display: flex; gap: 12px; align-items: flex-start; }
-.vl-newsicon { flex: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; --nc: var(--interactive-accent); background: color-mix(in srgb, var(--nc) 16%, transparent); color: var(--nc); --icon-size: 18px; }
+.vl-newsicon { flex: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; --nc: var(--interactive-accent); box-sizing: border-box; border: 1.5px solid var(--nc); color: var(--nc); --icon-size: 18px; }   /* a frame in the item's colour, no fill */
 /* each item its own colour from Obsidian's palette, in turn (they suit its light and dark themes) */
 .vl-newslist > .vl-newsrow:nth-child(8n+1) .vl-newsicon { --nc: var(--color-orange); }
 .vl-newslist > .vl-newsrow:nth-child(8n+2) .vl-newsicon { --nc: var(--color-blue); }
