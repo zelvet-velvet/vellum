@@ -1,10 +1,10 @@
-"""The README's link strip under the banner: one picture per link (GitHub can't underline or colour a picture), joined
-into one strip as wide as the banner (980 px). It is more of the banner's floor: each link a concrete slab in the
+"""The README's link strip under the banner: one picture as wide as the banner (980 px), its links drawn in it but not
+links (Obsidian's website shows every picture on a line of its own, so a strip of linked pieces stood in a column there). It is more of the banner's floor: each link a concrete slab in the
 floor's tones and grain (2 px pixels), the slabs parted by the floor's own joint. The icons are the headings' own
-(assets/icons/h). Under it a quieter row of the same floor, in two groups: the language switch on the left (the one shown
+(assets/icons/h). Under it a quieter row, still one picture per piece (the language switch is a link) of the same floor, in two groups: the language switch on the left (the one shown
 in orange, underlined) and on the right what the badges said (the release's version, the Obsidian it needs, the licence), each with
-a pixel square in its old badge colour, parted by the languages' small divider; one joint between the groups. Writes assets/nav/<lang>-<name>.svg (and
-<lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese, then sets each picture's
+a pixel square in its old badge colour, parted by the languages' small divider; one joint between the groups. Writes assets/nav/<lang>-links.svg and
+<lang>-<name>.svg for the lower row (and <lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese, then sets each picture's
 width in README.md and README.zh-TW.md (a share of the banner's, so the rows scale with it).
 
     python3 scripts/readme-nav.py
@@ -83,12 +83,13 @@ def slab(W: int, H: int, i: int, last: bool, seed: int) -> str:
 
 
 def segment(name: str, label: str, W: int, i: int, last: bool, seed: int) -> str:
+    """one link's slab, drawn at 0, 0"""
     body = slab(W, H, i, last, seed)
     _, iw, ih = icon(name, 0, 0)
     x0 = round((W - (2 if not last else 0) - content_width(name, label)) / 2)
     ic, _, _ = icon(name, x0, (H - ih) // 2)
     text = f'<text x="{x0 + iw + GAP}" y="{H / 2 + SIZE * 0.35:.1f}" font-family="{FONT}" font-size="{SIZE}" font-weight="600" fill="{TEXT}">{label}</text>'
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" shape-rendering="crispEdges">{body}{ic}{text}</svg>\n'
+    return body + ic + text
 
 
 def meta_svg(W: int, body: str) -> str:
@@ -134,10 +135,13 @@ def widths(need: list) -> list:
 def main():
     os.makedirs(OUT, exist_ok=True)
     for lang, labels in LINKS.items():
+        x, parts = 0, ""
         for i, (name, label, w) in enumerate(zip(ICON_OF, labels, widths([content_width(n, l) for n, l in zip(ICON_OF, labels)]))):
-            path = os.path.join(OUT, f"{lang}-{name}.svg")
-            open(path, "w", encoding="utf-8").write(segment(name, label, w, i, i == len(labels) - 1, 11 + i))
-            print(path, w)
+            parts += f'<g transform="translate({x} 0)">{segment(name, label, w, i, i == len(labels) - 1, 11 + i)}</g>'
+            x += w
+        path = os.path.join(OUT, f"{lang}-links.svg")
+        open(path, "w", encoding="utf-8").write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{H}" viewBox="0 0 {WIDTH} {H}" shape-rendering="crispEdges">{parts}</svg>\n')
+        print(path, x)
         for name, svg, w in meta_row(lang):
             path = os.path.join(OUT, f"{lang}-{name}.svg")
             open(path, "w", encoding="utf-8").write(svg)
