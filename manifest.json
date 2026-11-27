@@ -3,7 +3,7 @@
   "name": "Vellum",
   "version": "0.13.1",
   "minAppVersion": "1.6.6",
-  "description": "Mobile mockups for plugins and vault apps: lay out screens on real phone frames, saved as small JSON files your coding agent reads and builds from.",
+  "description": "Lay out app screens on real device frames, in your vault. Each screen is a small JSON file your coding agent reads, edits and builds from; its changes wait for your review.",
   "author": "Zaviel",
   "authorUrl": "https://github.com/zelvet-velvet",
   "fundingUrl": "https://ko-fi.com/zelvet_velvet",
