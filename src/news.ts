@@ -79,7 +79,8 @@ export class NewsModal extends Modal {
                 t.createDiv({ cls: "vl-newswords", text: words });
             }
         }
-        const foot = c.createDiv({ cls: "vl-newsfoot" });
+        // under the list, not in it: the list scrolls when it is longer than the window, the links and buttons stay in view
+        const foot = modalEl.createDiv({ cls: "vl-newsfoot" });
         foot.createEl("a", { text: "All release notes", href: "https://github.com/zelvet-velvet/vellum/releases" });
         const right = foot.createDiv({ cls: "vl-newsbtns" });
         const off = right.createEl("button", { text: "Don't show after updates" });
@@ -87,5 +88,5 @@ export class NewsModal extends Modal {
         const ok = right.createEl("button", { cls: "mod-cta", text: "Got it" });
         ok.addEventListener("click", () => this.close());
     }
-    onClose() { this.contentEl.empty(); }
+    onClose() { this.contentEl.empty(); this.modalEl.querySelector(":scope > .vl-newsfoot")?.remove(); }
 }
