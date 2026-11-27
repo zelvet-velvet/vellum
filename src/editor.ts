@@ -278,6 +278,39 @@ const toScreenOf = (win: Window, on: Window) => {
     const y = Math.round(Math.min(Math.max(on.screenY + (on.outerHeight - sz.height) / 2, st), st + b.availHeight - sz.height));
     try { if (ew?.setPosition) ew.setPosition(x, y); else win.moveTo(x, y); } catch { /* not Electron */ }
 };
+// two versions of an app that grew apart from one (base): your unsaved edits (mine) and the files as they are now
+// (theirs, the agent or a sync wrote them). Screen by screen: one only you changed keeps your version, one only the files
+// changed takes theirs, one both changed differently is a clash (the files' version is used; the clash is named). The
+// app's own settings (device, colours, themes...) the same way, setting by setting; the screens' order likewise
+const canon = (v: unknown): string => v === undefined ? "" : JSON.stringify(v, (_k, x: unknown) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x);
+const merge3 = (base: Doc, mine: Doc, theirs: Doc): { doc: Doc; clash: string[]; clashKeys: string[] } => {
+    const clash: string[] = [], clashKeys: string[] = [];
+    const pick = <T,>(b: T, m: T, t: T, onClash: () => void): T => {
+        const cb = canon(b), cm = canon(m), ct = canon(t);
+        if (cm === cb || cm === ct) return t;
+        if (ct === cb) return m;
+        onClash(); return t;
+    };
+    const doc = { ...theirs } as Doc & Record<string, unknown>;
+    const B = base as Doc & Record<string, unknown>, M = mine as Doc & Record<string, unknown>, T = theirs as Doc & Record<string, unknown>;
+    for (const k of new Set([...Object.keys(B), ...Object.keys(M), ...Object.keys(T)])) {
+        if (k === "pages") continue;
+        const v = pick(B[k], M[k], T[k], () => clashKeys.push(k));
+        if (v === undefined) delete doc[k]; else doc[k] = v;
+    }
+    const by = (d: Doc) => new Map(d.pages.map((p) => [p.id, p]));
+    const bp = by(base), mp = by(mine), tp = by(theirs);
+    const ids = new Set([...bp.keys(), ...mp.keys(), ...tp.keys()]), out = new Map<string, Page>();
+    for (const id of ids) { const v = pick(bp.get(id), mp.get(id), tp.get(id), () => clash.push(id)); if (v) out.set(id, v); }
+    // the order: whichever side moved screens (the files' when both did), then any screen only you added, after the one
+    // before it in your order
+    const ord = (d: Doc) => d.pages.map((p) => p.id), bo = canon(ord(base)), mo = ord(mine);
+    const list = (canon(mo) !== bo && canon(ord(theirs)) === bo ? mo : ord(theirs)).filter((id) => out.has(id));
+    mo.forEach((id, i) => { if (out.has(id) && !list.includes(id)) { const prev = mo.slice(0, i).reverse().find((x) => list.includes(x)); list.splice(prev ? list.indexOf(prev) + 1 : 0, 0, id); } });
+    for (const id of out.keys()) if (!list.includes(id)) list.push(id);
+    doc.pages = list.map((id) => out.get(id)!);
+    return { doc, clash, clashKeys };
+};
 class Editor {
     doc: Doc; saved: string; past: string[] = []; future: string[] = []; sel: Sel = null; pending: string | null = null;
     wall!: HTMLElement; panel: HTMLElement | null = null; theme!: Theme; kinds: Kind[];
@@ -294,12 +327,14 @@ class Editor {
         if (error && !store) { this.card.createDiv({ cls: "vl-err", text: error + " Fix it in the source view." }); return; }
         if (error) new Notice(`Vellum (${store!.dir}): ${error}`);
         // unsaved work kept on the device: used when it started from the note as it is now; if the note changed since (the
-        // agent, a sync), the note is shown and the old work is offered back (never silently over the note)
+        // agent, a sync), the two are merged screen by screen and only a screen both changed is offered back (never
+        // silently over the note)
         const draft = this.draftGet();
         if (draft) {
             try {
                 const d = JSON.parse(draft) as { base?: string; doc?: Doc; pages?: unknown };
                 if (d.doc && d.base === this.saved) this.doc = d.doc;
+                else if (d.doc && d.base) this.takeOutside(parseDoc(d.base).doc, d.doc, this.doc);
                 else if (d.doc) this.stale = d.doc;
                 else if (d.pages) this.stale = d as unknown as Doc;   // an older draft without its base: offered back too
             } catch { /* a broken draft is dropped */ }
@@ -433,6 +468,15 @@ class Editor {
     draftGet() { try { return getLocal(this.draftKey()); } catch { return null; } }
     draftPut() { try { if (this.dirty || this.colDirty) setLocal(this.draftKey(), JSON.stringify({ base: this.saved, doc: this.doc })); else if (!this.stale) setLocal(this.draftKey(), null); } catch { /* private mode */ } }
     stale: Doc | null = null;
+    staleIds: string[] | null = null; staleKeys: string[] = [];   // the screens (and app settings) both sides changed; null: all of it
+    // the files changed under unsaved edits: merged screen by screen; what both changed shows the files' version, and
+    // your version of it waits in the banner
+    takeOutside(base: Doc, mine: Doc, theirs: Doc) {
+        const { doc, clash, clashKeys } = merge3(base, mine, theirs);
+        this.doc = doc;
+        if (clash.length || clashKeys.length) { this.stale = mine; this.staleIds = clash; this.staleKeys = clashKeys; }
+        else { this.stale = null; this.staleIds = null; this.staleKeys = []; }
+    }
     // a discrete change: one undo step. Undo steps through the design only: marks (notes for the people and the agent)
     // and the app's colours and themes are carried through undo as they are now, so a change to them alone is no step.
     // step "back": a delete of one of them (a mark, a colour, a theme) is a step, and its undo brings back only what was
@@ -526,8 +570,10 @@ class Editor {
         if (!this.store) return;
         const was = this.beforeKey(), { doc } = await this.store.load(), text = serialiseDoc(doc);
         if (text === this.saved) { if (this.beforeKey() !== was) { this.mapCache = null; this.drawCard(); if (this.root?.isConnected) this.draw(); } return; }
-        if (this.dirty || this.colDirty) this.stale = this.doc;
-        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = []; this.fixSel(); this.draftPut();
+        const mine = this.dirty || this.colDirty ? this.doc : null, base = mine ? parseDoc(this.saved).doc : null;
+        this.doc = doc; this.saved = text; this.colSaved = colsOf(doc); this.colRenames = [];
+        if (mine && base) this.takeOutside(base, mine, doc);
+        this.fixSel(); this.draftPut();
         this.drawCard(); if (this.root?.isConnected) this.draw();
     }
 
@@ -1178,20 +1224,39 @@ class Editor {
     // edits wait. The banner names the screens the edits touch and says what each choice does
     drawStale() {
         if (!this.stale || !this.root) return;
-        const mine = this.stale, now = this.doc, text = (p?: Page) => (p ? JSON.stringify(p) : "");
-        const ids = [...new Set([...mine.pages, ...now.pages].map((p) => p.id))];
-        const names = ids.filter((id) => text(mine.pages.find((p) => p.id === id)) !== text(now.pages.find((p) => p.id === id)))
-            .map((id) => (mine.pages.find((p) => p.id === id) ?? now.pages.find((p) => p.id === id))!.name);
+        const mine = this.stale, now = this.doc, text = (p?: Page) => (p ? JSON.stringify(p) : ""), part = this.staleIds;
+        const ids = part ?? [...new Set([...mine.pages, ...now.pages].map((p) => p.id))].filter((id) => text(mine.pages.find((p) => p.id === id)) !== text(now.pages.find((p) => p.id === id)));
+        const names = ids.map((id) => (mine.pages.find((p) => p.id === id) ?? now.pages.find((p) => p.id === id))?.name ?? id);
+        if (part && this.staleKeys.length) names.push("the app's settings");
         const what = names.length ? (names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ")) : "the app's settings";
         const s = this.root.createDiv({ cls: "vl-stale" });
         setIcon(s.createSpan({ cls: "vl-stalei" }), "alert-triangle");
         const t = s.createSpan({ cls: "vl-stalet" });
-        t.createEl("b", { text: "Your unsaved edits are set aside." });
-        t.appendText(` The files changed since you made them (the agent, a sync), so the files are shown. Your edits touch: ${what}.`);
-        const drop = s.createEl("button", { text: "Keep the files", attr: { "aria-label": "Throw your unsaved edits away and keep the files as they are now" } });
-        drop.addEventListener("click", () => { this.stale = null; try { setLocal(this.draftKey(), null); } catch { /* */ } this.draw(); });
-        const keep = s.createEl("button", { text: "Use my edits", attr: { "aria-label": `Put your version back over the files: the newer changes to ${what} are replaced (Undo brings them back)` } });
-        keep.addEventListener("click", () => { const d = this.stale!; this.stale = null; this.edit(() => { this.doc = d; }); this.draw(); });
+        if (part) {
+            t.createEl("b", { text: `${what}: changed by you and in the files.` });
+            t.appendText(this.dirty ? " The files' version is shown; your other edits are kept, unsaved." : " The files' version is shown.");
+        } else {
+            t.createEl("b", { text: "Your unsaved edits are set aside." });
+            t.appendText(` The files changed since you made them (the agent, a sync), so the files are shown. Your edits touch: ${what}.`);
+        }
+        const done = () => { this.stale = null; this.staleIds = null; this.staleKeys = []; };
+        const drop = s.createEl("button", { text: "Keep the files", attr: { "aria-label": part ? `Keep the files' version of ${what}; your edits to it are thrown away` : "Throw your unsaved edits away and keep the files as they are now" } });
+        drop.addEventListener("click", () => { done(); this.draftPut(); this.draw(); });
+        const keep = s.createEl("button", { text: "Use my edits", attr: { "aria-label": `Put your version of ${what} back over the files' (Undo brings theirs back)` } });
+        keep.addEventListener("click", () => {
+            const keys = this.staleKeys;
+            done();
+            this.edit(() => {
+                if (!part) { this.doc = mine; return; }
+                const d = this.doc as Doc & Record<string, unknown>, m = mine as Doc & Record<string, unknown>;
+                for (const k of keys) { if (m[k] === undefined) delete d[k]; else d[k] = m[k]; }
+                for (const id of part) {
+                    const mp = mine.pages.find((p) => p.id === id), i = d.pages.findIndex((p) => p.id === id);
+                    if (mp && i >= 0) d.pages[i] = mp; else if (mp) d.pages.push(mp); else if (i >= 0) d.pages.splice(i, 1);
+                }
+            });
+            this.draw();
+        });
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
