@@ -434,14 +434,15 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-gapm.is-y:not(.is-band) span { left: calc(3px * var(--u)); }
 /* while dragging: every item's frame, faint and dashed, so the edges to line up with can be seen */
 .vl-screen.is-dragging .vl-block .vl-it:not(.is-sel) { outline: calc(1px * var(--vl-iz, 1)) dashed color-mix(in srgb, var(--vlu-guide, var(--color-pink, #e93147)) 45%, transparent); outline-offset: calc(-0.5px * var(--vl-iz, 1)); }
-.vl-screen:has(> .vl-gapm) .vl-ratio { visibility: hidden; }   /* while gaps or sizes are marked, the size label would sit on their numbers */
+.vl-screen.has-gapm .vl-ratio { visibility: hidden; }   /* while gaps or sizes are marked, the size label would sit on their numbers */
 /* measure (#75): one colour. The area, a dashed frame on every block and item in it, sizes as filled tags, gaps and
    paddings as bars with end ticks and a dark tag. --mu: one screen pixel at any zoom (the Map's thumbnails too) */
 /* laid out at monitor size (--mW, --mH) and scaled down to the screen (--mk): lines stay whole pixels at any zoom */
 .vl-meas { position: absolute; left: 0; top: 0; width: var(--mW, 100%); height: var(--mH, 100%); transform: translate(var(--mx, 0), var(--my, 0)) scale(var(--mk, 1)); transform-origin: 0 0; z-index: 9; pointer-events: none; --mc: var(--vlu-measure, var(--interactive-accent)); --u: var(--mu, 1); --lw: calc(var(--mw, 1.5) * 1px * var(--u)); --lc: color-mix(in srgb, var(--mc) var(--ms, 100%), transparent); }
 .vl-meas > div, .vl-meas-in, .vl-meas-in > div { position: absolute; }
 .vl-meas-clip { overflow: hidden; }
-.vl.is-measuring .vl-stage, .vl.is-measuring .vl-stage * { cursor: crosshair !important; }
+/* the cursors of a mode (measure, hold, pan, mark) win by classes doubled, above every other cursor rule here: no !important */
+.vl.vl.is-measuring.is-measuring .vl-stage.vl-stage, .vl.vl.is-measuring.is-measuring .vl-stage.vl-stage * { cursor: crosshair; }
 .vl-meas-cover { pointer-events: none; }
 /* the area: a clear dashed edge (dashes as a gradient, so they keep their length at any zoom), a faint tint, and the grid */
 /* the area's edge and the frames: dashes drawn as gradients (an outline's width is rounded down to whole pixels, so
@@ -477,7 +478,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-meas-bar.is-x.is-far { border-top: 0; height: var(--lw); background: linear-gradient(90deg, var(--lc) var(--dp), transparent 0) 0 0 / var(--dl) 100% repeat-x; }
 .vl-meas-bar.is-y.is-far { border-left: 0; width: var(--lw); background: linear-gradient(180deg, var(--lc) var(--dp), transparent 0) 0 0 / 100% var(--dl) repeat-y; }
 .vl-meas-tag.is-gap.is-far { opacity: 0.7; box-shadow: none; }
-.vl-screen:has(> .vl-meas) .vl-ratio { visibility: hidden; }
+.vl-screen.has-meas .vl-ratio { visibility: hidden; }
 .vl-meas-hint { position: absolute; z-index: 60; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); font-size: 12px; color: var(--text-muted); }
 .vl-meas-hint.is-hidden { display: none; }
 .vl-meas-hint kbd { padding: 1px 6px; border-radius: 4px; background: var(--background-modifier-hover); color: var(--text-normal); font: 600 11px/1.4 var(--font-interface); }
@@ -851,15 +852,14 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-settings button.vls-dot.is-on { background: var(--interactive-accent); opacity: 1; }
 .vls-pages.is-paged { min-height: 236px; }
 .vls-beside .vls-pages.is-paged { min-height: 120px; }
-.vls-group:only-child { break-inside: auto; }
 .vls-prevcap { margin-top: 8px; text-align: center; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .vls-colbar { display: flex; align-items: center; gap: 8px; padding: 10px var(--vls-pad) 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vls-colbar > span { flex: 1; min-width: 0; }
 .vls-colbar > .vls-sgrp { flex: none; margin-right: 8px; }
-.vls-groups { columns: 2 240px; column-gap: 20px; padding: 0 calc(var(--vls-pad) - 8px) 8px; }
-.vls-group { break-inside: avoid; padding-bottom: 6px; }
+.vls-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(240px, calc((100% - 20px) / 2)), 1fr)); gap: 0 20px; align-items: start; padding: 0 calc(var(--vls-pad) - 8px) 8px; }   /* up to two side by side */
+.vls-group { padding-bottom: 6px; }
 .vls-grp { padding: 10px 8px 4px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
-.vls-colour { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 5px 8px; border-radius: 8px; break-inside: avoid; box-sizing: border-box; }
+.vls-colour { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 5px 8px; border-radius: 8px; box-sizing: border-box; }
 .vls-colour:hover { background: var(--background-modifier-hover); }
 .vls-cname { flex: 1; min-width: 0; }
 .vls-cn { font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -955,10 +955,10 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .vl-block.is-hit { outline: calc(2px * var(--vl-iz, 1)) solid color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block.is-many { overflow: hidden; }
 .vl-marq.is-deep { border-style: dashed; }
-.vl.is-holding, .vl.is-holding * { cursor: crosshair !important; }
+.vl.vl.vl.is-holding.is-holding.is-holding, .vl.vl.vl.is-holding.is-holding.is-holding * { cursor: crosshair; }
 .vl-screen:not(.is-show) .vl-it.is-hit { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
 /* the middle button drags the view */
-.vl-stage.is-panning, .vl-stage.is-panning * { cursor: grabbing !important; }
+.vl-stage.vl-stage.vl-stage.is-panning.is-panning.is-panning, .vl-stage.vl-stage.vl-stage.is-panning.is-panning.is-panning * { cursor: grabbing; }
 
 /* overlays: grids, composition guides, perspective (over the screen, never part of it) */
 .vl-ovl { position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none; overflow: visible; }
@@ -988,7 +988,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* marks: notes, areas and guide lines on a screen (never part of the design). Only their pins, tags, edges and grips
    take the pointer: what is under an area stays easy to pick. Sizes keep to the monitor at any zoom (--vl-iz) */
 .vl-marks { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 8; pointer-events: none; }
-.vl-screen.is-marking, .vl-screen.is-marking *, .vl-screen.is-marking ~ .vl-marks * { cursor: crosshair !important; }
+.vl-screen.vl-screen.vl-screen.is-marking.is-marking.is-marking, .vl-screen.vl-screen.vl-screen.is-marking.is-marking.is-marking *, .vl-screen.vl-screen.vl-screen.is-marking.is-marking.is-marking ~ .vl-marks * { cursor: crosshair; }
 /* blocks past the screen's edge, faded, outside it (the screen clips its own copy, round corners and all) */
 .vl-spill { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
 .vl-spill > .vl-block { opacity: 0.4; pointer-events: auto; cursor: move; outline: calc(1px * var(--vl-iz, 1)) dashed var(--vl-frame); outline-offset: calc(-1px * var(--vl-iz, 1)); }
@@ -1037,8 +1037,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl .vl-markrow:hover { background: var(--background-modifier-hover); }
 
 /* the composition frame: only its tag, edges and corner take the pointer */
-.vl-ovframe { z-index: 7; pointer-events: none; background: transparent !important; border-color: transparent !important; }
-.vl-ovframe.is-moved { border-color: color-mix(in srgb, var(--mc) 60%, transparent) !important; }
+.vl-mark.is-area.vl-ovframe { z-index: 7; pointer-events: none; background: transparent; border-color: transparent; }   /* over .vl-mark.is-area's by its classes */
+.vl-mark.is-area.vl-ovframe.is-moved { border-color: color-mix(in srgb, var(--mc) 60%, transparent); }
 .vl-ovframe .vl-mtag { opacity: 0.85; }
 .vl-ovframe:not(.is-moved) .vl-mtag { bottom: auto; top: 0; border-radius: 0 0 4px 0; transform-origin: 0 0; }
 .vl-ovhint { flex-basis: 100%; font-size: var(--font-ui-smaller); color: var(--text-faint); }
@@ -1102,7 +1102,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-measure > .vl-block { left: 0; top: 0; }
 
 /* Show: the screen's card under its name in the top bar (the pointer resting on the name) */
-.vl-pgname.has-info { cursor: default; text-decoration: underline dotted var(--text-faint); text-underline-offset: 4px; }
+.vl-pgname.has-info { cursor: default; border-bottom: 1px dotted var(--text-faint); padding-bottom: 2px; margin-bottom: -3px; }   /* a dotted underline that takes no room */
 .vl-showinfo { position: absolute; z-index: 30; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: max-content; max-width: min(440px, calc(100% - 16px)); box-sizing: border-box; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28); }
 .vl-showinfo .vl-showfrom { width: 100%; flex-wrap: wrap; }
 .vl-showinfo .vl-showcount { margin-left: auto; padding-left: 12px; white-space: nowrap; }
@@ -1178,8 +1178,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-studio .vlsd-solo { padding: 10px 6px; }
 .vls-studio .vls-prevcap { margin-top: 6px; }
 .vls-studio .vls-colbar { padding: 10px var(--vls-pad) 4px; }
-.vls-studio .vls-groups { columns: auto; padding: 0 8px 2px; }
-.vls-studio:not(.is-editor) .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); column-gap: 12px; }
+.vls-studio .vls-groups { display: block; padding: 0 8px 2px; }
+.vls-studio:not(.is-editor) .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 12px; }
 .vls-studio:not(.is-editor) .vls-cf { width: 132px; }
 .vls-studio .vls-group { padding-bottom: 0; }
 .vls-studio .vls-colour { min-height: 38px; padding: 3px 8px; gap: 10px; }
@@ -1189,7 +1189,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-studio .vls-add { padding: 6px var(--vls-pad) 10px; border-top: 0; }
 /* the editor's colours: the preview on top, then the colours in as many columns as fit */
 .vls-studio.is-editor .vls-prev { padding: 12px var(--vls-pad) 4px; }
-.vls-studio.is-editor .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); column-gap: 8px; }
+.vls-studio.is-editor .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 8px; }
 .vls-studio.is-editor .vls-cf { width: 128px; }
 @media (max-width: 640px) {
     .vls-studio .vls-beside { grid-template-columns: minmax(0, 1fr); }
@@ -1254,7 +1254,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
    (a block's, the screen's, a shape's, a row's) striped where it shows: the stripes sit over its own background and under what it holds
    (z-index -1 in its own stacking), so what covers the fill hides them. The rest of the screen faded */
 .vl-screen.vl-cfocus [data-block], .vl-screen.vl-cfocus [data-id] { transition: opacity 120ms ease-out; }
-.vl-screen.vl-cfocus [data-id]:not(.is-cuse, .is-cfill):not(:has(.is-cuse, .is-cfill)) { opacity: 0.25; }
+.vl-screen.vl-cfocus [data-id]:not(.is-cuse, .is-cfill, .is-cin) { opacity: 0.25; }
 .vl-screen.vl-cfocus .is-cuse { outline: calc(2px * var(--vl-iz, 1)) solid var(--interactive-accent); outline-offset: calc(2px * var(--vl-iz, 1)); }
 .vl-screen.vl-cfocus [data-block].is-cuse { outline-offset: calc(-2px * var(--vl-iz, 1)); }   /* a block's border: inside it (past its edge is cut off) */
 .vl-screen.vl-cfocus .is-cfill { isolation: isolate; }
@@ -1288,8 +1288,8 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vls-edsplit > .vls-list { min-height: 0; display: flex; flex-direction: column; }
 .vls-edsplit > .vls-list > .vls-colbar { flex: none; }
 .vls-edsplit > .vls-list > .vls-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.vls-studio.is-editor .vls-edsplit .vls-groups { columns: auto; }
-.vls-studio.is-editor .vls-edsplit .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); column-gap: 16px; }   /* a group's heading across, its colours two to a row: the list ends evenly */
+.vls-studio.is-editor .vls-edsplit .vls-groups { display: block; }
+.vls-studio.is-editor .vls-edsplit .vls-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0 16px; }   /* a group's heading across, its colours two to a row: the list ends evenly */
 .vls-studio.is-editor .vls-edsplit .vls-grp { grid-column: 1 / -1; }
 .vls-studio.is-editor .vls-edsplit .vls-grp { padding: 8px 8px 2px; }
 .vls-studio.is-editor .vls-edsplit .vls-cf { width: 156px; }   /* room for a colour with its alpha (#E6E3DC14) */

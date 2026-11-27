@@ -31,3 +31,6 @@ Every panel uses one system. Reuse these before adding a control:
 
 ## Styling
 Use Obsidian's CSS variables so every theme works, in light and dark. Prefix classes with `vl-`. Buttons need `.vl .vl-x` specificity to beat Obsidian's defaults. Don't assume a colour is visible: `paper` and `tile` are nearly the panel's own colour in dark themes.
+
+## Obsidian's review
+Its lint runs on every release. Keep new code clear of it: no `el.style.x = …` with a fixed value (a class, `setCssProps` or `setCssStyles`), no `document.createElement` (`createDiv` / `createEl` from an element of the right window), and in CSS no `!important`, `:has`, `columns` / `break-inside` or `text-decoration`. The full list and what is left on purpose: the Vellum note in the vault (`Notes/Vellum.md`, Obsidian's review).

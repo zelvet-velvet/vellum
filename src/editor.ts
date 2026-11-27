@@ -1720,7 +1720,7 @@ class Editor {
     // the file (not the drawn colours): a name, not whatever else happens to look the same
     colourSpot(name: string | null) {
         const w = this.wall; if (!w) return;
-        w.querySelectorAll(".is-cuse, .is-cfill").forEach((el) => el.removeClass("is-cuse", "is-cfill"));
+        w.querySelectorAll(".is-cuse, .is-cfill, .is-cin").forEach((el) => el.removeClass("is-cuse", "is-cfill", "is-cin"));
         w.querySelectorAll(".vl-cfocus").forEach((el) => el.removeClass("vl-cfocus"));
         if (!name) return;
         const shown = new Map<string, HTMLElement>();
@@ -1731,7 +1731,10 @@ class Editor {
             const scr = shown.get(page); if (!scr) return;
             const bEl = el.block ? scr.querySelector(`[data-block="${el.block}"]`) : null;
             const t = el.item ? bEl?.querySelector(`[data-id="${el.item}"]`) : el.block ? bEl : scr;
-            if (t) { t.addClass(fill ? "is-cfill" : "is-cuse"); scr.addClass("vl-cfocus"); }
+            if (!t) return;
+            t.addClass(fill ? "is-cfill" : "is-cuse"); scr.addClass("vl-cfocus");
+            // the items it sits in stay clear too (a class, not :has, for Obsidian's review)
+            for (let a = t.parentElement?.closest("[data-id]"); a && scr.contains(a); a = a.parentElement?.closest("[data-id]")) a.addClass("is-cin");
         });
     }
     // a colour's value as a hex, as it is drawn now (a theme name, var(--…) or any CSS colour)
@@ -2849,6 +2852,7 @@ class Editor {
     // while a drag runs (xs given) every item's frame shows, the edges there are to snap to; guides(scr) alone ends it
     guides(scr: HTMLElement, xs?: number[], ys: number[] = [], marks: GapMark[] = []) {
         scr.querySelectorAll(".vl-guide, .vl-gapm").forEach((g) => g.remove());
+        scr.toggleClass("has-gapm", !!snap.guides && !!xs && marks.length > 0);   // hides the size label under their numbers
         scr.toggleClass("is-dragging", xs !== undefined);
         if (!snap.guides || !xs) return;
         for (const v of xs) { const g = scr.createDiv({ cls: "vl-guide is-v" }); g.style.left = `${v}px`; }
@@ -3246,6 +3250,7 @@ class Editor {
     unmeasure() {
         this.measured = null;
         this.wall?.querySelectorAll(".vl-meas").forEach((el) => el.remove());
+        this.wall?.querySelectorAll(".has-meas").forEach((el) => el.removeClass("has-meas"));
     }
     // the screen's blocks and their items as boxes in screen points (items read as drawn), with names for the copied text
     measureModel(p: Page, scr: HTMLElement): MeasureModel {
@@ -3273,7 +3278,7 @@ class Editor {
         return { groups, name, W: scr.offsetWidth, H: scr.offsetHeight, bg };
     }
     drawMeasure(p: Page, scr: HTMLElement, A: Box, k: number, model = this.measureModel(p, scr)) {
-        scr.querySelectorAll(".vl-meas").forEach((el) => el.remove());
+        scr.querySelectorAll(".vl-meas").forEach((el) => el.remove()); scr.removeClass("has-meas");
         const hit = (a: Box, b: Box) => a.L < b.L + b.W && b.L < a.L + a.W && a.T < b.T + b.H && b.T < a.T + a.H;
         const n = (v: number) => Math.round(v), name = model.name;
         // an area over one group, row or column only (or inside it), the deepest such: its parts are measured, to each
@@ -3440,7 +3445,7 @@ class Editor {
         for (const g of groups) for (const x of g.items) size(x, ["below", "above", "in", "right", "left"], "");
         for (const g of groups) size(g.box, ["corner"], "is-block");
         for (const g of groups) if (g.inner) size(g.inner, ["above", "below", "left", "right"], "is-block");
-        scr.appendChild(lay);   // one write to the page
+        scr.appendChild(lay); scr.addClass("has-meas");   // one write to the page; has-meas hides the size label
         // the same numbers as text, for Copy reference
         const lines = [`Measured on screen "${p.name}" (${p.id}): area x ${n(A.L)} y ${n(A.T)}, ${sz(A)}`];
         for (const g of groups) {
