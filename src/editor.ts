@@ -2654,13 +2654,13 @@ class Editor {
         const el = scr.createDiv({ cls: "vl-block" + (sel || inGroup ? " is-sel" : "") + (sel && this.sel?.item ? " is-host" : "") + (inGroup ? " is-many" : "") + (holds ? " is-holds" : "") + (inh ? " is-inh" : "") + (l?.over ? " is-over" : "") + (b.lock ? " is-lock" : ""), attr: { "data-block": b.id } });
         Object.assign(el.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
         applyLook(this.theme, el.style, b);
-        el.style.setProperty("--k", kind?.color ?? "var(--text-faint)");
         if (!show) {
             // the name tag starts where the top edge is straight: past a rounded corner, not floating off its curve
             const rtl = Array.isArray(b.r) ? Number(b.r[0]) || 0 : b.r ?? 0;
             if (rtl > 0) el.style.setProperty("--vl-rtl", `${Math.min(rtl, b.w / 2, b.h / 2)}px`);
             const tag = el.createDiv({ cls: "vl-tag" });
-            if (inh) setIcon(tag.createSpan({ cls: "vl-tagi" }), "lock");
+            // the kind as an icon (the frame is the selection colour for every kind); a frame's block, the lock
+            setIcon(tag.createSpan({ cls: "vl-tagi" }), inh ? "lock" : kind.icon ?? "square");
             tag.appendText(b.name + (inh ? ` · ${this.page(l.from)?.name ?? "frame"}` : ""));
         }
         for (const it of b.items) drawItem(this.theme, el, it);
