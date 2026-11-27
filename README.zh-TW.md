@@ -94,7 +94,7 @@
 - <img src="assets/icons/h/review.svg" width="13" height="13" alt=""> **確認修改**：agent 修改過的畫面標示 **Changed**；按住 <kbd>B</kbd> 檢視修改前，再選 **Keep** 或 **Undo**
 - <img src="assets/icons/h/select.svg" width="11" height="13" alt=""> **Mock**：請 agent 以子畫面產生兩到三個方案，保留選定的版本
 
-### 檢視整個 app
+### 檢視整個 app 與變更
 
 <p align="center"><img src="assets/map.png" alt="地圖：Invest 畫面與其開啟的畫面以樹狀顯示；兩個 Holdings 選項標為 Mock，Mix 標為 Changed，Watchlist 與 Alerts 標為 Edited"><br><sub><b>地圖</b>：所有畫面以樹狀顯示並標示進入方式；標籤顯示 mock、agent 的變更與你的編輯；點選即開啟</sub></p>
 
