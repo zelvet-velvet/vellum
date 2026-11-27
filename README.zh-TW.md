@@ -15,11 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.svg" width="980" alt="Vellum：app 畫面的草稿在輸送帶上逐塊建好，agent 放上最後一塊，成品畫面送出。草稿進，畫面出。">
-</p>
-
-<p align="center">
-  <a href="#-為何不用-artifact-或-canvas"><img src="assets/nav/zh-star.svg" width="146" height="34" alt="為何選 Vellum"></a><a href="#-安裝"><img src="assets/nav/zh-download.svg" width="79" height="34" alt="安裝"></a><a href="#-快速開始"><img src="assets/nav/zh-play.svg" width="106" height="34" alt="快速開始"></a><a href="#-搭配-agent"><img src="assets/nav/zh-robot.svg" width="117" height="34" alt="搭配 agent"></a><a href="#-檔案格式"><img src="assets/nav/zh-braces.svg" width="108" height="34" alt="檔案格式"></a><a href="#-快捷鍵"><img src="assets/nav/zh-keyboard.svg" width="94" height="34" alt="快捷鍵"></a><a href="#-常見問題"><img src="assets/nav/zh-question.svg" width="105" height="34" alt="常見問題"></a>
+  <img src="assets/banner.svg" width="100%" alt="Vellum：app 畫面的草稿在輸送帶上逐塊建好，agent 放上最後一塊，成品畫面送出。草稿進，畫面出。"><br>
+  <a href="#-為何不用-artifact-或-canvas"><img src="assets/nav/zh-star.svg" width="18.16%" alt="為何選 Vellum"></a><a href="#-安裝"><img src="assets/nav/zh-download.svg" width="11.42%" alt="安裝"></a><a href="#-快速開始"><img src="assets/nav/zh-play.svg" width="14.08%" alt="快速開始"></a><a href="#-搭配-agent"><img src="assets/nav/zh-robot.svg" width="15.10%" alt="搭配 agent"></a><a href="#-檔案格式"><img src="assets/nav/zh-braces.svg" width="14.28%" alt="檔案格式"></a><a href="#-快捷鍵"><img src="assets/nav/zh-keyboard.svg" width="12.85%" alt="快捷鍵"></a><a href="#-常見問題"><img src="assets/nav/zh-question.svg" width="14.08%" alt="常見問題"></a>
 </p>
 
 於儲存庫內以真實裝置外框排版 app 畫面，不需另開設計工具、網站或註冊帳號。每個畫面存為一個小型 JSON 檔，agent 可得知每個元件的位置，並與你修改同一批檔案。

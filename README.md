@@ -15,11 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.svg" width="980" alt="Vellum: drafts of an app's screens ride a belt and are built part by part, the agent carrying the last part in, and leave as finished screens. Drafts in, screens out.">
-</p>
-
-<p align="center">
-  <a href="#-why-not-an-artifact-or-a-canvas"><img src="assets/nav/en-star.svg" width="131" height="34" alt="Why Vellum"></a><a href="#-install"><img src="assets/nav/en-download.svg" width="96" height="34" alt="Install"></a><a href="#-quick-start"><img src="assets/nav/en-play.svg" width="118" height="34" alt="Quick start"></a><a href="#-with-your-agent"><img src="assets/nav/en-robot.svg" width="151" height="34" alt="With your agent"></a><a href="#-file-format"><img src="assets/nav/en-braces.svg" width="120" height="34" alt="File format"></a><a href="#-shortcuts"><img src="assets/nav/en-keyboard.svg" width="113" height="34" alt="Shortcuts"></a><a href="#-faq"><img src="assets/nav/en-question.svg" width="75" height="34" alt="FAQ"></a>
+  <img src="assets/banner.svg" width="100%" alt="Vellum: drafts of an app's screens ride a belt and are built part by part, the agent carrying the last part in, and leave as finished screens. Drafts in, screens out."><br>
+  <a href="#-why-not-an-artifact-or-a-canvas"><img src="assets/nav/en-star.svg" width="15.91%" alt="Why Vellum"></a><a href="#-install"><img src="assets/nav/en-download.svg" width="12.44%" alt="Install"></a><a href="#-quick-start"><img src="assets/nav/en-play.svg" width="14.69%" alt="Quick start"></a><a href="#-with-your-agent"><img src="assets/nav/en-robot.svg" width="17.95%" alt="With your agent"></a><a href="#-file-format"><img src="assets/nav/en-braces.svg" width="14.89%" alt="File format"></a><a href="#-shortcuts"><img src="assets/nav/en-keyboard.svg" width="14.08%" alt="Shortcuts"></a><a href="#-faq"><img src="assets/nav/en-question.svg" width="10.00%" alt="FAQ"></a>
 </p>
 
 Lay out an app's screens on a real device frame, in your vault: no design app, no website, no account. Each screen is a small JSON file, so your agent reads exactly where everything is and edits the same files you do.
