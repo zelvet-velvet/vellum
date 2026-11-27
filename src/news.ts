@@ -5,6 +5,19 @@ import { App, Modal, setIcon } from "obsidian";
 export interface News { version: string; items: [string, string, string][] }   // [icon, title, words]
 export const NEWS: News[] = [
     {
+        version: "0.13.0",
+        items: [
+            ["git-compare", "Review what the agent changed", "A screen the agent changed shows Changed: hold B to see it as it was, then Keep or Undo. Screens you edit show Edited, mocks wait to be chosen."],
+            ["app-window", "The editor in its own window", "On a computer it opens in a window of its own, its top bar the window's bar. Keys 1, 2, 3 for Edit, Show and Map; set every key in Settings → Keys."],
+            ["palette", "Themes for the app and the editor", "An app's own colours and themes (light, dark, any name) for its screens, and a theme for the editor: Obsidian, Light, Dark or your own."],
+            ["ruler", "Measure", "Hold M and drag over an area: every size, gap and padding in it."],
+            ["mouse-pointer-click", "Quicker choosing and snapping", "A click chooses an item, Shift+click several; items snap to equal gaps and sizes, and several move as one."],
+            ["git-fork", "A Map you can work in", "Zoom in to 1600 %, smoothly; arrows move through the tree and Enter opens a screen. Changed, Edited and Mock tags on the frames."],
+            ["sticky-note", "Notes that stay readable", "A note's text sits on any side of its pin; notes that would overlap stack, with a line back to their pin. Marks zoom with the screen."],
+            ["list-tree", "Blocks and Items lists", "Every block and item in a list, each with a lock; the mouse's back button goes up a level."],
+        ],
+    },
+    {
         version: "0.12.0",
         items: [
             ["folders", "Switch apps from the top bar", "Several screen folders in a vault? Click the app's name at the top left: each keeps its own device and last screen."],
