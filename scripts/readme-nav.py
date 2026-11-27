@@ -20,7 +20,7 @@ SLABS = ["#1B1C24", "#1D1E26", "#1A1B22"]          # the banner's floor (scripts
 DARK, LIGHT, JOINT, JOINTL, SEAM, TEXT = "#191A21", "#20212A", "#15161C", "#22232C", "#3A3C4A", "#E6E3DC"
 WIDTH, ACCENT = 980, None   # ACCENT: a colour for a line along the bottom, or None
 FONT = "-apple-system, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif"
-H, SIZE, GAP = 36, 14, 7
+H, SIZE, GAP, ICON = 44, 17, 9, 4 / 3   # ICON: the icons' scale (their pixels drawn 4/3 px)
 
 LINKS = {
     "en": ["Why Vellum", "Install", "Quick start", "With your agent", "File format", "Shortcuts", "FAQ"],
@@ -32,7 +32,7 @@ META = {
     "en": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "Latest release", "#E9892B"), ("obsidian", "Obsidian 1.6.6+", "#7C3AED"), ("license", "MIT license", "#A3CF7E")],
     "zh": [("lang-en", "English", None), ("lang-zh", "繁體中文", None), ("release", "最新版本", "#E9892B"), ("obsidian", "Obsidian 1.6.6 以上", "#7C3AED"), ("license", "MIT 授權", "#A3CF7E")],
 }
-META_H, META_SIZE, SQ, MPAD, DIM, SOFT, LANG = 34, 14, 8, 16, "#96969B", "#B5B0A6", "#FF5C38"
+META_H, META_SIZE, SQ, MPAD, DIM, SOFT, LANG = 40, 16, 10, 18, "#96969B", "#B5B0A6", "#FF5C38"
 
 # advance widths (of 1000) of a semibold sans, enough to size a segment; CJK is one em
 NARROW, WIDE = set("fijlrt "), {"m": 833, "w": 722, "W": 944}
@@ -53,8 +53,9 @@ def icon(name: str, x: int, y: int):
     svg = open(os.path.join(ICONS, name + ".svg"), encoding="utf-8").read()
     vw, vh = map(int, re.search(r'viewBox="0 0 (\d+) (\d+)"', svg).groups())
     rects = re.findall(r'<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" fill="(#\w+)"/>', svg)
-    body = "".join(f'<rect x="{x + int(a)}" y="{y + int(b)}" width="{w}" height="{h}" fill="{f}"/>' for a, b, w, h, f in rects)
-    return body, vw, vh
+    k = ICON
+    body = "".join(f'<rect x="{x + int(a) * k:g}" y="{y + int(b) * k:g}" width="{int(w) * k:g}" height="{int(h) * k:g}" fill="{f}"/>' for a, b, w, h, f in rects)
+    return body, round(vw * k), round(vh * k)
 
 
 def content_width(name: str, label: str) -> float:
@@ -104,14 +105,14 @@ def meta_row(lang: str) -> list:
         if name == f"lang-{lang}":
             body += meta_text(x, label, LANG) + f'<rect x="{x}" y="{META_H - 8}" width="{round(text_width(label, META_SIZE))}" height="2" fill="{LANG}"/>'
         else: body += meta_text(x, label, DIM)
-        if k == 0: body += f'<rect x="{W - 6}" y="11" width="2" height="{META_H - 22}" fill="{SEAM}"/>'
+        if k == 0: body += f'<rect x="{W - 6}" y="12" width="2" height="{META_H - 24}" fill="{SEAM}"/>'
         out.append((name, meta_svg(W, body), W))
-    fw = [round(MPAD + SQ + 6 + text_width(label, META_SIZE) + MPAD) // 2 * 2 for _, label, _ in facts]
+    fw = [round(MPAD + SQ + 8 + text_width(label, META_SIZE) + MPAD) // 2 * 2 for _, label, _ in facts]
     gap = WIDTH - sum(o[2] for o in out) - sum(fw)
     out.append(("meta-gap", meta_svg(gap, slab(gap, META_H, 1, False, 47)), gap))
     for k, ((name, label, sq), W) in enumerate(zip(facts, fw)):
         body = slab(W, META_H, 2, True, 51 + k)
-        body += f'<rect x="{MPAD}" y="{(META_H - SQ) // 2}" width="{SQ}" height="{SQ}" fill="{sq}"/>' + meta_text(MPAD + SQ + 6, label, SOFT)
+        body += f'<rect x="{MPAD}" y="{(META_H - SQ) // 2}" width="{SQ}" height="{SQ}" fill="{sq}"/>' + meta_text(MPAD + SQ + 8, label, SOFT)
         out.append((name, meta_svg(W, body), W))
     return out
 
