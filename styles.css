@@ -174,6 +174,8 @@ textarea.vl-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .vl-tadd svg { width: 12px; height: 12px; }
 .vl-stale { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: color-mix(in srgb, var(--color-orange) 14%, transparent); font-size: var(--font-ui-small); }
 .vl-stale button { height: 26px; font-size: var(--font-ui-smaller); }
+.vl-stalei { display: inline-flex; color: var(--color-orange); --icon-size: 16px; }
+.vl-stalet { flex: 1 1 320px; line-height: 1.4; }
 /* phone: text fields are taps that open the writing window */
 .vl-tap { min-height: 32px; padding: 6px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
 .vl-tap.is-empty { color: var(--text-faint); }

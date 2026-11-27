@@ -1174,14 +1174,24 @@ class Editor {
     camKey() { const v = this.v; return v.map ? "map" : `${this.current()?.id}|${v.land ? 1 : 0}|${v.show ? 1 : 0}`; }
     zbar!: HTMLElement; rail!: HTMLElement; side!: HTMLElement; railTop = 0;
     // unsaved work from before the note changed: offered back, never applied by itself
+    // unsaved edits kept on this device that the files changed under (the agent, a sync): the files are shown and the
+    // edits wait. The banner names the screens the edits touch and says what each choice does
     drawStale() {
         if (!this.stale || !this.root) return;
+        const mine = this.stale, now = this.doc, text = (p?: Page) => (p ? JSON.stringify(p) : "");
+        const ids = [...new Set([...mine.pages, ...now.pages].map((p) => p.id))];
+        const names = ids.filter((id) => text(mine.pages.find((p) => p.id === id)) !== text(now.pages.find((p) => p.id === id)))
+            .map((id) => (mine.pages.find((p) => p.id === id) ?? now.pages.find((p) => p.id === id))!.name);
+        const what = names.length ? (names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ")) : "the app's settings";
         const s = this.root.createDiv({ cls: "vl-stale" });
-        s.createSpan({ text: "The note changed since your unsaved edits on this device. The note is shown." });
-        const keep = s.createEl("button", { text: "Restore my edits" });
-        keep.addEventListener("click", () => { const d = this.stale!; this.stale = null; this.edit(() => { this.doc = d; }); this.draw(); });
-        const drop = s.createEl("button", { text: "Drop them" });
+        setIcon(s.createSpan({ cls: "vl-stalei" }), "alert-triangle");
+        const t = s.createSpan({ cls: "vl-stalet" });
+        t.createEl("b", { text: "Your unsaved edits are set aside." });
+        t.appendText(` The files changed since you made them (the agent, a sync), so the files are shown. Your edits touch: ${what}.`);
+        const drop = s.createEl("button", { text: "Keep the files", attr: { "aria-label": "Throw your unsaved edits away and keep the files as they are now" } });
         drop.addEventListener("click", () => { this.stale = null; try { setLocal(this.draftKey(), null); } catch { /* */ } this.draw(); });
+        const keep = s.createEl("button", { text: "Use my edits", attr: { "aria-label": `Put your version back over the files: the newer changes to ${what} are replaced (Undo brings them back)` } });
+        keep.addEventListener("click", () => { const d = this.stale!; this.stale = null; this.edit(() => { this.doc = d; }); this.draw(); });
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
