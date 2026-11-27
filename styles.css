@@ -63,7 +63,7 @@
 
 /* blocks: a thin faint frame while editing, the chosen one in the selection colour (as chosen items), its kind only as the
    tag's icon; nothing in Show (the real page) */
-.vl-block { position: absolute; box-sizing: border-box; overflow: hidden; z-index: 1; --k: var(--vl-sel, var(--interactive-accent)); --vl-frame: color-mix(in srgb, var(--text-faint) 70%, transparent); }
+.vl-block { position: absolute; box-sizing: border-box; overflow: hidden; z-index: 1; --vl-own: 0 0 transparent; box-shadow: var(--vl-own); --k: var(--vl-sel, var(--interactive-accent)); --vl-frame: color-mix(in srgb, var(--text-faint) 70%, transparent); }
 .vl-screen:not(.is-show) .vl-block { outline: calc(1px * var(--vl-iz, 1)) dashed var(--vl-frame); outline-offset: calc(-1px * var(--vl-iz, 1)); cursor: move; }
 .vl-screen:not(.is-show) .vl-block.is-sel { outline: calc(2px * var(--vl-iz, 1)) solid var(--k); overflow: visible; z-index: 2; }
 /* an item of it chosen: the block a thin dashed line, so the item's own ring is what reads as chosen; its tag still drags it */
@@ -76,11 +76,11 @@
 .vl-anchor { position: absolute; width: calc(9px * var(--vl-iz, 1)); height: calc(9px * var(--vl-iz, 1)); margin: calc(-4.5px * var(--vl-iz, 1)) 0 0 calc(-4.5px * var(--vl-iz, 1)); box-sizing: border-box; border-radius: 50%; background: transparent; border: calc(2px * var(--vl-iz, 1)) solid var(--vl-sel, var(--interactive-accent)); box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) var(--background-primary), inset 0 0 0 calc(1px * var(--vl-iz, 1)) var(--background-primary); z-index: 6; pointer-events: none; }
 
 /* items */
-.vl-it { box-sizing: border-box; --vl-own: 0 0 transparent; }   /* --vl-own: set on an item with its own outline; not taken from a group around it */
+.vl-it { box-sizing: border-box; --vl-own: 0 0 transparent; box-shadow: var(--vl-own); }   /* --vl-own: set on an item with its own outline; not taken from a group around it */
 .vl-it.is-abs { position: absolute; }
-.vl-screen:not(.is-show) .vl-it:hover { box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 50%, transparent), var(--vl-own, 0 0 transparent) !important; }   /* !important: over an item's own outline (an inline inset shadow), kept in it */
-.vl-screen:not(.is-show) .vl-it.is-sel { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) var(--vl-sel, var(--interactive-accent)), 0 0 0 calc(2.5px * var(--vl-iz, 1)) rgba(0, 0, 0, 0.45), var(--vl-own, 0 0 transparent) !important; }
-.vl-it.is-typing { outline: none; box-shadow: 0 0 0 1.5px var(--interactive-accent), var(--vl-own, 0 0 transparent) !important; cursor: text; user-select: text; -webkit-user-select: text; }
+.vl-screen:not(.is-show) .vl-it:hover { box-shadow: 0 0 0 calc(1px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 50%, transparent), var(--vl-own, 0 0 transparent); }   /* the item's own outline (--vl-own) kept inside the frame */
+.vl-screen:not(.is-show) .vl-it.is-sel { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) var(--vl-sel, var(--interactive-accent)), 0 0 0 calc(2.5px * var(--vl-iz, 1)) rgba(0, 0, 0, 0.45), var(--vl-own, 0 0 transparent); }
+.vl-it.is-typing { outline: none; box-shadow: 0 0 0 1.5px var(--interactive-accent), var(--vl-own, 0 0 transparent); cursor: text; user-select: text; -webkit-user-select: text; }
 
 /* the panel: right side on a computer, a bottom sheet on a phone */
 .vl-panel { position: relative; flex: none; width: 300px; display: flex; flex-direction: column; min-height: 0; background: var(--background-primary); border-left: 1px solid var(--background-modifier-border); font-size: var(--font-ui-small); }
@@ -394,7 +394,6 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 /* a frame's blocks on a page that inherits them: faded and locked while editing; an override has a small mark */
 .vl-screen:not(.is-show) .vl-block.is-inh { opacity: 0.5; cursor: pointer; outline-style: dotted; }
 .vl-screen:not(.is-show) .vl-block.is-inh.is-sel { opacity: 0.75; z-index: 1; overflow: hidden; }   /* chosen, it stays under the page's own blocks */
-.vl-screen:not(.is-show) .vl-block.is-inh .vl-it:hover { box-shadow: none; }
 .vl-tagi { display: inline-flex; vertical-align: -1px; margin-right: 2px; --icon-size: calc(var(--vl-ls, 11) * 0.82px); --icon-stroke: 2.5px; }
 .vl-tag > .vl-tagi { vertical-align: 0; margin-right: 0; --icon-stroke: 3px; }   /* in a block's tag the flex row centres it */
 .vl-tagt { line-height: 1; text-box: trim-both cap alphabetic; }   /* the text's box from the capitals' top to the baseline: centred with the icon by its letters */
@@ -956,7 +955,7 @@ body.is-mobile .vl-chead { align-items: flex-start; }
 .vl-screen:not(.is-show) .vl-block.is-many { overflow: hidden; }
 .vl-marq.is-deep { border-style: dashed; }
 .vl.vl.vl.is-holding.is-holding.is-holding, .vl.vl.vl.is-holding.is-holding.is-holding * { cursor: crosshair; }
-.vl-screen:not(.is-show) .vl-it.is-hit { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 70%, transparent); }
+.vl-screen:not(.is-show) .vl-it.is-hit:not(:hover, .is-sel, .is-typing) { box-shadow: 0 0 0 calc(1.5px * var(--vl-iz, 1)) color-mix(in srgb, var(--interactive-accent) 70%, transparent), var(--vl-own, 0 0 transparent); }
 /* the middle button drags the view */
 .vl-stage.vl-stage.vl-stage.is-panning.is-panning.is-panning, .vl-stage.vl-stage.vl-stage.is-panning.is-panning.is-panning * { cursor: grabbing; }
 

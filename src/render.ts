@@ -98,7 +98,7 @@ export const applyLook = (t: Theme, s: CSSStyleDeclaration, o: { fill?: string; 
     if (o.r) s.borderRadius = radiusOf(o.r);
     if (o.sw) {
         const c = colorOf(t, o.stroke ?? "line"), w = px(o.sw), sd = o.sides || "trbl";
-        if (["t", "r", "b", "l"].every((x) => sd.includes(x))) { s.boxShadow = `inset 0 0 0 ${w} ${c}`; s.setProperty("--vl-own", s.boxShadow); return; }   // --vl-own: the editor's hover and chosen frames draw it too
+        if (["t", "r", "b", "l"].every((x) => sd.includes(x))) { s.setProperty("--vl-own", `inset 0 0 0 ${w} ${c}`); return; }   // --vl-own: drawn by the stylesheet, with the editor's hover and chosen frames around it
         const at = { t: `top / 100% ${w}`, b: `bottom / 100% ${w}`, l: `left / ${w} 100%`, r: `right / ${w} 100%` } as const;
         const lines = (["t", "b", "l", "r"] as const).filter((x) => sd.includes(x)).map((x) => `linear-gradient(${c}, ${c}) ${at[x]} no-repeat`);
         s.background = [...lines, fill].filter(Boolean).join(", ");
