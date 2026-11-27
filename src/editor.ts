@@ -2314,6 +2314,8 @@ class Editor {
             box.style.transform = `scale(${k})`;
             box.style.setProperty("--vl-mk", String(1 / Math.max(1, k)));
             sizer.style.width = `${W * k}px`; sizer.style.height = `${H * k}px`;
+            // room over the top row for its tags: they sit past the state's rings (up to 4 px, zooming), at Label size
+            sizer.style.marginTop = `${Math.max(0, editCfg.labelSize * 1.5 + 4 * k + 6 - 32)}px`;
             box.toggleClass("is-tiny", 11 * k < TINY);
         };
         lay(TW);
