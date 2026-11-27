@@ -1100,7 +1100,7 @@ class Editor {
         const toEdit = m === "edit" && !wasEdit;
         if (toEdit) this.setView({ fit: true });   // Edit opens fitted: the whole screen in the window, in its middle
         this.draw();
-        if (toEdit) (this.root?.win ?? window).requestAnimationFrame(() => this.centrePhone());
+        if (toEdit) this.centreSoon();
     }
     // Fit in the Map: the chosen screen's row as tall as the window allows, its
     // link above and its name under it, some room round it, then centred where the tree lets it (its edges stop the scroll)
@@ -1189,7 +1189,10 @@ class Editor {
     }
     // the page in the editor: the one opened (or chosen), else the first
     current(): Page | undefined { return this.doc.pages.find((p) => p.id === (this.v.page ?? this.sel?.page)) ?? this.doc.pages[0]; }
-    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; this.devOpen = false; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); }
+    // another screen: drawn, then scrolled to the stage's middle (a new stage starts at its top left, past the room
+    // round the screen)
+    openPage(p: Page) { this.setView({ page: p.id }); this.sel = null; this.devOpen = false; if (Platform.isMobile) this.setView({ rail: false }); this.draw(); this.centreSoon(); }
+    centreSoon() { if (!this.v.map) (this.root?.win ?? window).requestAnimationFrame(() => this.centrePhone()); }
     bar!: HTMLElement;
     // the top bar: close and where you are on the left, undo / redo / save on the right; nothing else
     drawBar() {
@@ -1476,7 +1479,7 @@ class Editor {
         const pages = this.doc.pages;
         if (parent) { n.parent = parent.id; pages.splice(pages.indexOf(parent) + 1, 0, n); } else pages.push(n);
         this.sel = { page: n.id }; this.setView({ page: n.id });
-    }); this.draw(); }
+    }); this.draw(); this.centreSoon(); }
     // a short tooltip, a line or two, centred; over the pill it opens above
     tip(el: HTMLElement, text: string) { setTooltip(el, text, { placement: "top", classes: ["vl-tip"] }); return el; }
     // a side opened again comes back at its default width (a width dragged by hand lasts until the side is folded)
