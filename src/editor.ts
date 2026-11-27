@@ -759,7 +759,7 @@ class Editor {
         }
         // marks are part of the screen's picture: drawn in screen points (their text size, pin, lines: at 100 % zoom one
         // point a pixel), they zoom with the screen, as the Map's tags zoom with the Map
-        layer.style.setProperty("--vl-iz", "1");
+        layer.setCssProps({ "--vl-iz": "1" });
         this.stackNotes(layer, z);
     }
     // notes whose bubbles would overlap: the lower one is pushed down until it clears the one above, with a thin line back
@@ -1594,7 +1594,7 @@ class Editor {
             const now = c.thumbs.find((th) => th.id === cur?.id); if (now) this.fillThumb(now);
             const { lay, size } = c;
             const full = this.v.mapFit !== false;
-            if (full) c.el.style.padding = "";   // Full: the tree in the window, no room round it (Fit adds it: mapCentre)
+            if (full) c.el.setCssStyles({ padding: "" });   // Full: the tree in the window, no room round it (Fit adds it: mapCentre)
             if (full) {
                 // Full: the chosen screen's whole tree (every screen with no screen chosen) in the window, inside the
                 // map's padding and clear of the pill, up to 200 px a screen
@@ -2448,7 +2448,7 @@ class Editor {
         const skey = JSON.stringify([this.land, this.doc.device ?? "", this.doc.radius ?? "", this.doc.pages.map((p) => [p.id, p.parent ?? "", p.name, p.link ?? "", !!p.mock, p.device ?? "", this.changed(p), this.edited(p)])]);
         const c = this.mapCache;
         if (c && c.skey === skey && c.theme === this.theme) return c;
-        const el = this.wall.doc.createElement("div"); el.addClass("vl-stagemap");
+        const el = this.wall.createDiv({ cls: "vl-stagemap" }); el.detach();   // made in this window's document, kept apart until shown
         return (this.mapCache = { el, skey, theme: this.theme, ...this.drawMap(el, this.mapW(), this.mapPick, true) });
     }
     // brings the Map's thumbnails up to date, nearest to the current screen first: on show, ~8 ms a frame; ahead (idle),
