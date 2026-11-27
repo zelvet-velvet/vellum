@@ -1,33 +1,7 @@
-<h1 align="center">Vellum</h1>
-
 <p align="center">
-  <b>在 Obsidian 內繪製 app 畫面草稿，與 coding agent 協作。</b>
-</p>
-
-<p align="center">
-  <a href="README.md">English</a> · <b>繁體中文</b>
-</p>
-
-<p align="center">
-  <a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="https://img.shields.io/github/v/release/zelvet-velvet/vellum?label=release&color=E9892B" alt="最新版本"></a>
-  <a href="https://obsidian.md"><img src="https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.6-7C3AED?logo=obsidian&logoColor=white" alt="Obsidian 1.6.6 以上"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/zelvet-velvet/vellum?color=A3CF7E" alt="MIT 授權"></a>
-</p>
-
-<p align="center">
-  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
-</p>
-
-<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
-
-<p align="center">
-  <a href="#-為何不用-artifact-或-canvas">為何選 Vellum</a> ·
-  <a href="#-安裝">安裝</a> ·
-  <a href="#-快速開始">快速開始</a> ·
-  <a href="#-搭配-agent">搭配 agent</a> ·
-  <a href="#-檔案格式">檔案格式</a> ·
-  <a href="#-快捷鍵">快捷鍵</a> ·
-  <a href="#-常見問題">常見問題</a>
+  <img src="assets/banner.svg" width="100%" alt="Vellum：app 畫面的草稿在輸送帶上逐塊建好，agent 放上最後一塊，成品畫面送出。草稿進，畫面出。"><br>
+  <a href="#-為何不用-artifact-或-canvas"><img src="assets/nav/zh-star.svg" width="18.97%" alt="為何選 Vellum"></a><a href="#-安裝"><img src="assets/nav/zh-download.svg" width="10.81%" alt="安裝"></a><a href="#-快速開始"><img src="assets/nav/zh-play.svg" width="14.08%" alt="快速開始"></a><a href="#-搭配-agent"><img src="assets/nav/zh-robot.svg" width="15.30%" alt="搭配 agent"></a><a href="#-檔案格式"><img src="assets/nav/zh-braces.svg" width="14.28%" alt="檔案格式"></a><a href="#-快捷鍵"><img src="assets/nav/zh-keyboard.svg" width="12.65%" alt="快捷鍵"></a><a href="#-常見問題"><img src="assets/nav/zh-question.svg" width="13.87%" alt="常見問題"></a><br>
+  <a href="README.md"><img src="assets/nav/zh-lang-en.svg" width="9.59%" alt="English"></a><img src="assets/nav/zh-lang-zh.svg" width="9.59%" alt="繁體中文"><img src="assets/nav/zh-meta-gap.svg" width="30.81%" alt=""><a href="https://github.com/zelvet-velvet/vellum/releases/latest"><img src="assets/nav/zh-release.svg" width="15.30%" alt="最新版本"></a><a href="https://obsidian.md"><img src="assets/nav/zh-obsidian.svg" width="21.83%" alt="Obsidian 1.6.6 以上"></a><a href="LICENSE"><img src="assets/nav/zh-license.svg" width="12.85%" alt="MIT 授權"></a>
 </p>
 
 於儲存庫內以真實裝置外框排版 app 畫面，不需另開設計工具、網站或註冊帳號。每個畫面存為一個小型 JSON 檔，agent 可得知每個元件的位置，並與你修改同一批檔案。
@@ -35,6 +9,8 @@
 - **不限 app 類型**：手機 app、桌面視窗、網頁與 Obsidian 外掛皆可。同一儲存庫可放多個 app，各自一個資料夾
 - **指定元件提出修改**：一鍵複製 block 給 agent，說明要改的地方，於手機外框上確認結果
 - **完整流程**：Map 顯示畫面之間的連結，可與 agent 一起整理 app 的邏輯，而非只有排版
+
+<p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>
 
 <table>
   <tr>
