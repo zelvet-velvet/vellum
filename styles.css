@@ -1298,7 +1298,7 @@ body.mod-macos .vl-top.is-titlebar { padding-left: 80px; }   /* the Mac's own wi
 .vl .vl-winbtn.is-close:hover { background: #e81123; color: #fff; }
 .vl-winbtn svg { width: 16px; height: 16px; }
 /* light panels: the review button's and the list's state outlines in the states' darker ink (after their own rules) */
-.vl.is-light .vl-review { border-color: var(--vl-changed-ink); }
+.vl.is-light .vl-review { border-color: var(--vl-changed-ink); border-width: 2px; padding: 0 9px; }   /* a 1 px line fades on paper; the padding gives back the extra pixel */
 .vl.is-light .vl-review.is-edited { border-color: var(--vl-edited-ink); }
 .vl.is-light .vl-review.is-mock { border-color: var(--vl-mock-ink); }
 .vl.is-light .vl-chtag { border-color: var(--vl-changed-ink); }
