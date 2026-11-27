@@ -2273,7 +2273,8 @@ class Editor {
         }
         // REF: the screen width the map is laid out at; any zoom is that scaled. Names, tags and link labels shrink with
         // their screens (a name is 12 px at 100 %; too small to read, they hide: the frames still say what changed) but never
-        // grow past their size: zoomed in, they keep it on the monitor (--vl-mk), so a top row's tags stay in the window
+        // grow past their size: zoomed in, they keep it on the monitor (scaled by --vl-mk, not drawn in a smaller font:
+        // text under a pixel is laid out wrong), so a top row's tags stay in the window
         const REF = 144, TINY = 6.5;
         const natural = (TW: number) => {
             const slotW = TW + GAP, rowH = Math.max(...pages.map((p) => dims(p, TW).h)) + LABEL + GAP;
@@ -2295,7 +2296,7 @@ class Editor {
             const a = at(par), b = at(p);
             const y0 = a.top + a.h + LABEL - 4, midY = y0 + 8;
             path.setAttribute("d", `M${a.cx} ${y0} V${midY} H${b.cx} V${b.top - 2}`);
-            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `${slotW}px`; label.style.top = `${b.top - 6}px`; }   // its foot just over the sub page (drawn smaller zoomed in: --vl-mk)
+            if (label) { label.style.left = `${b.cx}px`; label.style.maxWidth = `calc(${slotW}px / var(--vl-mk, 1))`; label.style.top = `${b.top - 6}px`; }   // its foot just over the sub page (drawn smaller zoomed in: --vl-mk)
         }
         thumbs.forEach(({ t, ph, scr }, i) => {
             const p = pages[i], q = pos.get(p.id)!, d = dims(p, REF);
