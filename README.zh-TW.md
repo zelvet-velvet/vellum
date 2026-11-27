@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.svg" width="800" alt="於手機外框上編輯畫面，Vellum 存為 JSON 檔，agent 讀寫同一批檔案">
+  <img src="assets/banner.svg" width="980" alt="Vellum：app 畫面的草稿在輸送帶上逐塊建好，agent 放上最後一塊，成品畫面送出。草稿進，畫面出。">
 </p>
 
 <p align="center"><img src="assets/editor.png" alt="Vellum 編輯器：左上角為 app 名稱與下拉選單，畫面列表底部為裝置，手機上選取持股列表，右側面板為其位置與項目"></p>

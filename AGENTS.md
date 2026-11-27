@@ -27,7 +27,8 @@ GitHub runs check, lint and build on every PR (`.github/workflows/check.yml`). R
 | `src/main.ts` | Plugin entry, settings tab |
 | `src/devices.ts` | Phone sizes and safe areas |
 | `scripts/convert-frames.py` | Turns rects drawn as frames into block looks and text boxes (dry run by default) |
-| `scripts/readme-art.py` | The README's pixel icons and banner |
+| `scripts/readme-art.py` | The README's pixel icons |
+| `scripts/readme-banner.py` | The README's banner (`assets/banner.svg`) |
 | `scripts/cdp.mjs` | Drives a running Obsidian for tests and screenshots |
 | `scripts/shots/` | Helpers for the README's screenshots (see the `vl-readme-shots` skill) |
 

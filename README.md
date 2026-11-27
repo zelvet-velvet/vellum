@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.svg" width="800" alt="You edit screens on a phone, Vellum keeps them as JSON files, your agent reads and writes the same files">
+  <img src="assets/banner.svg" width="980" alt="Vellum: drafts of an app's screens ride a belt and are built part by part, the agent carrying the last part in, and leave as finished screens. Drafts in, screens out.">
 </p>
 
 <p align="center"><img src="assets/editor.png" alt="The Vellum editor: the app at the top left with its drop-down, the screens list with the device at its foot, the phone with the holdings list chosen, its place and items in the panel on the right"></p>
