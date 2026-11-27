@@ -3,7 +3,7 @@ into one strip as wide as the banner (980 px). It is more of the banner's floor:
 floor's tones and grain (2 px pixels), the slabs parted by the floor's own joint. The icons are the headings' own
 (assets/icons/h). Under it a quieter row of the same floor, in two groups: the language switch on the left (the one shown
 in orange, underlined) and on the right what the badges said (the release's version, the Obsidian it needs, the licence), each with
-a pixel square in its old badge colour, one joint between the groups. Writes assets/nav/<lang>-<name>.svg (and
+a pixel square in its old badge colour, parted by the languages' small divider; one joint between the groups. Writes assets/nav/<lang>-<name>.svg (and
 <lang>-meta-gap.svg, the bare floor between the groups) for English and Traditional Chinese, then sets each picture's
 width in README.md and README.zh-TW.md (a share of the banner's, so the rows scale with it).
 
@@ -118,6 +118,7 @@ def meta_row(lang: str) -> list:
     for k, ((name, label, sq), W) in enumerate(zip(facts, fw)):
         body = slab(W, META_H, 2, True, 51 + k)
         body += f'<rect x="{MPAD}" y="{(META_H - SQ) // 2}" width="{SQ}" height="{SQ}" fill="{sq}"/>' + meta_text(MPAD + SQ + 8, label, SOFT)
+        if k < len(facts) - 1: body += f'<rect x="{W - 2}" y="12" width="2" height="{META_H - 24}" fill="{SEAM}"/>'   # the languages' divider
         out.append((name, meta_svg(W, body), W))
     return out
 
